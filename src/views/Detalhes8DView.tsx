@@ -157,7 +157,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
   const isProtecaoAtiva = rnc.protcliente && rnc.protcliente !== 'Não';
 
   return (
-    <div className="w-full flex flex-col gap-6 animate-in fade-in duration-150 pb-16">
+    <div className="w-full flex flex-col gap-4 animate-in fade-in duration-150 pb-16">
       
       {/* Toast Notification */}
       {notification && (
@@ -177,7 +177,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
       )}
 
       {/* 1. CABEÇALHO UNIFICADO DO REGISTRO (ÁREAS A, B, C, D COM HIERARQUIA E RESPIRO) */}
-      <div className="card-saas p-6 sm:p-7 flex flex-col gap-5">
+      <div className="card-saas p-5 sm:p-6 flex flex-col gap-4">
         
         {/* Bloco A — Identificação da Ocorrência (Número, Status, Tipo e Metadados com Amplo Respiro) */}
         <div className="flex flex-col gap-3 pb-4 border-b border-[#f1f5f9]">

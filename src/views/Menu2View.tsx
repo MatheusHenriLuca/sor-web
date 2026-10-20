@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { 
   ClipboardList, 
   ShieldAlert, 
@@ -13,7 +13,9 @@ import {
   BarChart3,
   Layers,
   Sparkles,
-  Calendar
+  Calendar,
+  Search,
+  X
 } from 'lucide-react';
 import { UsuarioQualidade, RNCRecord } from '../types';
 import { spStore } from '../services/sharepointService';
@@ -30,6 +32,7 @@ export const Menu2View: React.FC<Menu2ViewProps> = ({
   onNavigate,
   onOpenSharePointModal
 }) => {
+  const [searchQuery, setSearchQuery] = useState('');
   const perfil = currentUser.perfil;
   const isOperator = perfil === 'User';
 
@@ -113,40 +116,42 @@ export const Menu2View: React.FC<Menu2ViewProps> = ({
   };
 
   return (
-    <div className="w-full flex flex-col gap-6 sm:gap-8 animate-in fade-in duration-200">
+    <div className="w-full flex flex-col gap-4 animate-in fade-in duration-150">
       
-      {/* 1. CABEÇALHO DA PÁGINA INICIAL */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#e2e8f0]">
-        <div>
-          <div className="flex items-center gap-2 mb-1.5">
-            <span className="text-[11px] font-display font-semibold uppercase tracking-wider text-[#0b5796] bg-blue-50/80 px-2.5 py-0.5 rounded-full border border-blue-200/60 shadow-xs">
-              Gestamp Sorocaba • Planta Sorocaba
-            </span>
-          </div>
-          <h1 className="text-xl sm:text-3xl font-display font-bold text-[#0f172a] tracking-tight">
-            Olá, {currentUser.nome ? currentUser.nome.split(' ')[0] : 'Usuário'} • Visão geral da qualidade
-          </h1>
-          <p className="text-xs sm:text-sm text-[#475569] mt-1 leading-relaxed max-w-2xl text-balance">
-            Painel corporativo de não conformidades, protocolos de proteção ao cliente e metodologia 8D.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2.5 self-start sm:self-auto shrink-0">
-          {!isOperator && (
+      {/* 1. BARRA DE PESQUISA COMPACTA (Altura Enxuta, Sem Duplicações) */}
+      <div className="w-full">
+        <form 
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (searchQuery.trim()) {
+              onNavigate('lista-8d', { search: searchQuery.trim() });
+            }
+          }} 
+          className="relative w-full max-w-xl"
+        >
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Pesquisar por RNC, peça, cliente ou código SAP..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="w-full h-10 !pl-10 !pr-10 bg-white text-slate-900 placeholder-slate-400 text-xs sm:text-sm rounded-xl border border-slate-200 focus:border-[#0b5796] focus:ring-2 focus:ring-[#0b5796]/15 outline-none shadow-2xs transition-all"
+          />
+          {searchQuery && (
             <button
               type="button"
-              onClick={() => onNavigate('registro-8d', { edicao: false })}
-              className="btn-primary !h-10.5 !px-4 text-xs sm:text-sm font-semibold shadow-sm hover:shadow"
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+              title="Limpar campo"
             >
-              <Plus className="w-4 h-4 stroke-[2.5]" />
-              <span className="font-display">Nova RNC / 8D</span>
+              <X className="w-3.5 h-3.5" />
             </button>
           )}
-        </div>
+        </form>
       </div>
 
-      {/* 2. CARDS DE INDICADORES (MÉTRICAS ESCULPIDAS COM BRILHO TÊNUE E TABULAR NUMS) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+      {/* 2. CARDS DE INDICADORES (Espaçamento Padrão de 16px / gap-4) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
         {/* Card 1: Total RNCs */}
         <div
@@ -321,7 +326,7 @@ export const Menu2View: React.FC<Menu2ViewProps> = ({
       </div>
 
       {/* 4. RESUMO GERENCIAL POR MONTADORA (DADOS REAIS COM BARRAS PROPORCIONAIS) */}
-      <div className="card-saas p-6 flex flex-col gap-5">
+      <div className="card-saas p-4 sm:p-5 flex flex-col gap-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3.5 border-b border-[#e2e8f0] gap-2">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-blue-50 text-[#0f6cbd] flex items-center justify-center border border-blue-100/70 shadow-xs">

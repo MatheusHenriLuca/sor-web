@@ -54,6 +54,33 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
     }
   };
 
+  const getScreenTitle = (screen: ActiveScreen): string => {
+    switch (screen) {
+      case 'menu-2':
+        return 'Painel de Gerenciamento de Não Conformidades';
+      case 'lista-8d':
+        return 'Lista de Ocorrências e Relatórios 8D';
+      case 'detalhes-8d':
+        return 'Detalhes do Registro 8D • Tratativa da Qualidade';
+      case 'registro-8d':
+        return 'Abertura e Edição de RNC / 8D';
+      case 'rastreabilidade':
+        return 'Rastreabilidade SAP • Lotes e Etiquetas';
+      case 'falha-entrega':
+        return 'Controle de Falhas de Entrega';
+      case 'cadastro-usuarios':
+        return 'Gestão de Usuários e Permissões';
+      case 'registro-protcli':
+        return 'Protocolo de Proteção ao Cliente';
+      case 'impressao-8d':
+        return 'Ficha Física de Posto de Trabalho (A4)';
+      case 'verif-user':
+        return 'Autenticação de Usuário';
+      default:
+        return 'Painel de Gerenciamento de Não Conformidades';
+    }
+  };
+
   const getInitials = (name: string) => {
     const parts = name.trim().split(' ');
     if (parts.length >= 2) {
@@ -63,7 +90,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   };
 
   return (
-    <header className="h-14 glass-nav px-3 sm:px-6 flex items-center justify-between select-none sticky top-0 z-40">
+    <header className="h-14 glass-nav px-3 sm:px-6 flex items-center justify-between select-none sticky top-0 z-40 border-b border-slate-200/80">
       
       {/* Esquerda: Menu Hamburguer Mobile + Marca SOR */}
       <div className="flex items-center gap-2 sm:gap-3">
@@ -104,55 +131,19 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                 • 8D & RNC
               </span>
             </div>
-            <span className="hidden md:block text-[10px] font-medium text-slate-500 leading-none -mt-0.5">
-              Gestamp Sorocaba
-            </span>
           </div>
         </div>
       </div>
 
-      {/* Centro: Barra de Pesquisa Rápida Global */}
-      <div className="hidden md:flex items-center justify-center flex-1 max-w-md mx-6">
-        <form onSubmit={handleGlobalSearch} className="w-full relative flex items-center">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
-          <input
-            type="text"
-            placeholder="Pesquisar RNC, peça, cliente ou SAP..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            className="w-full h-[38px] !pl-[42px] !pr-16 bg-slate-50/80 hover:bg-slate-100/60 focus:bg-white text-slate-900 placeholder-slate-400 text-[13px] rounded-xl border border-slate-200/90 focus:border-[#0b5796] focus:ring-2 focus:ring-[#0b5796]/15 focus:outline-none transition-all shadow-2xs leading-normal"
-          />
-          <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
-            {searchTerm ? (
-              <button
-                type="button"
-                onClick={() => setSearchTerm('')}
-                className="text-slate-400 hover:text-slate-700 p-1 cursor-pointer"
-                title="Limpar pesquisa"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            ) : (
-              <kbd className="hidden lg:inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono text-slate-400 bg-white/80 border border-slate-200/80 rounded shadow-2xs select-none pointer-events-none">
-                ⌘K
-              </kbd>
-            )}
-          </div>
-        </form>
+      {/* Centro: Título Dinâmico da Tela no Topo Superior */}
+      <div className="flex items-center justify-center flex-1 px-3 sm:px-6 text-center max-w-2xl">
+        <h1 className="text-xs sm:text-sm lg:text-[15px] font-display font-bold text-slate-800 tracking-tight truncate">
+          {getScreenTitle(currentScreen)}
+        </h1>
       </div>
 
       {/* Direita: Ações Rápidas, Telemetria & Perfil */}
       <div className="flex items-center gap-1.5 sm:gap-2">
-        
-        {/* Botão de Pesquisa para telas pequenas */}
-        <button
-          type="button"
-          onClick={() => setMobileSearchOpen(!mobileSearchOpen)}
-          className="md:hidden w-9 h-9 rounded-xl flex items-center justify-center text-slate-600 hover:bg-slate-100/80 transition-all cursor-pointer active:scale-95"
-          title="Pesquisar"
-        >
-          <Search className="w-4 h-4" />
-        </button>
 
         {/* Status SharePoint Online */}
         <button
@@ -254,33 +245,6 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         </div>
 
       </div>
-
-      {/* Caixa de Pesquisa Expansível para Mobile */}
-      {mobileSearchOpen && (
-        <div className="md:hidden absolute top-14 left-0 right-0 bg-white border-b border-[#e2e8f0] p-3 shadow-md z-40 animate-in slide-in-from-top-2">
-          <form onSubmit={handleGlobalSearch} className="relative flex items-center">
-            <Search className="w-4 h-4 text-[#64748b] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
-            <input
-              type="text"
-              autoFocus
-              placeholder="Pesquisar RNC, peça, cliente ou SAP..."
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              className="w-full h-[38px] !pl-[42px] !pr-9 bg-[#f8fafc] hover:bg-[#f1f5f9] focus:bg-white text-[#0f172a] placeholder-[#94a3b8] text-[13px] rounded-lg border border-[#e2e8f0] focus:border-[#0f6cbd] focus:ring-2 focus:ring-[#0f6cbd]/15 focus:outline-none transition-all leading-normal"
-            />
-            {searchTerm && (
-              <button
-                type="button"
-                onClick={() => setSearchTerm('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#94a3b8] hover:text-[#0f172a] p-1 cursor-pointer"
-                title="Limpar pesquisa"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </form>
-        </div>
-      )}
 
     </header>
   );

@@ -361,7 +361,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
   };
 
   return (
-    <div className="w-full max-w-5xl flex flex-col gap-6 pb-24 animate-in fade-in duration-150">
+    <div className="w-full max-w-5xl flex flex-col gap-4 pb-24 animate-in fade-in duration-150">
       
       {/* Toast Notification */}
       {notification && (

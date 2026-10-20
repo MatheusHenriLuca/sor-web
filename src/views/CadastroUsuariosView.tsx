@@ -114,7 +114,7 @@ export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({ onNa
   );
 
   return (
-    <div className="w-full flex flex-col gap-6 pb-16 animate-in fade-in duration-200">
+    <div className="w-full flex flex-col gap-4 pb-16 animate-in fade-in duration-150">
       
       {/* Toast Notification */}
       {notification && (

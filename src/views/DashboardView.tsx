@@ -36,28 +36,25 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, curren
   const isOperator = currentUser.perfil === 'User';
 
   return (
-    <div className="w-full flex flex-col gap-6 pb-16 animate-in fade-in duration-200">
+    <div className="w-full flex flex-col gap-4 pb-16 animate-in fade-in duration-150">
       
       {/* Top Welcome Banner */}
-      <header className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#061338] via-[#092162] to-[#0d348a] text-white p-6 sm:p-8 shadow-xl border border-sky-500/20">
+      <header className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#061338] via-[#092162] to-[#0d348a] text-white p-5 sm:p-6 shadow-md border border-sky-500/20">
         <div className="absolute top-0 right-0 w-96 h-96 bg-sky-400/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="px-3 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider bg-white/10 text-sky-200 border border-white/15">
-                Planta Gestamp Brasil • Gestão da Qualidade
-              </span>
+            <div className="flex items-center gap-2 mb-1.5">
               <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 Live 8D Engine
               </span>
             </div>
             
-            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-              Cockpit da Qualidade • Olá, {currentUser.nome.split(' ')[0]}
+            <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+              Cockpit de Indicadores da Qualidade
             </h1>
             <p className="text-xs sm:text-sm text-sky-200/80 max-w-2xl mt-1 leading-relaxed">
-              Sistema Integrado de Tratativa de Produto Não Conforme e Metodologia 8D. Rastreabilidade SAP e regras de proteção ao cliente ativas.
+              Tratativa de Não Conformidades, Metodologia 8D e Rastreabilidade SAP em tempo real.
             </p>
           </div>
 
@@ -179,7 +176,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, curren
       </section>
 
       {/* Bento Grid: Ocorrências Recentes + Alertas & Atalhos */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         
         {/* Tabela de Ocorrências Recentes (2 colunas) */}
         <div className="lg:col-span-2 card-saas overflow-hidden flex flex-col justify-between">
@@ -261,7 +258,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, curren
         </div>
 
         {/* Alertas & Atalhos Rápidos (1 coluna) */}
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-4">
           
           {/* Alertas da Qualidade */}
           <div className="card-saas p-5 flex flex-col gap-3.5">

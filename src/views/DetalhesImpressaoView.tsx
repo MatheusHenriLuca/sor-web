@@ -56,7 +56,7 @@ export const DetalhesImpressaoView: React.FC<DetalhesImpressaoViewProps> = ({ rn
   };
 
   return (
-    <div className="w-full flex flex-col gap-5 pb-16 animate-in fade-in duration-200">
+    <div className="w-full flex flex-col gap-4 pb-16 animate-in fade-in duration-150">
       
       {/* Top Action Bar (Hidden during print) */}
       <div className="no-print flex flex-col sm:flex-row sm:items-center justify-between gap-3">

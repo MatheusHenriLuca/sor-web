@@ -192,7 +192,7 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
   };
 
   return (
-    <div className="w-full flex flex-col gap-5 animate-in fade-in duration-200 pb-12">
+    <div className="w-full flex flex-col gap-4 animate-in fade-in duration-150 pb-12">
       
       {/* 1. CABEÇALHO DA PÁGINA */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 pb-4 border-b border-[#e2e8f0]">

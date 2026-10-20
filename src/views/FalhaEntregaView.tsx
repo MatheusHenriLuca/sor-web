@@ -79,7 +79,7 @@ export const FalhaEntregaView: React.FC<FalhaEntregaViewProps> = ({ onNavigate, 
   const totalPecas = falhas.reduce((acc, curr) => acc + (curr.qtdFalha || 0), 0);
 
   return (
-    <div className="w-full flex flex-col gap-6 pb-16 animate-in fade-in duration-200">
+    <div className="w-full flex flex-col gap-4 pb-16 animate-in fade-in duration-150">
       
       {/* Toast Notification */}
       {notification && (

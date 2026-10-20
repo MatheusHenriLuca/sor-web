@@ -96,7 +96,7 @@ export const RegistroProtCliView: React.FC<RegistroProtCliViewProps> = ({ onNavi
   const isValidSap = etiquetaSap.length === 9 && /^\d+$/.test(etiquetaSap);
 
   return (
-    <div className="w-full max-w-4xl flex flex-col gap-6 pb-16">
+    <div className="w-full max-w-4xl flex flex-col gap-4 pb-16">
       
       {/* Toast Notification */}
       {notification && (

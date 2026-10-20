@@ -84,7 +84,9 @@ const INITIAL_PECAS: PecaCatalogo[] = [
     nestingLevel: 0, 
     codCliText: "53201-0D120", 
     componente: "53201-0D120 - PAINEL DIANTEIRO", 
-    carryOver: "Não" 
+    carryOver: "Não",
+    coProduto: "Não",
+    caracteristicaSeguranca: "Sim"
   },
   { 
     identificacao: 2, 
@@ -97,7 +99,9 @@ const INITIAL_PECAS: PecaCatalogo[] = [
     nestingLevel: 1, 
     codCliText: "53201-0D121", 
     componente: "53201-0D121 - REFORÇO SUPERIOR", 
-    carryOver: "Sim" 
+    carryOver: "Sim",
+    coProduto: "Não",
+    caracteristicaSeguranca: "Não"
   },
   { 
     identificacao: 3, 
@@ -110,7 +114,9 @@ const INITIAL_PECAS: PecaCatalogo[] = [
     nestingLevel: 1, 
     codCliText: "53201-0D122", 
     componente: "53201-0D122 - SUPORTE TRAVA CAPÔ", 
-    carryOver: "Não" 
+    carryOver: "Não",
+    coProduto: "Não",
+    caracteristicaSeguranca: "Sim"
   },
   { 
     identificacao: 4, 
@@ -123,7 +129,9 @@ const INITIAL_PECAS: PecaCatalogo[] = [
     nestingLevel: 0, 
     codCliText: "53205-0D080", 
     componente: "53205-0D080 - SUPORTE RADIADOR", 
-    carryOver: "Não" 
+    carryOver: "Não",
+    coProduto: "Sim",
+    caracteristicaSeguranca: "Não"
   },
   { 
     identificacao: 5, 
@@ -136,7 +144,9 @@ const INITIAL_PECAS: PecaCatalogo[] = [
     nestingLevel: 1, 
     codCliText: "53205-0D081", 
     componente: "53205-0D081 - SUPORTE LH", 
-    carryOver: "Não" 
+    carryOver: "Não",
+    coProduto: "Sim",
+    caracteristicaSeguranca: "Não"
   },
   { 
     identificacao: 6, 
@@ -149,7 +159,9 @@ const INITIAL_PECAS: PecaCatalogo[] = [
     nestingLevel: 0, 
     codCliText: "57011-02230", 
     componente: "57011-02230 - LONGARINA RH", 
-    carryOver: "Não" 
+    carryOver: "Não",
+    coProduto: "Sim",
+    caracteristicaSeguranca: "Sim"
   },
   { 
     identificacao: 7, 
@@ -162,7 +174,9 @@ const INITIAL_PECAS: PecaCatalogo[] = [
     nestingLevel: 1, 
     codCliText: "57011-02231", 
     componente: "57011-02231 - FECHAMENTO RH", 
-    carryOver: "Sim" 
+    carryOver: "Sim",
+    coProduto: "Sim",
+    caracteristicaSeguranca: "Sim"
   },
   { 
     identificacao: 8, 
@@ -175,7 +189,9 @@ const INITIAL_PECAS: PecaCatalogo[] = [
     nestingLevel: 0, 
     codCliText: "57012-02230", 
     componente: "57012-02230 - LONGARINA LH", 
-    carryOver: "Não" 
+    carryOver: "Não",
+    coProduto: "Sim",
+    caracteristicaSeguranca: "Sim"
   },
   { 
     identificacao: 9, 
@@ -188,7 +204,9 @@ const INITIAL_PECAS: PecaCatalogo[] = [
     nestingLevel: 0, 
     codCliText: "61201-02380", 
     componente: "61201-02380 - COLUNA B", 
-    carryOver: "Não" 
+    carryOver: "Não",
+    coProduto: "Não",
+    caracteristicaSeguranca: "Sim"
   },
 
   // --- HONDA (CITY / HR-V) ---
@@ -1170,7 +1188,10 @@ class SharePointDataStore {
       status: rnc.status || "Relatório Inicial",
       cliente: rnc.cliente || DEFAULT_CLIENTE,
       dataOcorrencia: rnc.dataOcorrencia || new Date().toISOString().split('T')[0],
-      dataOficializacao: new Date().toISOString().split('T')[0],
+      dataOficializacao: rnc.dataOficializacao || new Date().toISOString().split('T')[0],
+      codOcorrenciaCliente: rnc.codOcorrenciaCliente || "",
+      impactoCliente: rnc.impactoCliente || "",
+      detalhamentoOcorrencia: rnc.detalhamentoOcorrencia || "",
       classificacaoSetor: rnc.classificacaoSetor || "SOLDA 2 - CEL. TOYOTA",
       setorDeteccao: rnc.setorDeteccao || "Linha de Montagem",
       turno: rnc.turno || "1º Turno",
@@ -1178,6 +1199,7 @@ class SharePointDataStore {
       componente: rnc.componente || "",
       finalComponente: rnc.finalComponente || "Peça Final",
       quantidadeAfetada: rnc.quantidadeAfetada || 1,
+      modoFalha: rnc.modoFalha || "",
       descricaoProblema: rnc.descricaoProblema || "",
       descricaoCompleta: rnc.descricaoCompleta || "",
       fotoPecaNg: rnc.fotoPecaNg || "",
@@ -1187,6 +1209,7 @@ class SharePointDataStore {
       carryOver: rnc.carryOver || "Não",
       reincidente: rnc.reincidente || "NÃO",
       gravidade: rnc.gravidade || "Média",
+      possivelDetectar: rnc.possivelDetectar || "Sim",
       posto: rnc.posto || "POSTO 01",
       fmds: rnc.fmds || "SOLDA GERAL",
       acoesContencao: rnc.acoesContencao || "",
@@ -1229,6 +1252,33 @@ class SharePointDataStore {
 
   public addRNC(rnc: Partial<RNCRecord>): RNCRecord & { success: boolean; message: string } {
     return this.saveRNC(rnc);
+  }
+
+  /**
+   * Consulta histórico de reincidências para a peça/componente selecionado,
+   * espelhando a fórmula do Power Apps:
+   * Filter(varReincidente, ID <> ThisItem.ID && (Left(produto,9) = Material || Left(componente,9) = Componente))
+   */
+  public getHistoricoReincidencias(produtoOuCodCli?: string, modoFalha?: string, rncAtualId?: number): RNCRecord[] {
+    if (!produtoOuCodCli) return [];
+    const termo = produtoOuCodCli.trim().toUpperCase();
+    const modoTermo = (modoFalha || '').trim().toUpperCase();
+
+    return this.rncs.filter(r => {
+      if (rncAtualId && r.id === rncAtualId) return false;
+      const rProd = (r.produto || '').toUpperCase();
+      const rComp = (r.componente || '').toUpperCase();
+      const matchPeca = rProd.includes(termo) || termo.includes(rProd) || rComp.includes(termo) || termo.includes(rComp);
+      return matchPeca;
+    }).sort((a, b) => {
+      // Se coincidir também o modo de falha, ordena no topo
+      if (modoTermo) {
+        const aMatchModo = ((a.modoFalha || a.descricaoProblema || '').toUpperCase().includes(modoTermo)) ? 1 : 0;
+        const bMatchModo = ((b.modoFalha || b.descricaoProblema || '').toUpperCase().includes(modoTermo)) ? 1 : 0;
+        if (aMatchModo !== bMatchModo) return bMatchModo - aMatchModo;
+      }
+      return b.id - a.id;
+    });
   }
 
   // Double Closure Guard do Power Apps: BtnCocluirrnc

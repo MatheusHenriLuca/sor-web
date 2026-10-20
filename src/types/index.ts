@@ -60,6 +60,8 @@ export interface PecaCatalogo {
   codCliText: string;
   componente?: string;
   carryOver?: string;
+  coProduto?: 'Sim' | 'Não';
+  caracteristicaSeguranca?: 'Sim' | 'Não';
 }
 
 export interface SharePointConfig {
@@ -85,6 +87,9 @@ export interface RNCRecord {
   cliente: string;
   dataOcorrencia: string; // ISO Date YYYY-MM-DD
   dataOficializacao?: string;
+  codOcorrenciaCliente?: string; // Código Ocorrência Montadora (Portal Cliente)
+  impactoCliente?: string; // Impacto na Linha da Montadora
+  detalhamentoOcorrencia?: string; // Detalhes adicionais do cliente
   classificacaoSetor: string; // ex: SOLDA 1 - ESTACIONÁRIAS
   setorDeteccao: string;
   turno: '1º Turno' | '2º Turno' | '3º Turno' | 'Central';
@@ -93,6 +98,7 @@ export interface RNCRecord {
   subcomponente?: string;
   finalComponente?: 'Peça Final' | 'Componente' | 'Peça Final + Componente' | 'SubComponente + Componente';
   quantidadeAfetada: number;
+  modoFalha?: string; // Modo de Falha / Classificação Padronizada
   descricaoProblema: string;
   descricaoCompleta?: string;
   

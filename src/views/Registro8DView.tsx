@@ -9,6 +9,7 @@ import {
   Wrench, 
   Camera, 
   ShieldCheck, 
+  ShieldAlert,
   Upload,
   ChevronDown,
   Info,
@@ -21,11 +22,15 @@ import {
   User,
   FileText,
   ChevronRight,
-  ChevronUp
+  ChevronUp,
+  History,
+  ExternalLink,
+  Layers
 } from 'lucide-react';
 import { RNCRecord, UsuarioQualidade, PecaCatalogo, TipoRNC } from '../types';
 import { spStore } from '../services/sharepointService';
 import { CLIENTES_LIST, DEFAULT_CLIENTE, getClientBadgeInfo } from '../constants/clientes';
+import { MODOS_FALHA_LIST, IMPACTOS_CLIENTE_LIST, GRAVIDADE_LIST } from '../constants/defeitos';
 
 interface Registro8DViewProps {
   onNavigate: (screen: any, params?: any) => void;
@@ -62,6 +67,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [previewFoto, setPreviewFoto] = useState<{ url: string; titulo: string } | null>(null);
   const [qualidadeExpandida, setQualidadeExpandida] = useState<boolean>(false);
+  const [mostrarHistorico, setMostrarHistorico] = useState<boolean>(false);
 
   const fileInputNgRef = useRef<HTMLInputElement>(null);
   const fileInputOkRef = useRef<HTMLInputElement>(null);
@@ -73,6 +79,9 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
     cliente: '',
     dataOcorrencia: new Date().toISOString().split('T')[0],
     dataOficializacao: new Date().toISOString().split('T')[0],
+    codOcorrenciaCliente: '',
+    impactoCliente: '',
+    detalhamentoOcorrencia: '',
     classificacaoSetor: '',
     setorDeteccao: '',
     turno: getTurnoPorHorario(),
@@ -80,12 +89,15 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
     componente: '',
     finalComponente: 'Peça Final',
     quantidadeAfetada: '' as any,
+    modoFalha: '',
     descricaoProblema: '',
     descricaoCompleta: '',
     caracteristicaSeguranca: 'Não',
     coProduto: 'Não',
     carryOver: 'Não',
     reincidente: 'NÃO',
+    gravidade: 'Média',
+    possivelDetectar: 'Sim',
     posto: '',
     fmds: '',
     acoesContencao: '',
@@ -130,6 +142,9 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
         cliente: '',
         dataOcorrencia: new Date().toISOString().split('T')[0],
         dataOficializacao: new Date().toISOString().split('T')[0],
+        codOcorrenciaCliente: '',
+        impactoCliente: '',
+        detalhamentoOcorrencia: '',
         classificacaoSetor: '',
         setorDeteccao: '',
         turno: getTurnoPorHorario(),
@@ -137,12 +152,15 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
         componente: '',
         finalComponente: 'Peça Final',
         quantidadeAfetada: '' as any,
+        modoFalha: '',
         descricaoProblema: '',
         descricaoCompleta: '',
         caracteristicaSeguranca: 'Não',
         coProduto: 'Não',
         carryOver: 'Não',
         reincidente: 'NÃO',
+        gravidade: 'Média',
+        possivelDetectar: 'Sim',
         posto: '',
         fmds: '',
         acoesContencao: '',
@@ -178,6 +196,12 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
     return spStore.getComponentesPorProduto(form.produto);
   }, [form.produto]);
 
+  // Histórico de reincidências calculado da mesma forma que a Gallery1 do Power Apps
+  const historicoReincidencias = useMemo(() => {
+    if (!form.produto) return [];
+    return spStore.getHistoricoReincidencias(form.produto, form.modoFalha, rncId);
+  }, [form.produto, form.modoFalha, rncId]);
+
   const postosDisponiveis = useMemo(() => spStore.getDistinctPostos(), []);
   const fmdsDisponiveis = useMemo(() => spStore.getDistinctFMDS(), []);
 
@@ -203,12 +227,15 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
       posto: '',
       fmds: '',
       classificacaoSetor: '',
-      carryOver: 'Não'
+      carryOver: 'Não',
+      coProduto: 'Não',
+      caracteristicaSeguranca: 'Não',
+      reincidente: 'NÃO'
     }));
   };
 
   // Regra ProEPS: Somente quando o usuário escolhe a peça é que os dados associados
-  // (Posto, FMDS, Componente e CarryOver) são preenchidos automaticamente!
+  // (Posto, FMDS, Componente, CarryOver, Co-produto e Peça de Segurança) são preenchidos automaticamente!
   const handlePecaChange = (codCliTextOuMaterial: string) => {
     clearFieldError('produto');
     if (!codCliTextOuMaterial) {
@@ -219,7 +246,10 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
         posto: '',
         fmds: '',
         classificacaoSetor: '',
-        carryOver: 'Não'
+        carryOver: 'Não',
+        coProduto: 'Não',
+        caracteristicaSeguranca: 'Não',
+        reincidente: 'NÃO'
       }));
       return;
     }
@@ -229,15 +259,23 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
     );
 
     if (selecionada) {
+      const prodKey = selecionada.codCliText || selecionada.material;
+      // Formula do Power Apps: Filter(varReincidente, Left(produto,9) = Material || Left(componente,9) = Componente)
+      const reincList = spStore.getHistoricoReincidencias(prodKey, form.modoFalha, rncId);
+      const isReinc = reincList.length > 0 ? 'SIM' : 'NÃO';
+
       setForm(prev => ({
         ...prev,
-        produto: selecionada.codCliText || selecionada.material,
+        produto: prodKey,
         componente: selecionada.descricao || selecionada.componente || '',
         finalComponente: 'Peça Final',
         posto: selecionada.posto || '',
         fmds: selecionada.fmds || '',
         classificacaoSetor: selecionada.fmds || '',
-        carryOver: selecionada.carryOver === 'Sim' ? 'Sim' : 'Não'
+        carryOver: selecionada.carryOver === 'Sim' ? 'Sim' : 'Não',
+        coProduto: selecionada.coProduto === 'Sim' ? 'Sim' : 'Não',
+        caracteristicaSeguranca: selecionada.caracteristicaSeguranca === 'Sim' ? 'Sim' : 'Não',
+        reincidente: isReinc
       }));
     }
   };
@@ -301,8 +339,8 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
     if (!form.produto || !form.produto.trim()) {
       newErrors.produto = 'Selecione a Peça / Conjunto da ocorrência.';
     }
-    if (!form.descricaoProblema || form.descricaoProblema.trim().length < 3) {
-      newErrors.descricaoProblema = 'Descreva o defeito ou modo de falha (mínimo de 3 caracteres).';
+    if (!form.modoFalha && (!form.descricaoProblema || form.descricaoProblema.trim().length < 3)) {
+      newErrors.descricaoProblema = 'Selecione a classificação do defeito (modo de falha) ou descreva o problema.';
     }
     if (form.quantidadeAfetada === undefined || form.quantidadeAfetada === null || String(form.quantidadeAfetada).trim() === '' || Number(form.quantidadeAfetada) <= 0) {
       newErrors.quantidadeAfetada = 'Informe a quantidade de peças afetadas (maior que zero).';
@@ -338,7 +376,10 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
           status: 'Relatório Inicial',
           cliente: form.cliente || DEFAULT_CLIENTE,
           dataOcorrencia: form.dataOcorrencia || new Date().toISOString().split('T')[0],
-          dataOficializacao: new Date().toISOString().split('T')[0],
+          dataOficializacao: form.dataOficializacao || new Date().toISOString().split('T')[0],
+          codOcorrenciaCliente: form.codOcorrenciaCliente || '',
+          impactoCliente: form.impactoCliente || '',
+          detalhamentoOcorrencia: form.detalhamentoOcorrencia || '',
           classificacaoSetor: form.classificacaoSetor || form.fmds || 'SOLDA 2 - CEL. TOYOTA',
           setorDeteccao: form.setorDeteccao || 'Linha de Produção',
           turno: form.turno || getTurnoPorHorario(),
@@ -346,12 +387,15 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
           componente: form.componente || '',
           finalComponente: form.finalComponente || 'Peça Final',
           quantidadeAfetada: Number(form.quantidadeAfetada) || 1,
-          descricaoProblema: form.descricaoProblema || '',
+          modoFalha: form.modoFalha || '',
+          descricaoProblema: form.descricaoProblema || form.modoFalha || '',
           descricaoCompleta: form.descricaoCompleta || form.descricaoProblema || '',
           caracteristicaSeguranca: form.caracteristicaSeguranca || 'Não',
           coProduto: form.coProduto || 'Não',
           carryOver: form.carryOver || 'Não',
           reincidente: form.reincidente || 'NÃO',
+          gravidade: form.gravidade || 'Média',
+          possivelDetectar: form.possivelDetectar || 'Sim',
           posto: form.posto || 'POSTO 01',
           fmds: form.fmds || 'SOLDA GERAL',
           documentoRastreabilidade: form.documentoRastreabilidade || 'Etiqueta SAP',
@@ -622,6 +666,122 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
               />
             </div>
           </div>
+
+          {/* CAMPOS CONDICIONAIS PELO TIPO DE OCORRÊNCIA */}
+          {form.tipoRnc && (
+            <div className="pt-3 border-t border-slate-100 flex flex-col gap-3 animate-in fade-in duration-200">
+              {form.tipoRnc === 'Formal' && (
+                <div className="p-3.5 bg-blue-50/50 rounded-xl border border-blue-200/80 flex flex-col gap-3">
+                  <div className="flex items-center gap-2 text-xs font-bold text-[#0b5796]">
+                    <FileText className="w-4 h-4" />
+                    <span>Dados Complementares do Registro Formal (Portal do Cliente / Montadora)</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-semibold text-slate-700">
+                        Código / ID no Portal do Cliente
+                      </label>
+                      <input
+                        type="text"
+                        value={form.codOcorrenciaCliente || ''}
+                        onChange={e => setForm(prev => ({ ...prev, codOcorrenciaCliente: e.target.value }))}
+                        placeholder="Ex: RECL-2026-VW-019 ou Q-NOTIF-TOYOTA"
+                        className="w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border border-slate-200 focus:border-[#0b5796] outline-none"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-semibold text-slate-700">
+                        Data de Oficialização no Portal
+                      </label>
+                      <input
+                        type="date"
+                        value={form.dataOficializacao || ''}
+                        onChange={e => setForm(prev => ({ ...prev, dataOficializacao: e.target.value }))}
+                        className="w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border border-slate-200 focus:border-[#0b5796] outline-none"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5 sm:col-span-2 lg:col-span-1">
+                      <label className="text-xs font-semibold text-slate-700">
+                        Impacto na Linha da Montadora
+                      </label>
+                      <select
+                        value={form.impactoCliente || ''}
+                        onChange={e => setForm(prev => ({ ...prev, impactoCliente: e.target.value }))}
+                        className="w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border border-slate-200 focus:border-[#0b5796] outline-none"
+                      >
+                        <option value="">-- Selecione o Impacto --</option>
+                        {IMPACTOS_CLIENTE_LIST.map(imp => (
+                          <option key={imp} value={imp}>{imp}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-slate-700">
+                      Detalhamento / Informações Adicionais do Cliente
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={form.detalhamentoOcorrencia || ''}
+                      onChange={e => setForm(prev => ({ ...prev, detalhamentoOcorrencia: e.target.value }))}
+                      placeholder="Informações transmitidas pelo analista do cliente ou engenheiro residente da montadora..."
+                      className="w-full p-2.5 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border border-slate-200 focus:border-[#0b5796] outline-none resize-y"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {form.tipoRnc === 'Informal' && (
+                <div className="p-3.5 bg-amber-50/50 rounded-xl border border-amber-200/80 flex flex-col gap-3">
+                  <div className="flex items-center gap-2 text-xs font-bold text-amber-900">
+                    <AlertTriangle className="w-4 h-4 text-amber-700" />
+                    <span>Registro Informal / Alerta Preventivo da Montadora</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-semibold text-slate-700">
+                        Grau / Impacto do Alerta
+                      </label>
+                      <select
+                        value={form.impactoCliente || ''}
+                        onChange={e => setForm(prev => ({ ...prev, impactoCliente: e.target.value }))}
+                        className="w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border border-slate-200 focus:border-[#0b5796] outline-none"
+                      >
+                        <option value="">-- Selecione o Impacto --</option>
+                        {IMPACTOS_CLIENTE_LIST.map(imp => (
+                          <option key={imp} value={imp}>{imp}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-semibold text-slate-700">
+                        Contato / Informante no Cliente
+                      </label>
+                      <input
+                        type="text"
+                        value={form.detalhamentoOcorrencia || ''}
+                        onChange={e => setForm(prev => ({ ...prev, detalhamentoOcorrencia: e.target.value }))}
+                        placeholder="Ex: Alerta enviado via WhatsApp pelo engenheiro de campo..."
+                        className="w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border border-slate-200 focus:border-[#0b5796] outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {form.tipoRnc === 'Interno' && (
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/70 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs text-slate-700">
+                    <Info className="w-4 h-4 text-blue-600 shrink-0" />
+                    <span><strong>Ocorrência Interna de Fábrica:</strong> identificada na linha de estamparia, solda ou inspeção antes do envio ao cliente. Prioridade para contenção imediata no posto.</span>
+                  </div>
+                  <span className="text-[11px] font-bold text-slate-600 bg-white px-2.5 py-1 rounded-lg border border-slate-200 shadow-2xs shrink-0">
+                    Contenção Interna
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* =========================================================================
@@ -830,19 +990,52 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
               )}
             </div>
 
-            {/* Carry Over & Reincidente */}
-            <div className="flex items-center gap-6 pt-2 md:col-span-2">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-slate-700">Carry Over:</span>
-                <span className={`text-xs font-bold px-2.5 py-1 rounded-lg border ${
-                  !isPecaSelecionada ? 'bg-slate-50 text-slate-400 border-slate-200' :
-                  form.carryOver === 'Sim' ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-slate-50 text-slate-700 border-slate-200'
+            {/* LINHA DE BADGES DE ATRIBUTOS DA PEÇA (CARRY OVER, CO-PRODUTO, SEGURANÇA) */}
+            <div className="flex flex-wrap items-center gap-3 pt-2 md:col-span-2 lg:col-span-3 xl:col-span-4 border-t border-slate-100">
+              <span className="text-xs font-semibold text-slate-500 mr-1">Atributos da Peça:</span>
+              
+              {/* Carry Over */}
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200/80 bg-slate-50/50 text-xs font-semibold shadow-2xs">
+                <span className="text-slate-500">Carry Over:</span>
+                <span className={`font-bold ${
+                  !isPecaSelecionada ? 'text-slate-400' :
+                  form.carryOver === 'Sim' ? 'text-amber-700' : 'text-slate-700'
                 }`}>
                   {isPecaSelecionada ? (form.carryOver || 'Não') : '-'}
                 </span>
               </div>
 
-              <div className="flex items-center gap-2">
+              {/* Co-produto (Espelho) */}
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200/80 bg-slate-50/50 text-xs font-semibold shadow-2xs">
+                <Layers className="w-3.5 h-3.5 text-purple-600" />
+                <span className="text-slate-500">Co-produto (Espelho):</span>
+                <span className={`font-bold ${
+                  !isPecaSelecionada ? 'text-slate-400' :
+                  form.coProduto === 'Sim' ? 'text-purple-700' : 'text-slate-700'
+                }`}>
+                  {isPecaSelecionada ? (form.coProduto || 'Não') : '-'}
+                </span>
+              </div>
+
+              {/* Peça de Segurança (FMEA) */}
+              <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold shadow-2xs ${
+                isPecaSelecionada && form.caracteristicaSeguranca === 'Sim'
+                  ? 'bg-rose-50 border-rose-200 text-rose-800'
+                  : 'bg-slate-50/50 border-slate-200/80 text-slate-700'
+              }`}>
+                {isPecaSelecionada && form.caracteristicaSeguranca === 'Sim' ? (
+                  <ShieldAlert className="w-3.5 h-3.5 text-rose-600" />
+                ) : (
+                  <ShieldCheck className="w-3.5 h-3.5 text-slate-400" />
+                )}
+                <span>Peça de Segurança (FMEA):</span>
+                <span className="font-bold">
+                  {isPecaSelecionada ? (form.caracteristicaSeguranca || 'Não') : '-'}
+                </span>
+              </div>
+
+              {/* Reincidente Toggle */}
+              <div className="flex items-center gap-2.5 ml-auto pl-2">
                 <span className="text-xs font-semibold text-slate-700">Reincidente:</span>
                 <div className="flex items-center gap-2">
                   <label className="flex items-center gap-1.5 text-xs text-slate-700 cursor-pointer">
@@ -865,11 +1058,88 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                       onChange={() => setForm(prev => ({ ...prev, reincidente: 'SIM' }))}
                       className="text-[#0b5796] focus:ring-[#0b5796]"
                     />
-                    <span className="text-amber-800 font-semibold">Sim</span>
+                    <span className="text-amber-800 font-bold">Sim</span>
                   </label>
                 </div>
+
+                {isPecaSelecionada && historicoReincidencias.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setMostrarHistorico(!mostrarHistorico)}
+                    className="flex items-center gap-1 text-[11px] font-semibold text-amber-800 bg-amber-50 hover:bg-amber-100 px-2 py-0.5 rounded border border-amber-200 transition-colors cursor-pointer"
+                  >
+                    <History className="w-3 h-3 text-amber-600" />
+                    <span>{historicoReincidencias.length} anterior(es)</span>
+                    {mostrarHistorico ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                  </button>
+                )}
               </div>
             </div>
+
+            {/* GAVETA RETRÁTIL DE HISTÓRICO DE REINCIDÊNCIAS (ESPELHA GALLERY1 DO POWER APPS) */}
+            {isPecaSelecionada && (form.reincidente === 'SIM' || mostrarHistorico) && (
+              <div className="md:col-span-2 lg:col-span-3 xl:col-span-4 p-4 rounded-xl bg-amber-50/40 border border-amber-200 flex flex-col gap-3 animate-in fade-in duration-200">
+                <div className="flex items-center justify-between pb-2 border-b border-amber-200/60">
+                  <div className="flex items-center gap-2">
+                    <History className="w-4 h-4 text-amber-700" />
+                    <span className="text-xs font-bold text-amber-950">
+                      Histórico de Reincidências Registradas para esta Peça / Modo de Falha
+                    </span>
+                    <span className="text-[10px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
+                      {historicoReincidencias.length} registro(s)
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-amber-700/80">
+                    Espelho Gallery1 • Regra: Left(produto,9) / Left(componente,9)
+                  </span>
+                </div>
+
+                {historicoReincidencias.length === 0 ? (
+                  <p className="text-xs text-amber-800 italic py-1">
+                    Nenhuma ocorrência anterior foi encontrada no histórico para este produto/componente.
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 max-h-56 overflow-y-auto pr-1">
+                    {historicoReincidencias.map(item => (
+                      <div 
+                        key={item.id} 
+                        className="p-3 bg-white rounded-lg border border-amber-200/80 shadow-2xs flex flex-col gap-1.5 hover:border-amber-400 transition-colors"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-slate-900">
+                            {item.field1 || `RNC #${item.id}`}
+                          </span>
+                          <span className="text-[10px] font-medium text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                            {item.dataOcorrencia}
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-slate-700 font-medium line-clamp-1">
+                          {item.modoFalha || item.classificacaoSetor || 'Modo não especificado'}
+                        </div>
+                        <p className="text-[11px] text-slate-500 line-clamp-2">
+                          {item.descricaoProblema || item.descricaoCompleta || 'Sem descrição cadastrada'}
+                        </p>
+                        <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-[10px]">
+                          <span className={`font-semibold ${
+                            item.status === 'Concluído' ? 'text-emerald-600' : 'text-blue-600'
+                          }`}>
+                            {item.status}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => onNavigate('detalhes-8d', { id: item.id })}
+                            className="text-[#0b5796] hover:underline flex items-center gap-0.5 font-medium cursor-pointer"
+                          >
+                            <span>Ver RNC</span>
+                            <ExternalLink className="w-2.5 h-2.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
           </div>
         </div>
@@ -897,11 +1167,44 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
             </span>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {/* Descrição do Defeito / Modo de Falha */}
-            <div className="flex flex-col gap-1.5 lg:col-span-2 xl:col-span-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Classificação / Modo de Falha Padronizado (Choices do SharePoint) */}
+            <div className="flex flex-col gap-1.5 md:col-span-2 lg:col-span-1">
               <label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
-                <span>Modo de Falha / Descrição da Não Conformidade <strong className="text-rose-500">*</strong></span>
+                <span>Classificação do Defeito <strong className="text-rose-500">*</strong></span>
+                <span className="text-[10px] text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded font-medium">
+                  Modo de Falha
+                </span>
+              </label>
+              <select
+                value={form.modoFalha || ''}
+                onChange={e => {
+                  clearFieldError('descricaoProblema');
+                  const novoModo = e.target.value;
+                  setForm(prev => ({ 
+                    ...prev, 
+                    modoFalha: novoModo,
+                    descricaoProblema: prev.descricaoProblema ? prev.descricaoProblema : novoModo
+                  }));
+                }}
+                className={`w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border outline-none transition-all ${
+                  errors.descricaoProblema && !form.modoFalha ? 'border-rose-500 focus:ring-2 focus:ring-rose-200' : 'border-slate-200 focus:border-[#0b5796] focus:ring-2 focus:ring-[#0b5796]/15'
+                }`}
+              >
+                <option value="">-- Selecione o Modo de Falha --</option>
+                {MODOS_FALHA_LIST.map(modo => (
+                  <option key={modo} value={modo}>{modo}</option>
+                ))}
+              </select>
+              <span className="text-[10px] text-slate-400">
+                Padrão corporativo de defeitos Gestamp
+              </span>
+            </div>
+
+            {/* Descrição Detalhada do Defeito */}
+            <div className="flex flex-col gap-1.5 md:col-span-2 lg:col-span-2">
+              <label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
+                <span>Detalhamento Técnico da Não Conformidade <strong className="text-rose-500">*</strong></span>
                 <span className="text-[11px] text-slate-400 font-normal">
                   {(form.descricaoProblema || '').length} caracteres
                 </span>
@@ -922,7 +1225,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
             </div>
 
             {/* Quantidade Afetada & Rastreabilidade */}
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-3 md:col-span-2 lg:col-span-1">
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-slate-700">
                   Quantidade Não Conforme <strong className="text-rose-500">*</strong>
@@ -1198,6 +1501,43 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
               <div className="p-5 flex flex-col gap-4 border-t border-indigo-100 bg-white">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-slate-700">Gravidade do Defeito</label>
+                    <select
+                      value={form.gravidade || 'Média'}
+                      onChange={e => setForm(prev => ({ ...prev, gravidade: e.target.value }))}
+                      className="w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border border-slate-200 outline-none"
+                    >
+                      {GRAVIDADE_LIST.map(g => (
+                        <option key={g} value={g}>{g}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-slate-700">Possível Detectar na Origem?</label>
+                    <select
+                      value={form.possivelDetectar || 'Sim'}
+                      onChange={e => setForm(prev => ({ ...prev, possivelDetectar: e.target.value }))}
+                      className="w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border border-slate-200 outline-none"
+                    >
+                      <option value="Sim">Sim (Falha de Inspeção / Padrão)</option>
+                      <option value="Não">Não (Defeito Latente / Oculto)</option>
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-slate-700">Data de Aplicação da Contenção</label>
+                    <input
+                      type="date"
+                      value={form.dataContencao || ''}
+                      onChange={e => setForm(prev => ({ ...prev, dataContencao: e.target.value }))}
+                      className="w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border border-slate-200 outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-semibold text-slate-700">Qtd Inspecionada</label>
                     <input
                       type="number"
@@ -1232,7 +1572,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                     rows={2}
                     value={form.acoesContencao || ''}
                     onChange={e => setForm(prev => ({ ...prev, acoesContencao: e.target.value }))}
-                    placeholder="Descreva as ações de contenção adotadas na linha / cliente..."
+                    placeholder="Descreva as ações de contenção adotadas na linha / cliente (bloqueio de estoques, retrabalho, inspeção 100%)..."
                     className="w-full p-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border border-slate-200 outline-none resize-y"
                   />
                 </div>

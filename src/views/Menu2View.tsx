@@ -293,7 +293,7 @@ export const Menu2View: React.FC<Menu2ViewProps> = ({
             </span>
           </div>
           <div className="text-xs text-sky-800 flex items-center justify-between pt-2 border-t border-sky-100/80">
-            <span>Ações 8D validadas</span>
+            <span>Ocorrências concluídas</span>
             <ChevronRight className="w-3.5 h-3.5 text-sky-600 group-hover:translate-x-0.5 transition-all" />
           </div>
         </div>
@@ -321,7 +321,7 @@ export const Menu2View: React.FC<Menu2ViewProps> = ({
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-sm font-display font-bold text-[#0f172a] group-hover:text-[#0f6cbd] transition-colors truncate">
-                Lista de ocorrências (8D)
+                Lista de ocorrências (RNC)
               </div>
               <div className="text-xs text-[#64748b] mt-0.5 line-clamp-2 leading-relaxed">
                 Visualização por lista e blocos com filtros completos.
@@ -586,10 +586,10 @@ export const Menu2View: React.FC<Menu2ViewProps> = ({
 
       </div>
 
-      {/* 5. SEGUNDA LINHA DE DASHBOARDS (CICLO DE VIDA 8D + PARETO DE MODOS DE FALHA) */}
+      {/* 5. SEGUNDA LINHA DE DASHBOARDS (STATUS DE CONTENÇÃO & RESOLUÇÃO + PARETO DE MODOS DE FALHA) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         
-        {/* Painel 3: Pipeline e Ciclo de Vida Metodologia 8D */}
+        {/* Painel 3: Status de Contenção & Tratativa das Ocorrências */}
         <div className="card-saas p-5 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between pb-3.5 border-b border-[#e2e8f0] gap-2">
@@ -599,10 +599,10 @@ export const Menu2View: React.FC<Menu2ViewProps> = ({
                 </div>
                 <div>
                   <h2 className="text-sm sm:text-base font-display font-bold text-[#0f172a]">
-                    Cockpit de Ciclo de Vida Metodologia 8D
+                    Status de Contenção & Tratativa das Ocorrências
                   </h2>
                   <p className="text-xs text-[#64748b]">
-                    Status das etapas de contenção, causa raiz e validação
+                    Acompanhamento de triagem inicial, contenção fabril e resolução
                   </p>
                 </div>
               </div>
@@ -610,68 +610,80 @@ export const Menu2View: React.FC<Menu2ViewProps> = ({
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4">
               
-              {/* Estágio 1 */}
-              <div className="p-3 rounded-xl bg-sky-50 border border-sky-100 flex flex-col justify-between">
+              {/* Estágio 1: Relatório Inicial */}
+              <div 
+                onClick={() => onNavigate('lista-8d', { status: 'Relatório Inicial' })}
+                className="p-3 rounded-xl bg-sky-50 border border-sky-100 flex flex-col justify-between cursor-pointer hover:bg-sky-100/60 transition"
+              >
                 <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-sky-700 block">D1 • D2</span>
-                  <span className="text-xs font-bold text-sky-950 block mt-0.5">Triagem Inicial</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-sky-700 block">Triagem</span>
+                  <span className="text-xs font-bold text-sky-950 block mt-0.5">Relatório Inicial</span>
                 </div>
                 <div className="mt-3">
                   <span className="text-xl font-mono font-extrabold text-sky-950 block tabular-nums">
                     {metrics.statusRelatorioInicial}
                   </span>
-                  <span className="text-[10px] text-sky-700">Aguardando D3</span>
+                  <span className="text-[10px] text-sky-700">Aguardando tratativa</span>
                 </div>
               </div>
 
-              {/* Estágio 2 */}
-              <div className="p-3 rounded-xl bg-amber-50 border border-amber-100 flex flex-col justify-between">
+              {/* Estágio 2: Em Andamento / Contenção */}
+              <div 
+                onClick={() => onNavigate('lista-8d', { status: 'Em Andamento' })}
+                className="p-3 rounded-xl bg-amber-50 border border-amber-100 flex flex-col justify-between cursor-pointer hover:bg-amber-100/60 transition"
+              >
                 <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 block">D3 • D5</span>
-                  <span className="text-xs font-bold text-amber-950 block mt-0.5">Causa Raiz</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 block">Em Curso</span>
+                  <span className="text-xs font-bold text-amber-950 block mt-0.5">Em Tratativa</span>
                 </div>
                 <div className="mt-3">
                   <span className="text-xl font-mono font-extrabold text-amber-950 block tabular-nums">
                     {metrics.statusEmAndamento}
                   </span>
-                  <span className="text-[10px] text-amber-700">Em análise ativa</span>
+                  <span className="text-[10px] text-amber-700">Contenção ativa</span>
                 </div>
               </div>
 
-              {/* Estágio 3 */}
-              <div className="p-3 rounded-xl bg-indigo-50 border border-indigo-100 flex flex-col justify-between">
+              {/* Estágio 3: Proteção ao Cliente */}
+              <div 
+                onClick={() => onNavigate('lista-8d', { tipo: 'protcliente' })}
+                className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex flex-col justify-between cursor-pointer hover:bg-emerald-100/60 transition"
+              >
                 <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-700 block">D6 • D7</span>
-                  <span className="text-xs font-bold text-indigo-950 block mt-0.5">Ações Corretivas</span>
-                </div>
-                <div className="mt-3">
-                  <span className="text-xl font-mono font-extrabold text-indigo-950 block tabular-nums">
-                    {Math.round(metrics.concluidoCount * 0.25)}
-                  </span>
-                  <span className="text-[10px] text-indigo-700">Validação em linha</span>
-                </div>
-              </div>
-
-              {/* Estágio 4 */}
-              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex flex-col justify-between">
-                <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 block">D8</span>
-                  <span className="text-xs font-bold text-emerald-950 block mt-0.5">Concluído 8D</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 block">Proteção</span>
+                  <span className="text-xs font-bold text-emerald-950 block mt-0.5">Prot. Cliente</span>
                 </div>
                 <div className="mt-3">
                   <span className="text-xl font-mono font-extrabold text-emerald-950 block tabular-nums">
+                    {metrics.protCliCount}
+                  </span>
+                  <span className="text-[10px] text-emerald-700">Ações preventivas</span>
+                </div>
+              </div>
+
+              {/* Estágio 4: Concluídas */}
+              <div 
+                onClick={() => onNavigate('lista-8d', { status: 'Concluído' })}
+                className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex flex-col justify-between cursor-pointer hover:bg-slate-100 transition"
+              >
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 block">Finalizadas</span>
+                  <span className="text-xs font-bold text-slate-900 block mt-0.5">Concluídas</span>
+                </div>
+                <div className="mt-3">
+                  <span className="text-xl font-mono font-extrabold text-slate-900 block tabular-nums">
                     {metrics.concluidoCount}
                   </span>
-                  <span className="text-[10px] text-emerald-700">Eficácia 100%</span>
+                  <span className="text-[10px] text-slate-600">Resolvidas</span>
                 </div>
               </div>
 
             </div>
 
-            {/* Barra Visual de Resolução do Pipeline */}
+            {/* Barra Visual de Resolução das Ocorrências */}
             <div className="mt-4 p-3.5 rounded-xl bg-slate-50 border border-slate-200">
               <div className="flex items-center justify-between text-xs mb-2">
-                <span className="font-semibold text-slate-700">Progresso Geral de Resolução da Fábrica</span>
+                <span className="font-semibold text-slate-700">Progresso Geral de Resolução das Ocorrências</span>
                 <span className="font-mono font-bold text-emerald-700">{metrics.taxaResolucao}% de Conclusão</span>
               </div>
               <div className="w-full bg-slate-200 h-3 rounded-full overflow-hidden flex">
@@ -688,7 +700,7 @@ export const Menu2View: React.FC<Menu2ViewProps> = ({
               </div>
               <div className="flex items-center justify-between text-[11px] text-[#64748b] mt-2">
                 <span className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-600" /> {metrics.concluidoCount} Concluídas com Eficácia
+                  <span className="w-2 h-2 rounded-full bg-emerald-600" /> {metrics.concluidoCount} Concluídas
                 </span>
                 <span className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-amber-500" /> {metrics.openCount} Em Tratativa Ativa
@@ -746,7 +758,7 @@ export const Menu2View: React.FC<Menu2ViewProps> = ({
           </div>
 
           <div className="pt-3 border-t border-slate-100 text-xs text-[#64748b] flex items-center justify-between mt-3">
-            <span>Priorização recomendada para planos de contenção D3</span>
+            <span>Priorização recomendada para planos de contenção</span>
             <span className="font-semibold text-slate-700">Gestamp Sorocaba</span>
           </div>
         </div>

@@ -67,7 +67,7 @@ export const DetalhesImpressaoView: React.FC<DetalhesImpressaoViewProps> = ({ rn
             className="btn-secondary"
           >
             <ArrowLeft size={15} />
-            <span>Voltar para Detalhes 8D</span>
+            <span>Voltar para Detalhes da Ocorrência</span>
           </button>
           <span className="text-xs text-slate-500 font-medium hidden sm:inline">
             Visualização de Ficha Física de Posto de Trabalho (A4)
@@ -102,7 +102,7 @@ export const DetalhesImpressaoView: React.FC<DetalhesImpressaoViewProps> = ({ rn
             </div>
             <div>
               <h2 className="text-base font-black text-[#092162] leading-tight">
-                ALERTA DA QUALIDADE & METODOLOGIA 8D
+                ALERTA DA QUALIDADE & RASTREABILIDADE
               </h2>
               <span className="text-[10px] text-slate-500 font-semibold tracking-wide">
                 DIVISÃO DE QUALIDADE ASSEGURADA • PLANTA SOROCABA
@@ -236,7 +236,7 @@ export const DetalhesImpressaoView: React.FC<DetalhesImpressaoViewProps> = ({ rn
           </div>
           <div>
             <div className="border-t border-slate-400 w-4/5 mx-auto mb-1" />
-            <span className="font-bold">Engenharia da Qualidade (8D Champion)</span>
+            <span className="font-bold">Engenharia da Qualidade</span>
           </div>
         </div>
 

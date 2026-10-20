@@ -468,7 +468,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
               {edicao ? `Ocorrência: ${form.field1 || `RNC #${form.id}`}` : 'Relatório Inicial de Não Conformidade'}
             </h1>
             <p className="text-xs text-slate-500 hidden sm:block">
-              Preenchimento inicial de fábrica. A equipe da Qualidade complementará a contenção e análise 8D posteriormente.
+              Preenchimento inicial de fábrica. A equipe da Qualidade complementará a contenção e rastreabilidade posteriormente.
             </p>
           </div>
         </div>
@@ -1181,7 +1181,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                 </div>
                 <div>
                   <h3 className="text-sm font-display font-bold text-indigo-950">
-                    Complemento da Qualidade (Contenção D3 & 8D)
+                    Complemento da Qualidade (Ações de Contenção & Rastreabilidade)
                   </h3>
                   <p className="text-xs text-indigo-800/80">
                     Ações de contenção imediatas, estoques bloqueados e plano de ação.
@@ -1198,7 +1198,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
               <div className="p-5 flex flex-col gap-4 border-t border-indigo-100 bg-white">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold text-slate-700">Qtd Inspecionada (D3)</label>
+                    <label className="text-xs font-semibold text-slate-700">Qtd Inspecionada</label>
                     <input
                       type="number"
                       value={form.qtdInspecionada || 0}
@@ -1207,7 +1207,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                     />
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold text-slate-700">Qtd Suspeita (D3)</label>
+                    <label className="text-xs font-semibold text-slate-700">Qtd Suspeita</label>
                     <input
                       type="number"
                       value={form.qtdSuspeita || 0}
@@ -1216,7 +1216,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                     />
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold text-slate-700">Qtd Bloqueada (D3)</label>
+                    <label className="text-xs font-semibold text-slate-700">Qtd Bloqueada</label>
                     <input
                       type="number"
                       value={form.qtdBloqueada || 0}
@@ -1227,7 +1227,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-slate-700">Ações de Contenção Imediata (D3)</label>
+                  <label className="text-xs font-semibold text-slate-700">Ações de Contenção Imediata</label>
                   <textarea
                     rows={2}
                     value={form.acoesContencao || ''}

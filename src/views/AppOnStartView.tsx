@@ -93,7 +93,7 @@ export const AppOnStartView: React.FC<AppOnStartViewProps> = ({
               SOR • Gestão da Qualidade Automotiva
             </div>
             <div className="text-[11px] sm:text-xs text-[#64748b] truncate">
-              Tratativa de Produto Não Conforme • Metodologia 8D
+              Tratativa de Produto Não Conforme • Gestão de RNC
             </div>
           </div>
         </div>
@@ -150,7 +150,7 @@ export const AppOnStartView: React.FC<AppOnStartViewProps> = ({
                     {hasError ? "Falha na Conexão Operacional" : progress === 100 ? "Ambiente Conectado e Pronto" : "Carregando Dados Operacionais"}
                   </h1>
                   <p className="text-xs sm:text-sm text-[#64748b] leading-relaxed max-w-2xl">
-                    Sincronizando dados em tempo real com as listas do SharePoint Online. Inicializando catálogo de peças, registros 8D e base de colaboradores.
+                    Sincronizando dados em tempo real com as listas do SharePoint Online. Inicializando catálogo de peças, registros de RNC e base de colaboradores.
                   </p>
                 </div>
               </div>
@@ -284,7 +284,7 @@ export const AppOnStartView: React.FC<AppOnStartViewProps> = ({
                   </span>
                 </div>
                 <div className="flex flex-col min-w-0">
-                  <span className="text-xs font-bold text-[#0f172a] truncate">Ocorrências 8D</span>
+                  <span className="text-xs font-bold text-[#0f172a] truncate">Registros de RNC</span>
                   <span className="text-[10px] sm:text-[11px] text-[#64748b] truncate">Incidentes Qualidade</span>
                 </div>
                 <div className="text-[11px] sm:text-xs font-semibold text-[#0f6cbd] pt-1 border-t border-[#f1f5f9] truncate">
@@ -328,7 +328,7 @@ export const AppOnStartView: React.FC<AppOnStartViewProps> = ({
                 <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
                 <span className="font-medium text-[#334155]">Planta Sorocaba</span>
                 <span>•</span>
-                <span>Metodologia 8D</span>
+                <span>Gestão de RNC</span>
               </div>
               <div className="flex items-center !gap-3 sm:!gap-4">
                 <span>Protocolo REST M365</span>

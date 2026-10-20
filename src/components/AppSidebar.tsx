@@ -104,7 +104,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
             }`}
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
-            <span className="font-display">Nova RNC / 8D</span>
+            <span className="font-display">Nova RNC</span>
           </button>
         </div>
 

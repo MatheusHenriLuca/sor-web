@@ -192,7 +192,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
     setNotification({
       type: 'success',
       message: isAbrirRncSim 
-        ? 'Avaliação aprovada! Ocorrência liberada para preenchimento completo dos passos 8D pela equipe de Qualidade.' 
+        ? 'Avaliação aprovada! Ocorrência liberada para preenchimento de contenção e rastreabilidade pela equipe de Qualidade.' 
         : 'Avaliação aprovada! Registro concluído diretamente com sucesso.'
     });
     reloadData();
@@ -673,11 +673,11 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                 </div>
 
                 <div className="info-tile">
-                  <span className="info-tile-label">Abertura de 8D</span>
+                  <span className="info-tile-label">Abertura de RNC</span>
                   <span className={`text-xs font-bold px-2.5 py-1 rounded-full inline-block mt-0.5 ${
                     rnc.abrir8D === 'Sim' ? 'bg-blue-100 text-[#0f6cbd] border border-blue-200' : 'bg-slate-100 text-slate-700'
                   }`}>
-                    {rnc.abrir8D === 'Sim' ? 'Sim (8 Disciplinas)' : 'Não'}
+                    {rnc.abrir8D === 'Sim' ? 'Sim (Análise & Contenção)' : 'Não'}
                   </span>
                 </div>
               </div>
@@ -918,7 +918,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
               </div>
               <div>
                 <span className="text-xs font-bold text-rose-700 uppercase tracking-wider block">
-                  Alerta da Qualidade & Disposição Imediata (D3)
+                  Alerta da Qualidade & Disposição Imediata
                 </span>
                 <div className="text-base sm:text-lg font-extrabold text-[#0f172a] mt-0.5">
                   {rnc.componente} • {rnc.produto}
@@ -1238,7 +1238,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-rose-900 text-xs sm:text-sm">A • Crítico (Impacto Direto no Cliente)</span>
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-200 text-rose-900">8D Mandatório</span>
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-200 text-rose-900">RNC Mandatória</span>
                       </div>
                       <p className="text-xs text-[#475569] mt-0.5 leading-relaxed">
                         Peças com defeitos que <strong>não são detectadas</strong> em nenhuma etapa posterior do nosso processo, com grande impacto no cliente (parada de linha ou perda de montagem).
@@ -1298,17 +1298,17 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                 </div>
               </div>
 
-              {/* 2. Decisão de Abertura de RNC Completa (8D) */}
+              {/* 2. Decisão de Abertura de RNC Completa */}
               <div className="flex flex-col gap-2">
                 <label className="font-bold text-[#0f172a] text-xs flex items-center gap-1.5">
                   <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold flex items-center justify-center">2</span>
-                  <span>Abrir RNC e Tratativa 8D? *</span>
+                  <span>Abrir RNC e Tratativa? *</span>
                 </label>
 
                 {evalCriticidade === 'A' ? (
                   <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-900 flex items-center gap-2.5">
                     <ShieldAlert className="w-4 h-4 text-rose-600 shrink-0" />
-                    <span><strong>Bloqueado em 'Sim':</strong> Para Criticidade A, a abertura da RNC e contenção 8D é mandatória pelas diretrizes de qualidade.</span>
+                    <span><strong>Bloqueado em 'Sim':</strong> Para Criticidade A, a abertura da RNC e contenção é mandatória pelas diretrizes de qualidade.</span>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -1329,8 +1329,8 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                         className="text-blue-600 focus:ring-blue-500"
                       />
                       <div className="text-xs">
-                        <strong>Sim</strong> • Realizar Análise / Contenção / 8D
-                        <span className="block text-[11px] font-normal text-slate-500 mt-0.5">Envia para complementação dos passos D1-D8</span>
+                        <strong>Sim</strong> • Realizar Análise / Contenção
+                        <span className="block text-[11px] font-normal text-slate-500 mt-0.5">Envia para complementação de contenção e rastreabilidade</span>
                       </div>
                     </label>
 

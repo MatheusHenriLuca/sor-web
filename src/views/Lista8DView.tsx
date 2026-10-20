@@ -232,7 +232,7 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
                 {tipoFilter === 'Cliente' ? 'Ocorrências Cliente (Formal & Informal)' :
                  tipoFilter === 'Interno' ? 'Ocorrências Internas' :
                  tipoFilter === 'protcliente' ? 'Proteção ao Cliente' :
-                 'Ocorrências registradas (8D)'}
+                 'Ocorrências registradas (RNC)'}
               </h1>
               {tipoFilter !== 'Tudo' && (
                 <button

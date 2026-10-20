@@ -46,7 +46,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, curren
             <div className="flex items-center gap-2 mb-1.5">
               <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                Live 8D Engine
+                SOR Engine
               </span>
             </div>
             
@@ -54,7 +54,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, curren
               Cockpit de Indicadores da Qualidade
             </h1>
             <p className="text-xs sm:text-sm text-sky-200/80 max-w-2xl mt-1 leading-relaxed">
-              Tratativa de Não Conformidades, Metodologia 8D e Rastreabilidade SAP em tempo real.
+              Tratativa de Não Conformidades, Contenção e Rastreabilidade SAP em tempo real.
             </p>
           </div>
 
@@ -65,7 +65,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, curren
                 className="flex items-center gap-2 px-5 py-3 rounded-xl text-xs sm:text-sm font-black bg-white hover:bg-slate-100 text-[#092162] shadow-lg active:scale-95 transition cursor-pointer"
               >
                 <PlusCircle size={18} className="text-[#092162]" />
-                <span>Nova RNC / 8D</span>
+                <span>Nova RNC</span>
               </button>
               
               <button 
@@ -116,7 +116,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, curren
           <div className="text-2xl sm:text-3xl font-black text-amber-600 font-mono tracking-tight">
             {emAndamento.toLocaleString('pt-BR')}
           </div>
-          <span className="text-[10px] text-amber-700/80 font-bold mt-1 block">8D em tratativa ativa</span>
+          <span className="text-[10px] text-amber-700/80 font-bold mt-1 block">Ocorrências em tratativa ativa</span>
         </div>
 
         <div 
@@ -339,7 +339,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, curren
                     <Layers size={16} />
                   </div>
                   <div>
-                    <span className="block text-xs font-bold text-slate-900">Galeria Completa 8D</span>
+                    <span className="block text-xs font-bold text-slate-900">Galeria de Ocorrências</span>
                     <span className="text-[10px] text-slate-400">Filtragem rápida e paginação</span>
                   </div>
                 </div>

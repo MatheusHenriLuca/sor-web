@@ -59,9 +59,9 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
       case 'menu-2':
         return 'Painel de Gerenciamento de Não Conformidades';
       case 'lista-8d':
-        return 'Lista de Ocorrências e Relatórios 8D';
+        return 'Lista de Ocorrências (RNC)';
       case 'detalhes-8d':
-        return 'Detalhes do Registro 8D • Tratativa da Qualidade';
+        return 'Detalhes da Ocorrência • Tratativa da Qualidade';
       case 'registro-8d':
         return 'Lançamento de Ocorrência • Relatório Inicial';
       case 'rastreabilidade':
@@ -128,7 +128,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                 SOR
               </span>
               <span className="hidden sm:inline text-xs font-semibold text-slate-400">
-                • 8D & RNC
+                • Gestão de RNC
               </span>
             </div>
           </div>

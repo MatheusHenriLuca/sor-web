@@ -296,16 +296,15 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
           </div>
 
           {/* Botão Nova RNC */}
-          {!isOperator && (
-            <button
-              type="button"
-              onClick={() => onNavigate('registro-8d', { edicao: false })}
-              className="btn-primary h-9 px-4 text-xs font-semibold shadow-sm hover:shadow"
-            >
-              <Plus className="w-4 h-4 stroke-[2.5]" />
-              <span className="font-display">Nova RNC</span>
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => onNavigate('registro-8d', { edicao: false, rncId: undefined, timestamp: Date.now() })}
+            className="btn-primary h-9 px-4 text-xs font-semibold shadow-sm hover:shadow flex items-center gap-1.5 cursor-pointer"
+            title="Abrir novo Relatório Inicial de Não Conformidade"
+          >
+            <Plus className="w-4 h-4 stroke-[2.5]" />
+            <span className="font-display">Nova NCC / RNC</span>
+          </button>
         </div>
       </div>
 

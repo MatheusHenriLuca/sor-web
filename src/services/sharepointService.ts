@@ -1159,7 +1159,8 @@ class SharePointDataStore {
     }
 
     // Criação
-    const nextId = (this.rncs[0]?.id || 100) + 1;
+    const maxExistingId = this.rncs.reduce((max, r) => r.id > max ? r.id : max, 100);
+    const nextId = maxExistingId + 1;
     const year = new Date().getFullYear();
     const newRecord: RNCRecord = {
       id: nextId,

@@ -63,7 +63,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
       case 'detalhes-8d':
         return 'Detalhes do Registro 8D • Tratativa da Qualidade';
       case 'registro-8d':
-        return 'Abertura e Edição de RNC / 8D';
+        return 'Lançamento de Ocorrência • Relatório Inicial';
       case 'rastreabilidade':
         return 'Rastreabilidade SAP • Lotes e Etiquetas';
       case 'falha-entrega':

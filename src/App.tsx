@@ -128,6 +128,7 @@ export function App() {
 
             {currentScreen === 'registro-8d' && (
               <Registro8DView 
+                key={screenParams?.edicao && screenParams?.rncId ? `edit-${screenParams.rncId}` : `new-${screenParams?.timestamp || 'fresh'}`}
                 onNavigate={handleNavigate} 
                 currentUser={currentUser}
                 rncId={screenParams.rncId}

@@ -3,24 +3,29 @@ import {
   Save, 
   X, 
   ArrowLeft, 
-  ArrowRight, 
   CheckCircle2, 
   AlertTriangle, 
   Car, 
   Wrench, 
   Camera, 
   ShieldCheck, 
-  Activity, 
   Upload,
-  Layers,
   ChevronDown,
   Info,
   Check,
-  AlertCircle
+  AlertCircle,
+  Trash2,
+  Eye,
+  Sparkles,
+  Clock,
+  User,
+  FileText,
+  ChevronRight,
+  ChevronUp
 } from 'lucide-react';
 import { RNCRecord, UsuarioQualidade, PecaCatalogo, TipoRNC } from '../types';
 import { spStore } from '../services/sharepointService';
-import { CLIENTES_LIST, DEFAULT_CLIENTE } from '../constants/clientes';
+import { CLIENTES_LIST, DEFAULT_CLIENTE, getClientBadgeInfo } from '../constants/clientes';
 import { ImageWithFallback } from '../components/ImageWithFallback';
 
 interface Registro8DViewProps {
@@ -30,49 +35,22 @@ interface Registro8DViewProps {
   edicao?: boolean;
 }
 
-type TabType = 'geral' | 'pecas' | 'defeito' | 'risco' | 'contencao' | '8d';
-
-interface TabStep {
-  id: TabType;
-  stepNum: number;
-  label: string;
-  shortLabel: string;
-  icon: any;
-}
-
-const STEPS: TabStep[] = [
-  { id: 'geral', stepNum: 1, label: '1. Geral & Montadora', shortLabel: 'Geral', icon: Car },
-  { id: 'pecas', stepNum: 2, label: '2. Produto & Posto', shortLabel: 'Produto', icon: Wrench },
-  { id: 'defeito', stepNum: 3, label: '3. Defeito & Fotos', shortLabel: 'Defeito', icon: Camera },
-  { id: 'risco', stepNum: 4, label: '4. Avaliação de Risco', shortLabel: 'Risco', icon: AlertTriangle },
-  { id: 'contencao', stepNum: 5, label: '5. Contenção (D3)', shortLabel: 'Contenção', icon: ShieldCheck },
-  { id: '8d', stepNum: 6, label: '6. SAP & Decisão 8D', shortLabel: 'SAP / 8D', icon: Activity },
-];
-
 export const Registro8DView: React.FC<Registro8DViewProps> = ({ 
   onNavigate, 
   currentUser,
   rncId,
   edicao = false
 }) => {
-  const [activeTab, setActiveTab] = useState<TabType>('geral');
   const [pecasCatalogo, setPecasCatalogo] = useState<PecaCatalogo[]>([]);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
-
-  const clearFieldError = (fieldName: string) => {
-    setErrors(prev => {
-      if (!prev[fieldName]) return prev;
-      const updated = { ...prev };
-      delete updated[fieldName];
-      return updated;
-    });
-  };
+  const [previewFoto, setPreviewFoto] = useState<{ url: string; titulo: string } | null>(null);
+  const [qualidadeExpandida, setQualidadeExpandida] = useState<boolean>(false);
 
   const fileInputNgRef = useRef<HTMLInputElement>(null);
   const fileInputOkRef = useRef<HTMLInputElement>(null);
 
-  // Form State
+  // Form State - Inicializado estritamente limpo para novo apontamento
   const [form, setForm] = useState<Partial<RNCRecord>>({
     tipoRnc: 'Formal',
     status: 'Relatório Inicial',
@@ -95,7 +73,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
     posto: '',
     fmds: '',
     acoesContencao: '',
-    dataContencao: new Date().toISOString().split('T')[0],
+    dataContencao: '',
     qtdInspecionada: 0,
     qtdSuspeita: 0,
     qtdBloqueada: 0,
@@ -107,7 +85,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
     ondeFara: '',
     documentoRastreabilidade: 'Etiqueta SAP',
     codigoRastreabilidade: '',
-    abrir8D: 'Não',
+    abrir8D: 'Sim',
     protcliente: 'Não',
     detector: currentUser.nome,
     reDetector: currentUser.reAcesso,
@@ -115,6 +93,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
     fotoPecaOk: ''
   });
 
+  // Carregamento de catálogo e dados iniciais
   useEffect(() => {
     const catalogo = spStore.getColPecasGeraisAA3();
     setPecasCatalogo(catalogo);
@@ -123,66 +102,137 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
       const existente = spStore.getRNCById(rncId);
       if (existente) {
         setForm(existente);
+        if (existente.acoesContencao || existente.oQueFazer) {
+          setQualidadeExpandida(true);
+        }
       }
     } else {
+      // Novo apontamento: reset limpo e aplicação do autopreenchimento da primeira peça do cliente padrão
       const produtosIniciais = spStore.getProdutosPorCliente(DEFAULT_CLIENTE);
       if (produtosIniciais.length > 0) {
         const prod = produtosIniciais[0];
         const componentes = spStore.getComponentesPorProduto(prod.codCliText);
-        setForm(prev => ({
-          ...prev,
+        setForm({
+          tipoRnc: 'Formal',
+          status: 'Relatório Inicial',
+          cliente: DEFAULT_CLIENTE,
+          dataOcorrencia: new Date().toISOString().split('T')[0],
+          dataOficializacao: new Date().toISOString().split('T')[0],
+          classificacaoSetor: prod.fmds || 'SOLDA 2 - CEL. TOYOTA',
+          setorDeteccao: 'Linha de Solda Robotizada',
+          turno: '1º Turno',
           produto: prod.codCliText || prod.material,
-          componente: componentes[0] ? (componentes[0].componente || componentes[0].descricao) : prod.descricao,
+          componente: prod.descricao || (componentes[0] ? componentes[0].descricao : ''),
+          finalComponente: 'Peça Final',
+          quantidadeAfetada: 1,
+          descricaoProblema: '',
+          descricaoCompleta: '',
+          caracteristicaSeguranca: 'Não',
+          coProduto: 'Não',
+          carryOver: prod.carryOver === 'Sim' ? 'Sim' : 'Não',
+          reincidente: 'NÃO',
           posto: prod.posto,
           fmds: prod.fmds,
-          carryOver: prod.carryOver === 'Sim' ? 'Sim' : 'Não'
-        }));
+          acoesContencao: '',
+          dataContencao: '',
+          qtdInspecionada: 0,
+          qtdSuspeita: 0,
+          qtdBloqueada: 0,
+          oQueFazer: '',
+          comoFazer: '',
+          porQueFazer: '',
+          quemFara: '',
+          quandoFara: '',
+          ondeFara: '',
+          documentoRastreabilidade: 'Etiqueta SAP',
+          codigoRastreabilidade: '',
+          abrir8D: 'Sim',
+          protcliente: 'Não',
+          detector: currentUser.nome,
+          reDetector: currentUser.reAcesso,
+          fotoPecaNg: '',
+          fotoPecaOk: ''
+        });
       }
     }
-  }, [edicao, rncId]);
+  }, [edicao, rncId, currentUser]);
 
-  const produtosDoCliente = useMemo(() => spStore.getProdutosPorCliente(form.cliente || DEFAULT_CLIENTE), [form.cliente]);
-  const componentesDoProduto = useMemo(() => spStore.getComponentesPorProduto(form.produto || ''), [form.produto]);
+  const produtosDoCliente = useMemo(() => {
+    return spStore.getProdutosPorCliente(form.cliente || DEFAULT_CLIENTE);
+  }, [form.cliente]);
+
+  const componentesDoProduto = useMemo(() => {
+    return spStore.getComponentesPorProduto(form.produto || '');
+  }, [form.produto]);
+
   const postosDisponiveis = useMemo(() => spStore.getDistinctPostos(), []);
   const fmdsDisponiveis = useMemo(() => spStore.getDistinctFMDS(), []);
 
-  const currentStepObj = STEPS.find(s => s.id === activeTab) || STEPS[0];
-  const currentStepIndex = STEPS.findIndex(s => s.id === activeTab);
+  const clearFieldError = (fieldName: string) => {
+    setErrors(prev => {
+      if (!prev[fieldName]) return prev;
+      const updated = { ...prev };
+      delete updated[fieldName];
+      return updated;
+    });
+  };
 
+  // Regra ProEPS: Troca de Cliente atualiza lista de peças e complementa Posto/FMDS
   const handleClienteChange = (novoCliente: string) => {
+    clearFieldError('cliente');
     const produtos = spStore.getProdutosPorCliente(novoCliente);
     const primeiroProd = produtos[0];
     const componentes = primeiroProd ? spStore.getComponentesPorProduto(primeiroProd.codCliText) : [];
-    const primeiroComp = componentes[0];
 
     setForm(prev => ({
       ...prev,
       cliente: novoCliente,
       produto: primeiroProd ? (primeiroProd.codCliText || primeiroProd.material) : '',
-      componente: primeiroComp ? (primeiroComp.componente || primeiroComp.descricao) : (primeiroProd ? primeiroProd.descricao : ''),
+      componente: primeiroProd ? primeiroProd.descricao : '',
+      finalComponente: 'Peça Final',
       posto: primeiroProd ? primeiroProd.posto : '',
       fmds: primeiroProd ? primeiroProd.fmds : '',
-      carryOver: primeiroComp?.carryOver === 'Sim' ? 'Sim' : 'Não'
+      classificacaoSetor: primeiroProd ? primeiroProd.fmds : prev.classificacaoSetor,
+      carryOver: primeiroProd?.carryOver === 'Sim' ? 'Sim' : 'Não'
     }));
   };
 
-  const handlePecaChange = (codCliText: string) => {
-    const selecionada = pecasCatalogo.find(p => p.codCliText === codCliText || p.material === codCliText);
-    const componentes = spStore.getComponentesPorProduto(codCliText);
-    const primeiroComp = componentes[0];
+  // Regra ProEPS: Troca de Peça/Produto autocompleta Posto, FMDS, Componente e CarryOver
+  const handlePecaChange = (codCliTextOuMaterial: string) => {
+    clearFieldError('produto');
+    const selecionada = pecasCatalogo.find(
+      p => p.codCliText === codCliTextOuMaterial || p.material === codCliTextOuMaterial
+    );
 
     if (selecionada) {
       setForm(prev => ({
         ...prev,
         produto: selecionada.codCliText || selecionada.material,
-        componente: primeiroComp ? (primeiroComp.componente || primeiroComp.descricao) : selecionada.descricao,
-        posto: selecionada.posto,
-        fmds: selecionada.fmds,
+        componente: selecionada.descricao || selecionada.componente || '',
+        finalComponente: 'Peça Final',
+        posto: selecionada.posto || prev.posto,
+        fmds: selecionada.fmds || prev.fmds,
+        classificacaoSetor: selecionada.fmds || prev.classificacaoSetor,
         carryOver: selecionada.carryOver === 'Sim' ? 'Sim' : 'Não'
       }));
     }
   };
 
+  // Regra ProEPS: Troca do Tipo de Componente ou seleção de Componente Específico
+  const handleComponenteChange = (novoComponente: string) => {
+    const compObj = pecasCatalogo.find(
+      p => p.componente === novoComponente || p.descricao === novoComponente || p.codCliText === novoComponente
+    );
+
+    setForm(prev => ({
+      ...prev,
+      componente: novoComponente,
+      posto: compObj?.posto || prev.posto,
+      fmds: compObj?.fmds || prev.fmds
+    }));
+  };
+
+  // Upload de Evidências Fotográficas
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'fotoPecaNg' | 'fotoPecaOk') => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -196,160 +246,110 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
     reader.onload = (event) => {
       const base64 = event.target?.result as string;
       setForm(prev => ({ ...prev, [field]: base64 }));
-      setNotification({ type: 'success', message: 'Imagem carregada com sucesso!' });
+      setNotification({ type: 'success', message: 'Evidência fotográfica anexada com sucesso!' });
     };
     reader.readAsDataURL(file);
   };
 
-  interface StepValidationResult {
-    isValid: boolean;
-    message?: string;
-    fieldErrors: Record<string, string>;
-  }
-
-  // Validação estrita por etapa para garantir integridade antes de avançar
-  const validateStep = (stepId: TabType): StepValidationResult => {
-    const fieldErrors: Record<string, string> = {};
-
-    if (stepId === 'geral') {
-      if (!form.cliente || !form.cliente.trim()) {
-        fieldErrors.cliente = 'Selecione a Montadora (Cliente).';
-      }
-      if (!form.tipoRnc) {
-        fieldErrors.tipoRnc = 'Selecione o Tipo de Ocorrência.';
-      }
-      if (!form.dataOcorrencia || !form.dataOcorrencia.trim()) {
-        fieldErrors.dataOcorrencia = 'Informe a Data da Ocorrência.';
-      }
-      const isValid = Object.keys(fieldErrors).length === 0;
-      return {
-        isValid,
-        message: isValid ? undefined : 'Preencha todos os campos obrigatórios da Etapa 1 (Cliente, Tipo e Data).',
-        fieldErrors
-      };
-    }
-
-    if (stepId === 'pecas') {
-      if (!form.produto || !form.produto.trim()) {
-        fieldErrors.produto = 'Selecione o Produto / Conjunto da ocorrência.';
-      }
-      const isValid = Object.keys(fieldErrors).length === 0;
-      return {
-        isValid,
-        message: isValid ? undefined : 'Selecione o Produto / Conjunto na Etapa 2 antes de avançar.',
-        fieldErrors
-      };
-    }
-
-    if (stepId === 'defeito') {
-      if (!form.descricaoProblema || form.descricaoProblema.trim().length < 3) {
-        fieldErrors.descricaoProblema = 'Descreva o modo de falha / defeito (mínimo de 3 caracteres).';
-      }
-      if (form.quantidadeAfetada === undefined || form.quantidadeAfetada === null || Number(form.quantidadeAfetada) <= 0) {
-        fieldErrors.quantidadeAfetada = 'Informe uma quantidade de peças afetadas válida (maior que zero).';
-      }
-      const isValid = Object.keys(fieldErrors).length === 0;
-      return {
-        isValid,
-        message: isValid ? undefined : 'Preencha a descrição do defeito e a quantidade afetada na Etapa 3 antes de avançar.',
-        fieldErrors
-      };
-    }
-
-    return { isValid: true, fieldErrors: {} };
+  const handleRemoveFoto = (field: 'fotoPecaNg' | 'fotoPecaOk') => {
+    setForm(prev => ({ ...prev, [field]: '' }));
   };
 
-  const isStepComplete = (stepId: TabType): boolean => {
-    return validateStep(stepId).isValid;
-  };
+  // Validação focada exclusivamente no Relatório Inicial
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {};
 
-  const handleStepClick = (targetStep: TabStep) => {
-    const targetIndex = STEPS.findIndex(s => s.id === targetStep.id);
-    if (targetStep.id === activeTab) return;
-
-    // Permitir voltar para qualquer etapa anterior
-    if (targetIndex < currentStepIndex) {
-      setActiveTab(targetStep.id);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      return;
+    if (!form.cliente || !form.cliente.trim()) {
+      newErrors.cliente = 'Selecione o Cliente / Montadora.';
+    }
+    if (!form.tipoRnc) {
+      newErrors.tipoRnc = 'Selecione o Tipo de Ocorrência.';
+    }
+    if (!form.dataOcorrencia || !form.dataOcorrencia.trim()) {
+      newErrors.dataOcorrencia = 'Informe a data da ocorrência.';
+    }
+    if (!form.produto || !form.produto.trim()) {
+      newErrors.produto = 'Selecione a Peça / Conjunto da ocorrência.';
+    }
+    if (!form.descricaoProblema || form.descricaoProblema.trim().length < 3) {
+      newErrors.descricaoProblema = 'Descreva o defeito ou modo de falha (mínimo de 3 caracteres).';
+    }
+    if (form.quantidadeAfetada === undefined || form.quantidadeAfetada === null || Number(form.quantidadeAfetada) <= 0) {
+      newErrors.quantidadeAfetada = 'Informe uma quantidade válida de peças afetadas (maior que zero).';
     }
 
-    // Se tentar avançar para uma etapa posterior, validar todas as etapas anteriores
-    for (let i = 0; i < targetIndex; i++) {
-      const stepToCheck = STEPS[i];
-      const validation = validateStep(stepToCheck.id);
-      if (!validation.isValid) {
-        setErrors(prev => ({ ...prev, ...validation.fieldErrors }));
-        setNotification({
-          type: 'error',
-          message: `Atenção: complete os campos obrigatórios da "${stepToCheck.label}" antes de avançar.`
-        });
-        setActiveTab(stepToCheck.id);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-        return;
-      }
-    }
+    setErrors(newErrors);
 
-    setActiveTab(targetStep.id);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const handleNextStep = () => {
-    const validation = validateStep(activeTab);
-    if (!validation.isValid) {
-      setErrors(prev => ({ ...prev, ...validation.fieldErrors }));
+    if (Object.keys(newErrors).length > 0) {
+      const firstError = Object.values(newErrors)[0];
       setNotification({
         type: 'error',
-        message: validation.message || 'Preencha os campos obrigatórios da etapa atual antes de avançar.'
+        message: firstError || 'Preencha todos os campos obrigatórios do Relatório Inicial.'
       });
-      return;
+      return false;
     }
 
-    // Limpa erros da etapa que foi validada com sucesso
-    setErrors(prev => {
-      const updated = { ...prev };
-      Object.keys(validation.fieldErrors).forEach(k => delete updated[k]);
-      return updated;
-    });
-
-    if (currentStepIndex < STEPS.length - 1) {
-      setActiveTab(STEPS[currentStepIndex + 1].id);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  };
-
-  const handlePrevStep = () => {
-    if (currentStepIndex > 0) {
-      setActiveTab(STEPS[currentStepIndex - 1].id);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    return true;
   };
 
   const handleSave = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
 
-    // Validação completa de todas as etapas que contêm campos obrigatórios
-    for (const step of STEPS) {
-      const validation = validateStep(step.id);
-      if (!validation.isValid) {
-        setErrors(prev => ({ ...prev, ...validation.fieldErrors }));
-        setNotification({
-          type: 'error',
-          message: validation.message || `Preencha os campos obrigatórios da "${step.label}".`
-        });
-        setActiveTab(step.id);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-        return;
-      }
-    }
+    if (!validateForm()) return;
 
     try {
       if (edicao && rncId) {
         spStore.updateRNC(rncId, form);
         setNotification({ type: 'success', message: `Ocorrência RNC #${rncId} atualizada com sucesso!` });
       } else {
-        const novaRnc = spStore.addRNC(form as Omit<RNCRecord, 'id'>);
-        setNotification({ type: 'success', message: `Ocorrência ${novaRnc.field1} criada com sucesso!` });
+        const payload: Omit<RNCRecord, 'id'> = {
+          title: '',
+          tipoRnc: form.tipoRnc || 'Formal',
+          status: 'Relatório Inicial',
+          cliente: form.cliente || DEFAULT_CLIENTE,
+          dataOcorrencia: form.dataOcorrencia || new Date().toISOString().split('T')[0],
+          dataOficializacao: new Date().toISOString().split('T')[0],
+          classificacaoSetor: form.classificacaoSetor || form.fmds || 'SOLDA 2 - CEL. TOYOTA',
+          setorDeteccao: form.setorDeteccao || 'Linha de Solda Robotizada',
+          turno: form.turno || '1º Turno',
+          produto: form.produto || '',
+          componente: form.componente || '',
+          finalComponente: form.finalComponente || 'Peça Final',
+          quantidadeAfetada: Number(form.quantidadeAfetada) || 1,
+          descricaoProblema: form.descricaoProblema || '',
+          descricaoCompleta: form.descricaoCompleta || form.descricaoProblema || '',
+          caracteristicaSeguranca: form.caracteristicaSeguranca || 'Não',
+          coProduto: form.coProduto || 'Não',
+          carryOver: form.carryOver || 'Não',
+          reincidente: form.reincidente || 'NÃO',
+          posto: form.posto || 'POSTO 01',
+          fmds: form.fmds || 'SOLDA GERAL',
+          documentoRastreabilidade: form.documentoRastreabilidade || 'Etiqueta SAP',
+          codigoRastreabilidade: form.codigoRastreabilidade || '',
+          protcliente: form.codigoRastreabilidade ? 'Sim' : 'Não',
+          abrir8D: 'Sim',
+          detector: currentUser.nome,
+          reDetector: currentUser.reAcesso,
+          fotoPecaNg: form.fotoPecaNg || '',
+          fotoPecaOk: form.fotoPecaOk || '',
+          acoesContencao: form.acoesContencao || '',
+          dataContencao: form.dataContencao || '',
+          qtdInspecionada: Number(form.qtdInspecionada) || 0,
+          qtdSuspeita: Number(form.qtdSuspeita) || 0,
+          qtdBloqueada: Number(form.qtdBloqueada) || 0,
+          oQueFazer: form.oQueFazer || '',
+          comoFazer: form.comoFazer || '',
+          porQueFazer: form.porQueFazer || '',
+          quemFara: form.quemFara || '',
+          quandoFara: form.quandoFara || '',
+          ondeFara: form.ondeFara || ''
+        };
+
+        const novaRnc = spStore.addRNC(payload);
+        setNotification({ 
+          type: 'success', 
+          message: `Relatório Inicial criado com sucesso! Código: ${novaRnc.field1 || `RNC #${novaRnc.id}`}` 
+        });
       }
 
       setTimeout(() => {
@@ -360,8 +360,10 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
     }
   };
 
+  const clientBadge = getClientBadgeInfo(form.cliente || DEFAULT_CLIENTE);
+
   return (
-    <div className="w-full max-w-5xl flex flex-col gap-4 pb-24 animate-in fade-in duration-150">
+    <div className="w-full max-w-5xl flex flex-col gap-5 pb-24 animate-in fade-in duration-150">
       
       {/* Toast Notification */}
       {notification && (
@@ -371,7 +373,11 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
               ? 'bg-emerald-50 text-emerald-900 border-emerald-300' 
               : 'bg-rose-50 text-rose-900 border-rose-300'
           }`}>
-            {notification.type === 'success' ? <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" /> : <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" />}
+            {notification.type === 'success' ? (
+              <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+            ) : (
+              <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" />
+            )}
             <span>{notification.message}</span>
             <button onClick={() => setNotification(null)} className="ml-2 p-1 text-slate-400 hover:text-slate-800">
               <X className="w-4 h-4" />
@@ -380,14 +386,39 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
         </div>
       )}
 
-      {/* 1. BARRA SUPERIOR DE CONTEXTO E TÍTULO */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 pb-4 border-b border-[#e2e8f0]">
+      {/* Modal de Pré-visualização de Foto */}
+      {previewFoto && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-4 flex flex-col gap-3 shadow-2xl animate-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+              <h3 className="text-sm font-display font-bold text-slate-900">{previewFoto.titulo}</h3>
+              <button 
+                type="button"
+                onClick={() => setPreviewFoto(null)}
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="w-full max-h-[70vh] flex items-center justify-center bg-slate-950 rounded-xl overflow-hidden">
+              <img 
+                src={previewFoto.url} 
+                alt={previewFoto.titulo} 
+                className="max-h-[68vh] w-auto object-contain"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 1. BARRA SUPERIOR: CONTEXTO, TÍTULO E AÇÕES */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 pb-4 border-b border-slate-200/80">
         <div className="flex items-center gap-3">
           <button 
             type="button"
             onClick={() => onNavigate('lista-8d')}
             className="btn-secondary h-9 px-3 text-xs"
-            title="Voltar para a lista"
+            title="Voltar para a lista de ocorrências"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>Voltar</span>
@@ -396,13 +427,18 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <span className="text-[11px] font-display font-semibold uppercase tracking-wider text-[#0b5796] bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200/60 shadow-2xs">
-                {edicao ? 'Edição RNC' : 'Nova ocorrência'}
+                {edicao ? 'Edição da Ocorrência' : 'Novo Lançamento'}
               </span>
-              <span className="text-xs text-[#64748b]">Metodologia 8D</span>
+              <span className="text-xs text-slate-500 font-medium">
+                Etapa 1: Relatório Inicial
+              </span>
             </div>
-            <h1 className="text-base sm:text-2xl font-display font-bold text-[#0f172a] mt-0.5">
-              {edicao ? `Ocorrência: ${form.field1 || `RNC #${form.id}`}` : 'Registro de não conformidade (8D)'}
+            <h1 className="text-base sm:text-2xl font-display font-bold text-slate-900 mt-0.5">
+              {edicao ? `Ocorrência: ${form.field1 || `RNC #${form.id}`}` : 'Relatório Inicial de Não Conformidade'}
             </h1>
+            <p className="text-xs text-slate-500 hidden sm:block">
+              Preenchimento inicial de fábrica. A equipe da Qualidade complementará a contenção e análise 8D posteriormente.
+            </p>
           </div>
         </div>
 
@@ -417,905 +453,723 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
           <button 
             type="button"
             onClick={handleSave}
-            className="btn-primary h-9 px-4 text-xs font-semibold shadow-sm hover:shadow"
+            className="btn-primary h-9 px-4 text-xs font-semibold shadow-sm hover:shadow flex items-center gap-2 cursor-pointer"
           >
             <Save className="w-4 h-4" />
-            <span className="font-display">Salvar RNC</span>
+            <span className="font-display">
+              {edicao ? 'Salvar Alterações' : 'Emitir Relatório Inicial'}
+            </span>
           </button>
         </div>
       </div>
 
-      {/* 2. NAVEGAÇÃO DE ETAPAS (STEPPER RESPONSIVO) */}
-      
-      {/* Versão Desktop: Stepper Completo em Linha */}
-      <div className="hidden md:grid grid-cols-6 gap-2 p-1.5 bg-white border border-[#e2e8f0] rounded-2xl shadow-xs">
-        {STEPS.map((step, idx) => {
-          const isActive = activeTab === step.id;
-          const isCompleted = isStepComplete(step.id);
-          const isPast = idx < currentStepIndex;
-          const hasError = isPast && !isCompleted;
-
-          return (
-            <button
-              key={step.id}
-              type="button"
-              onClick={() => handleStepClick(step)}
-              className={`h-10.5 px-3 rounded-xl text-xs transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 select-none active:scale-[0.98] ${
-                isActive
-                  ? 'bg-blue-50/90 text-[#0b5796] font-bold border border-[#0f6cbd]/40 shadow-xs'
-                  : isCompleted
-                  ? 'bg-emerald-50/70 text-[#107c10] font-semibold border border-emerald-200/70 hover:bg-emerald-100/60'
-                  : hasError
-                  ? 'bg-rose-50/80 text-rose-700 font-semibold border border-rose-200/70 hover:bg-rose-100/70'
-                  : 'text-[#64748b] hover:bg-slate-50 hover:text-[#0f172a] border border-transparent'
-              }`}
-            >
-              <div className={`w-5.5 h-5.5 rounded-full flex items-center justify-center text-[10px] shrink-0 font-bold font-mono transition-transform duration-200 ${
-                isActive 
-                  ? 'bg-[#0f6cbd] text-white shadow-xs scale-105' 
-                  : isCompleted 
-                  ? 'bg-emerald-600 text-white' 
-                  : hasError 
-                  ? 'bg-rose-600 text-white' 
-                  : 'bg-[#e2e8f0] text-[#64748b]'
-              }`}>
-                {isCompleted ? '✓' : hasError ? '!' : step.stepNum}
+      {/* FORMULÁRIO UNIFICADO DO RELATÓRIO INICIAL */}
+      <form onSubmit={handleSave} className="flex flex-col gap-5">
+        
+        {/* =========================================================================
+            CARD 1: DADOS GERAIS DA NÃO CONFORMIDADE & MONTADORA
+            ========================================================================= */}
+        <div className="card-saas p-5 flex flex-col gap-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-blue-50 text-[#0b5796] flex items-center justify-center font-bold">
+                <Car className="w-4 h-4" />
               </div>
-              <span className="truncate font-display font-medium">{step.label.split('. ')[1] || step.label}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Versão Mobile / Tablet: Indicador Compacto de Progresso com Seleção Rápida */}
-      <div className="md:hidden card-saas p-3.5 flex flex-col gap-2.5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full bg-[#0f6cbd] text-white flex items-center justify-center text-xs font-bold">
-              {currentStepObj.stepNum}
+              <div>
+                <h2 className="text-sm font-display font-bold text-slate-900">
+                  1. Dados Gerais & Montadora
+                </h2>
+                <p className="text-xs text-slate-500">
+                  Identificação do cliente montadora, classificação da ocorrência e data de detecção.
+                </p>
+              </div>
             </div>
-            <span className="font-bold text-xs text-[#0f172a]">
-              Etapa {currentStepObj.stepNum} de 6: {currentStepObj.label.split('. ')[1]}
+            <span className="text-[11px] font-semibold text-slate-400 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200/60">
+              Chão de Fábrica
             </span>
           </div>
-          <span className="text-[11px] font-mono text-[#64748b]">
-            {STEPS.filter(s => isStepComplete(s.id)).length} de {STEPS.length} concluídas ({Math.round((STEPS.filter(s => isStepComplete(s.id)).length / STEPS.length) * 100)}%)
-          </span>
-        </div>
 
-        {/* Barra de Progresso Visual */}
-        <div className="w-full bg-[#e2e8f0] h-2 rounded-full overflow-hidden">
-          <div 
-            className="bg-[#0f6cbd] h-full rounded-full transition-all duration-300"
-            style={{ width: `${(STEPS.filter(s => isStepComplete(s.id)).length / STEPS.length) * 100}%` }}
-          />
-        </div>
-
-        {/* Seletor Rápido de Etapas em Pílulas */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pt-1 pb-0.5">
-          {STEPS.map((step, idx) => {
-            const isCompleted = isStepComplete(step.id);
-            const isPast = idx < currentStepIndex;
-            const hasError = isPast && !isCompleted;
-
-            return (
-              <button
-                key={step.id}
-                type="button"
-                onClick={() => handleStepClick(step)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition flex items-center gap-1.5 ${
-                  activeTab === step.id 
-                    ? 'bg-[#0f6cbd] text-white shadow-xs' 
-                    : isCompleted
-                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100'
-                    : hasError
-                    ? 'bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100'
-                    : 'bg-[#f1f5f9] text-[#475569] hover:bg-[#e2e8f0]'
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Cliente / Montadora */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
+                <span>Cliente (Montadora) <strong className="text-rose-500">*</strong></span>
+                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${clientBadge.bg} ${clientBadge.color}`}>
+                  {form.cliente}
+                </span>
+              </label>
+              <select
+                value={form.cliente}
+                onChange={e => handleClienteChange(e.target.value)}
+                className={`w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border outline-none transition-all ${
+                  errors.cliente ? 'border-rose-500 focus:ring-2 focus:ring-rose-200' : 'border-slate-200 focus:border-[#0b5796] focus:ring-2 focus:ring-[#0b5796]/15'
                 }`}
               >
-                <span>{isCompleted ? '✓' : hasError ? '!' : step.stepNum}.</span>
-                <span>{step.shortLabel}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+                {CLIENTES_LIST.map(cli => (
+                  <option key={cli} value={cli}>{cli}</option>
+                ))}
+              </select>
+              {errors.cliente && <span className="text-[11px] text-rose-500 font-medium">{errors.cliente}</span>}
+            </div>
 
-      {/* 3. CARD CENTRAL DO FORMULÁRIO (PADRÃO PROFISSIONAL DE ESPAÇAMENTO) */}
-      <div className="card-saas p-5 sm:p-7 shadow-xs">
-        <form onSubmit={handleSave} className="flex flex-col gap-6">
-          
-          {/* ========================================================================= */}
-          {/* ETAPA 1: GERAL & MONTADORA */}
-          {/* ========================================================================= */}
-          {activeTab === 'geral' && (
-            <div className="flex flex-col gap-5 animate-in fade-in">
-              <div className="border-b border-[#f1f5f9] pb-3">
-                <h2 className="text-sm sm:text-base font-bold text-[#0f172a] flex items-center gap-2">
-                  <Car className="w-4 h-4 text-[#0f6cbd]" />
-                  <span>Informações Gerais da Não Conformidade</span>
+            {/* Tipo de Ocorrência */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-slate-700">
+                Tipo de Ocorrência <strong className="text-rose-500">*</strong>
+              </label>
+              <select
+                value={form.tipoRnc}
+                onChange={e => {
+                  clearFieldError('tipoRnc');
+                  setForm(prev => ({ ...prev, tipoRnc: e.target.value as TipoRNC }));
+                }}
+                className={`w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border outline-none transition-all ${
+                  errors.tipoRnc ? 'border-rose-500 focus:ring-2 focus:ring-rose-200' : 'border-slate-200 focus:border-[#0b5796] focus:ring-2 focus:ring-[#0b5796]/15'
+                }`}
+              >
+                <option value="Formal">Formal (Reclamação Oficial do Cliente)</option>
+                <option value="Informal">Informal (Alerta / Contato da Montadora)</option>
+                <option value="Interno">Interno (Detecção Interna na Linha de Produção)</option>
+              </select>
+              {errors.tipoRnc && <span className="text-[11px] text-rose-500 font-medium">{errors.tipoRnc}</span>}
+            </div>
+
+            {/* Data da Ocorrência */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-slate-700">
+                Data da Ocorrência <strong className="text-rose-500">*</strong>
+              </label>
+              <input
+                type="date"
+                value={form.dataOcorrencia}
+                onChange={e => {
+                  clearFieldError('dataOcorrencia');
+                  setForm(prev => ({ ...prev, dataOcorrencia: e.target.value }));
+                }}
+                className={`w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border outline-none transition-all ${
+                  errors.dataOcorrencia ? 'border-rose-500 focus:ring-2 focus:ring-rose-200' : 'border-slate-200 focus:border-[#0b5796] focus:ring-2 focus:ring-[#0b5796]/15'
+                }`}
+              />
+              {errors.dataOcorrencia && <span className="text-[11px] text-rose-500 font-medium">{errors.dataOcorrencia}</span>}
+            </div>
+
+            {/* Turno de Detecção */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-slate-700">
+                Turno de Detecção
+              </label>
+              <select
+                value={form.turno}
+                onChange={e => setForm(prev => ({ ...prev, turno: e.target.value as any }))}
+                className="w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border border-slate-200 focus:border-[#0b5796] focus:ring-2 focus:ring-[#0b5796]/15 outline-none transition-all"
+              >
+                <option value="1º Turno">1º Turno (06:00 - 14:40)</option>
+                <option value="2º Turno">2º Turno (14:40 - 23:15)</option>
+                <option value="3º Turno">3º Turno (23:15 - 06:00)</option>
+                <option value="Central">Turno Central / Administrativo</option>
+              </select>
+            </div>
+
+            {/* Setor de Detecção */}
+            <div className="flex flex-col gap-1.5 sm:col-span-2">
+              <label className="text-xs font-semibold text-slate-700">
+                Setor de Detecção
+              </label>
+              <input
+                type="text"
+                value={form.setorDeteccao || ''}
+                onChange={e => setForm(prev => ({ ...prev, setorDeteccao: e.target.value }))}
+                placeholder="Ex: Linha de Solda Robotizada, Célula Manual, Estamparia, Expedição..."
+                className="w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border border-slate-200 focus:border-[#0b5796] focus:ring-2 focus:ring-[#0b5796]/15 outline-none transition-all"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* =========================================================================
+            CARD 2: IDENTIFICAÇÃO DA PEÇA & POSTO (AUTOPREENCHIMENTO PROEPS)
+            ========================================================================= */}
+        <div className="card-saas p-5 flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center font-bold">
+                <Wrench className="w-4 h-4" />
+              </div>
+              <div>
+                <h2 className="text-sm font-display font-bold text-slate-900">
+                  2. Peça, Posto & FMDS (Autopreenchimento ProEPS)
                 </h2>
-                <p className="text-xs text-[#64748b] mt-0.5">
-                  Identificação do cliente montadora, classificação inicial e dados de emissão.
+                <p className="text-xs text-slate-500">
+                  Ao escolher o produto, o posto cadastrado e a área FMDS são preenchidos automaticamente conforme o ProEPS.
                 </p>
               </div>
+            </div>
+            
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-800 text-[11px] font-semibold rounded-lg border border-emerald-200/70 shrink-0">
+              <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Base colpecasgerais_AA3 ativa</span>
+            </div>
+          </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
-                <div>
-                  <label className="form-label">
-                    Cliente (Montadora) <span className="text-rose-500">*</span>
-                  </label>
-                  <select 
-                    className={`form-input ${errors.cliente ? 'border-rose-500 bg-rose-50/20 focus:border-rose-600 focus:ring-rose-200' : ''}`}
-                    value={form.cliente}
-                    onChange={e => {
-                      handleClienteChange(e.target.value);
-                      clearFieldError('cliente');
-                    }}
-                  >
-                    {CLIENTES_LIST.map(c => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
-                  {errors.cliente && (
-                    <p className="text-[11px] text-rose-600 font-medium mt-1 flex items-center gap-1">
-                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                      <span>{errors.cliente}</span>
-                    </p>
-                  )}
-                </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Produto / Conjunto (Peça Final) */}
+            <div className="flex flex-col gap-1.5 sm:col-span-2">
+              <label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
+                <span>Produto / Conjunto (Peça Final) <strong className="text-rose-500">*</strong></span>
+                <span className="text-[11px] text-slate-500">
+                  {produtosDoCliente.length} itens disponíveis para {form.cliente}
+                </span>
+              </label>
+              <select
+                value={form.produto}
+                onChange={e => handlePecaChange(e.target.value)}
+                className={`w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border outline-none transition-all ${
+                  errors.produto ? 'border-rose-500 focus:ring-2 focus:ring-rose-200' : 'border-slate-200 focus:border-[#0b5796] focus:ring-2 focus:ring-[#0b5796]/15'
+                }`}
+              >
+                <option value="">-- Selecione o produto / conjunto --</option>
+                {produtosDoCliente.map(p => (
+                  <option key={`${p.identificacao}-${p.codCliText}`} value={p.codCliText || p.material}>
+                    {p.codCliText ? `${p.codCliText} - ` : ''}{p.descricao} (SAP: {p.material})
+                  </option>
+                ))}
+              </select>
+              {errors.produto && <span className="text-[11px] text-rose-500 font-medium">{errors.produto}</span>}
+            </div>
 
-                <div>
-                  <label className="form-label">
-                    Tipo de Ocorrência <span className="text-rose-500">*</span>
-                  </label>
-                  <select 
-                    className={`form-input ${errors.tipoRnc ? 'border-rose-500 bg-rose-50/20 focus:border-rose-600 focus:ring-rose-200' : ''}`}
-                    value={form.tipoRnc}
-                    onChange={e => {
-                      setForm({ ...form, tipoRnc: e.target.value as TipoRNC });
-                      clearFieldError('tipoRnc');
-                    }}
-                  >
-                    <option value="Formal">Formal (Reclamação Oficial Montadora)</option>
-                    <option value="Informal">Informal (Alerta de Linha Cliente)</option>
-                    <option value="Interno">Interno (Fábrica Gestamp)</option>
-                    <option value="Improcedente">Improcedente</option>
-                  </select>
-                  {errors.tipoRnc && (
-                    <p className="text-[11px] text-rose-600 font-medium mt-1 flex items-center gap-1">
-                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                      <span>{errors.tipoRnc}</span>
-                    </p>
-                  )}
-                </div>
+            {/* Tipo de Componente */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-slate-700">
+                Tipo de Componente
+              </label>
+              <select
+                value={form.finalComponente || 'Peça Final'}
+                onChange={e => {
+                  const val = e.target.value as any;
+                  setForm(prev => ({
+                    ...prev,
+                    finalComponente: val,
+                    componente: val === 'Peça Final' 
+                      ? (pecasCatalogo.find(p => p.codCliText === prev.produto || p.material === prev.produto)?.descricao || prev.componente)
+                      : prev.componente
+                  }));
+                }}
+                className="w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border border-slate-200 focus:border-[#0b5796] focus:ring-2 focus:ring-[#0b5796]/15 outline-none transition-all"
+              >
+                <option value="Peça Final">Peça Final (Conjunto Completo)</option>
+                <option value="Peça Final + Componente">Peça Final + Componente Específico</option>
+                <option value="Componente">Componente Isolado</option>
+                <option value="SubComponente + Componente">SubComponente + Componente</option>
+              </select>
+            </div>
 
-                <div>
-                  <label className="form-label">
-                    Data da Ocorrência <span className="text-rose-500">*</span>
-                  </label>
-                  <input 
-                    type="date"
-                    className={`form-input font-mono ${errors.dataOcorrencia ? 'border-rose-500 bg-rose-50/20 focus:border-rose-600 focus:ring-rose-200' : ''}`}
-                    value={form.dataOcorrencia}
-                    onChange={e => {
-                      setForm({ ...form, dataOcorrencia: e.target.value });
-                      clearFieldError('dataOcorrencia');
-                    }}
-                  />
-                  {errors.dataOcorrencia && (
-                    <p className="text-[11px] text-rose-600 font-medium mt-1 flex items-center gap-1">
-                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                      <span>{errors.dataOcorrencia}</span>
-                    </p>
-                  )}
-                </div>
+            {/* Componente Específico / Subcomponente */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-slate-700">
+                Componente
+              </label>
+              {form.finalComponente === 'Peça Final' ? (
+                <input
+                  type="text"
+                  value={form.componente || ''}
+                  onChange={e => setForm(prev => ({ ...prev, componente: e.target.value }))}
+                  className="w-full h-10 px-3 bg-slate-50 text-slate-800 text-xs sm:text-sm rounded-xl border border-slate-200 focus:border-[#0b5796] outline-none"
+                  placeholder="Nome do componente"
+                />
+              ) : (
+                <select
+                  value={form.componente || ''}
+                  onChange={e => handleComponenteChange(e.target.value)}
+                  className="w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border border-slate-200 focus:border-[#0b5796] focus:ring-2 focus:ring-[#0b5796]/15 outline-none transition-all"
+                >
+                  <option value="">-- Selecione o subcomponente --</option>
+                  {componentesDoProduto.map(c => (
+                    <option key={`${c.identificacao}-${c.codCliText}`} value={c.descricao || c.componente}>
+                      {c.codCliText ? `${c.codCliText} - ` : ''}{c.descricao}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
 
-                <div>
-                  <label className="form-label">
-                    Turno de Detecção
-                  </label>
-                  <select 
-                    className="form-input"
-                    value={form.turno}
-                    onChange={e => setForm({ ...form, turno: e.target.value as any })}
-                  >
-                    <option value="1º Turno">1º Turno (06:00 - 14:40)</option>
-                    <option value="2º Turno">2º Turno (14:40 - 23:15)</option>
-                    <option value="3º Turno">3º Turno (23:15 - 06:00)</option>
-                    <option value="Central">Central / Administrativo</option>
-                  </select>
-                </div>
+            {/* Posto de Trabalho (Autopreenchido com opção de ajuste) */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
+                <span>Posto de Trabalho Cadastrado</span>
+                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/60">
+                  Autopreenchido
+                </span>
+              </label>
+              <select
+                value={form.posto || ''}
+                onChange={e => setForm(prev => ({ ...prev, posto: e.target.value }))}
+                className="w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border border-slate-200 focus:border-[#0b5796] focus:ring-2 focus:ring-[#0b5796]/15 outline-none transition-all"
+              >
+                {form.posto && !postosDisponiveis.includes(form.posto) && (
+                  <option value={form.posto}>{form.posto}</option>
+                )}
+                {postosDisponiveis.map(p => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
+            </div>
 
-                <div>
-                  <label className="form-label">
-                    Setor Fabril
-                  </label>
-                  <select 
-                    className="form-input"
-                    value={form.classificacaoSetor}
-                    onChange={e => setForm({ ...form, classificacaoSetor: e.target.value })}
-                  >
-                    <option value="SOLDA 1 - ESTACIONÁRIAS">SOLDA 1 - ESTACIONÁRIAS</option>
-                    <option value="SOLDA 2 - CEL. TOYOTA">SOLDA 2 - CEL. TOYOTA</option>
-                    <option value="SOLDA 3 - CEL. HONDA/HYUNDAI">SOLDA 3 - CEL. HONDA/HYUNDAI</option>
-                    <option value="ESTAMPARIA PROGRESSIVAS">ESTAMPARIA PROGRESSIVAS</option>
-                    <option value="ESTAMPARIA TANDEM">ESTAMPARIA TANDEM</option>
-                    <option value="OUTROS">OUTROS</option>
-                  </select>
-                </div>
+            {/* Área FMDS / Setor Fabril (Autopreenchido) */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
+                <span>Área FMDS / Setor Fabril</span>
+                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/60">
+                  Autopreenchido
+                </span>
+              </label>
+              <select
+                value={form.fmds || ''}
+                onChange={e => setForm(prev => ({ 
+                  ...prev, 
+                  fmds: e.target.value,
+                  classificacaoSetor: e.target.value 
+                }))}
+                className="w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border border-slate-200 focus:border-[#0b5796] focus:ring-2 focus:ring-[#0b5796]/15 outline-none transition-all"
+              >
+                {form.fmds && !fmdsDisponiveis.includes(form.fmds) && (
+                  <option value={form.fmds}>{form.fmds}</option>
+                )}
+                {fmdsDisponiveis.map(f => (
+                  <option key={f} value={f}>{f}</option>
+                ))}
+              </select>
+            </div>
 
-                <div>
-                  <label className="form-label">
-                    Setor de Detecção
-                  </label>
-                  <input 
-                    type="text"
-                    className="form-input"
-                    placeholder="Ex: Linha de Solda, Posto de Inspeção..."
-                    value={form.setorDeteccao}
-                    onChange={e => setForm({ ...form, setorDeteccao: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              {/* Informação do Emissor */}
-              <div className="p-4 bg-[#f8fafc] rounded-xl border border-[#e2e8f0] flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-                <div>
-                  <span className="text-[11px] font-bold text-[#64748b] uppercase tracking-wider block">
-                    Emissor / Detector Conectado
-                  </span>
-                  <div className="font-bold text-[#0f172a] text-sm mt-0.5">
-                    {form.detector || currentUser.nome}
-                  </div>
-                  <div className="text-[#64748b] mt-0.5">
-                    RE: <span className="font-mono">{form.reDetector || currentUser.reAcesso}</span> • Perfil: {currentUser.perfil}
-                  </div>
-                </div>
-                <span className="self-start sm:self-auto text-xs px-2.5 py-1 rounded-full bg-blue-50 text-[#0f6cbd] font-semibold border border-blue-100">
-                  Operador Ativo
+            {/* Carry Over & Reincidente */}
+            <div className="flex items-center gap-6 pt-1 sm:col-span-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-slate-700">Carry Over:</span>
+                <span className={`text-xs font-bold px-2.5 py-1 rounded-lg border ${
+                  form.carryOver === 'Sim' ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-slate-50 text-slate-700 border-slate-200'
+                }`}>
+                  {form.carryOver || 'Não'}
                 </span>
               </div>
-            </div>
-          )}
 
-          {/* ========================================================================= */}
-          {/* ETAPA 2: PRODUTO & POSTO */}
-          {/* ========================================================================= */}
-          {activeTab === 'pecas' && (
-            <div className="flex flex-col gap-5 animate-in fade-in">
-              <div className="border-b border-[#f1f5f9] pb-3">
-                <h2 className="text-sm sm:text-base font-bold text-[#0f172a] flex items-center gap-2">
-                  <Wrench className="w-4 h-4 text-[#0f6cbd]" />
-                  <span>Produto, Peça e Posto de Trabalho</span>
-                </h2>
-                <p className="text-xs text-[#64748b] mt-0.5">
-                  Vínculo com o catálogo de engenharia de peças da montadora.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
-                <div>
-                  <label className="form-label">
-                    Tipo de Peça / Montagem
-                  </label>
-                  <select 
-                    className="form-input"
-                    value={form.finalComponente}
-                    onChange={e => setForm({ ...form, finalComponente: e.target.value as any })}
-                  >
-                    <option value="Peça Final">Peça Final (Conjunto Soldado / Montado)</option>
-                    <option value="Componente">Componente (Peça Estampada Individual)</option>
-                    <option value="Peça Final + Componente">Peça Final + Componente</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="form-label">
-                    Posto de Trabalho (Origem)
-                  </label>
-                  <select 
-                    className="form-input"
-                    value={form.posto}
-                    onChange={e => setForm({ ...form, posto: e.target.value })}
-                  >
-                    <option value="">Selecione o posto...</option>
-                    {postosDisponiveis.map(p => (
-                      <option key={p} value={p}>{p}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="form-label">
-                    Produto / Conjunto ({form.cliente}) <span className="text-rose-500">*</span>
-                  </label>
-                  <select 
-                    className={`form-input font-medium ${errors.produto ? 'border-rose-500 bg-rose-50/20 focus:border-rose-600 focus:ring-rose-200' : ''}`}
-                    value={form.produto}
-                    onChange={e => {
-                      handlePecaChange(e.target.value);
-                      clearFieldError('produto');
-                    }}
-                  >
-                    <option value="">Selecione a peça...</option>
-                    {produtosDoCliente.map(p => (
-                      <option key={p.codCliText} value={p.codCliText}>
-                        {p.codCliText} - {p.descricao}
-                      </option>
-                    ))}
-                  </select>
-                  {errors.produto && (
-                    <p className="text-[11px] text-rose-600 font-medium mt-1 flex items-center gap-1">
-                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                      <span>{errors.produto}</span>
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="form-label">
-                    Componente Específico
-                  </label>
-                  <select 
-                    className="form-input"
-                    value={form.componente}
-                    onChange={e => setForm({ ...form, componente: e.target.value })}
-                  >
-                    {componentesDoProduto.length > 0 ? (
-                      componentesDoProduto.map(c => (
-                        <option key={c.componente || c.descricao} value={c.componente || c.descricao}>
-                          {c.componente || c.descricao}
-                        </option>
-                      ))
-                    ) : (
-                      <option value={form.produto}>{form.produto || 'Peça Principal'}</option>
-                    )}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="form-label">
-                    Área / FMDS
-                  </label>
-                  <select 
-                    className="form-input"
-                    value={form.fmds}
-                    onChange={e => setForm({ ...form, fmds: e.target.value })}
-                  >
-                    <option value="">Selecione FMDS...</option>
-                    {fmdsDisponiveis.map(f => (
-                      <option key={f} value={f}>{f}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ========================================================================= */}
-          {/* ETAPA 3: DEFEITO & FOTOS */}
-          {/* ========================================================================= */}
-          {activeTab === 'defeito' && (
-            <div className="flex flex-col gap-5 animate-in fade-in">
-              <div className="border-b border-[#f1f5f9] pb-3">
-                <h2 className="text-sm sm:text-base font-bold text-[#0f172a] flex items-center gap-2">
-                  <Camera className="w-4 h-4 text-[#0f6cbd]" />
-                  <span>Descrição da Não Conformidade e Evidências Fotográficas</span>
-                </h2>
-                <p className="text-xs text-[#64748b] mt-0.5">
-                  Detalhes do defeito e upload direto das fotografias de peça NG e padrão OK.
-                </p>
-              </div>
-
-              <div className="flex flex-col gap-4">
-                <div>
-                  <label className="form-label">
-                    Descrição do Defeito / Modo de Falha <span className="text-rose-500">*</span>
-                  </label>
-                  <input 
-                    type="text"
-                    className={`form-input font-medium ${errors.descricaoProblema ? 'border-rose-500 bg-rose-50/20 focus:border-rose-600 focus:ring-rose-200' : ''}`}
-                    placeholder="Ex: Trinca na solda, Deformação dimensional, Furo obstruído..."
-                    value={form.descricaoProblema}
-                    onChange={e => {
-                      setForm({ ...form, descricaoProblema: e.target.value });
-                      clearFieldError('descricaoProblema');
-                    }}
-                  />
-                  {errors.descricaoProblema && (
-                    <p className="text-[11px] text-rose-600 font-medium mt-1 flex items-center gap-1">
-                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                      <span>{errors.descricaoProblema}</span>
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="form-label">
-                    Detalhamento do Ocorrido (O que aconteceu na fábrica / cliente)
-                  </label>
-                  <textarea 
-                    rows={3}
-                    className="form-input resize-y"
-                    placeholder="Descreva o contexto operacional, posição do robô, impacto na montagem..."
-                    value={form.descricaoCompleta || ''}
-                    onChange={e => setForm({ ...form, descricaoCompleta: e.target.value })}
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="form-label">
-                      Quantidade Afetada (Peças) <span className="text-rose-500">*</span>
-                    </label>
-                    <input 
-                      type="number"
-                      min="1"
-                      className={`form-input font-mono font-bold ${errors.quantidadeAfetada ? 'border-rose-500 bg-rose-50/20 focus:border-rose-600 focus:ring-rose-200' : ''}`}
-                      value={form.quantidadeAfetada}
-                      onChange={e => {
-                        setForm({ ...form, quantidadeAfetada: Number(e.target.value) });
-                        clearFieldError('quantidadeAfetada');
-                      }}
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-slate-700">Reincidente:</span>
+                <div className="flex items-center gap-2">
+                  <label className="flex items-center gap-1.5 text-xs text-slate-700 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="reincidente"
+                      value="NÃO"
+                      checked={form.reincidente !== 'SIM'}
+                      onChange={() => setForm(prev => ({ ...prev, reincidente: 'NÃO' }))}
+                      className="text-[#0b5796] focus:ring-[#0b5796]"
                     />
-                    {errors.quantidadeAfetada && (
-                      <p className="text-[11px] text-rose-600 font-medium mt-1 flex items-center gap-1">
-                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                        <span>{errors.quantidadeAfetada}</span>
-                      </p>
-                    )}
-                  </div>
+                    <span>Não</span>
+                  </label>
+                  <label className="flex items-center gap-1.5 text-xs text-slate-700 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="reincidente"
+                      value="SIM"
+                      checked={form.reincidente === 'SIM'}
+                      onChange={() => setForm(prev => ({ ...prev, reincidente: 'SIM' }))}
+                      className="text-[#0b5796] focus:ring-[#0b5796]"
+                    />
+                    <span className="text-amber-800 font-semibold">Sim</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
 
-                  <div>
-                    <label className="form-label">
-                      Gravidade da Falha
-                    </label>
-                    <select 
-                      className="form-input"
-                      value={form.gravidade || 'Média'}
-                      onChange={e => setForm({ ...form, gravidade: e.target.value })}
+        {/* =========================================================================
+            CARD 3: DESCRIÇÃO DO DEFEITO, QUANTIDADE & RASTREABILIDADE
+            ========================================================================= */}
+        <div className="card-saas p-5 flex flex-col gap-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-700 flex items-center justify-center font-bold">
+                <AlertCircle className="w-4 h-4" />
+              </div>
+              <div>
+                <h2 className="text-sm font-display font-bold text-slate-900">
+                  3. Descrição do Defeito & Quantidade
+                </h2>
+                <p className="text-xs text-slate-500">
+                  Descreva o problema encontrado na linha ou apontado pelo cliente.
+                </p>
+              </div>
+            </div>
+            <span className="text-[11px] font-semibold text-rose-700 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200/60">
+              Obrigatório
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* Descrição do Defeito / Modo de Falha */}
+            <div className="flex flex-col gap-1.5 sm:col-span-2">
+              <label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
+                <span>Modo de Falha / Descrição da Não Conformidade <strong className="text-rose-500">*</strong></span>
+                <span className="text-[11px] text-slate-400 font-normal">
+                  {(form.descricaoProblema || '').length} caracteres
+                </span>
+              </label>
+              <textarea
+                rows={3}
+                value={form.descricaoProblema || ''}
+                onChange={e => {
+                  clearFieldError('descricaoProblema');
+                  setForm(prev => ({ ...prev, descricaoProblema: e.target.value }));
+                }}
+                placeholder="Ex: Falta de solda a ponto no reforço lateral esquerdo; trinca na borda de repuxo do painel; rebarba excessiva na furação..."
+                className={`w-full p-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border outline-none transition-all resize-y ${
+                  errors.descricaoProblema ? 'border-rose-500 focus:ring-2 focus:ring-rose-200' : 'border-slate-200 focus:border-[#0b5796] focus:ring-2 focus:ring-[#0b5796]/15'
+                }`}
+              />
+              {errors.descricaoProblema && <span className="text-[11px] text-rose-500 font-medium">{errors.descricaoProblema}</span>}
+            </div>
+
+            {/* Quantidade Afetada & Rastreabilidade */}
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-slate-700">
+                  Quantidade Não Conforme <strong className="text-rose-500">*</strong>
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  value={form.quantidadeAfetada ?? 1}
+                  onChange={e => {
+                    clearFieldError('quantidadeAfetada');
+                    setForm(prev => ({ ...prev, quantidadeAfetada: Math.max(1, parseInt(e.target.value) || 1) }));
+                  }}
+                  className={`w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border outline-none transition-all ${
+                    errors.quantidadeAfetada ? 'border-rose-500 focus:ring-2 focus:ring-rose-200' : 'border-slate-200 focus:border-[#0b5796] focus:ring-2 focus:ring-[#0b5796]/15'
+                  }`}
+                />
+                {errors.quantidadeAfetada && <span className="text-[11px] text-rose-500 font-medium">{errors.quantidadeAfetada}</span>}
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-slate-700">
+                  Código da Etiqueta SAP / Lote
+                </label>
+                <input
+                  type="text"
+                  value={form.codigoRastreabilidade || ''}
+                  onChange={e => setForm(prev => ({ 
+                    ...prev, 
+                    codigoRastreabilidade: e.target.value,
+                    protcliente: e.target.value ? 'Sim' : prev.protcliente
+                  }))}
+                  placeholder="Ex: ETQ-884102 ou 202610-01"
+                  className="w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border border-slate-200 focus:border-[#0b5796] focus:ring-2 focus:ring-[#0b5796]/15 outline-none transition-all"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* =========================================================================
+            CARD 4: EVIDÊNCIAS FOTOGRÁFICAS (FOTO PEÇA NG & FOTO PEÇA OK)
+            ========================================================================= */}
+        <div className="card-saas p-5 flex flex-col gap-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center font-bold">
+                <Camera className="w-4 h-4" />
+              </div>
+              <div>
+                <h2 className="text-sm font-display font-bold text-slate-900">
+                  4. Evidências Fotográficas
+                </h2>
+                <p className="text-xs text-slate-500">
+                  Fotografia da peça não conforme (NG) e padrão de referência (OK).
+                </p>
+              </div>
+            </div>
+            <span className="text-[11px] font-semibold text-slate-500 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200/60">
+              Até 10MB por imagem
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Foto Peça NG (Não Conforme) */}
+            <div className="flex flex-col gap-2 p-4 rounded-xl border border-rose-200/80 bg-rose-50/20">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-rose-800 flex items-center gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
+                  Peça Não Conforme (NG)
+                </span>
+                {form.fotoPecaNg && (
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveFoto('fotoPecaNg')}
+                    className="text-xs text-rose-600 hover:text-rose-800 flex items-center gap-1 cursor-pointer"
+                    title="Remover foto"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Remover</span>
+                  </button>
+                )}
+              </div>
+
+              {form.fotoPecaNg ? (
+                <div className="relative group rounded-xl overflow-hidden border border-rose-200 bg-white h-44 flex items-center justify-center">
+                  <img
+                    src={form.fotoPecaNg}
+                    alt="Peça NG"
+                    className="w-full h-full object-contain p-1"
+                  />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPreviewFoto({ url: form.fotoPecaNg!, titulo: 'Foto da Peça Não Conforme (NG)' })}
+                      className="px-3 py-1.5 bg-white text-slate-900 rounded-lg text-xs font-semibold flex items-center gap-1 shadow-sm"
                     >
-                      <option value="Baixa">Baixa (Estética não aparente)</option>
-                      <option value="Média">Média (Montagem com ajuste)</option>
-                      <option value="Alta">Alta (Impossibilita montagem cliente)</option>
-                      <option value="Crítica">Crítica (Item de Segurança)</option>
-                    </select>
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>Visualizar</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => fileInputNgRef.current?.click()}
+                      className="px-3 py-1.5 bg-rose-600 text-white rounded-lg text-xs font-semibold flex items-center gap-1 shadow-sm"
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>Trocar</span>
+                    </button>
                   </div>
                 </div>
-
-                {/* EVIDÊNCIAS FOTOGRÁFICAS COM SUPORTE A UPLOAD E URL */}
-                <div className="pt-4 border-t border-[#e2e8f0]">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs font-bold uppercase tracking-wider text-[#0f172a]">
-                      Fotografias Registradas (NG vs OK)
+              ) : (
+                <div
+                  onClick={() => fileInputNgRef.current?.click()}
+                  className="h-44 rounded-xl border-2 border-dashed border-rose-300 hover:border-rose-500 bg-white/70 hover:bg-white flex flex-col items-center justify-center gap-2 cursor-pointer transition-all text-center p-4"
+                >
+                  <div className="w-10 h-10 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center">
+                    <Camera className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-semibold text-rose-900 block">
+                      Clique para anexar foto da peça defeituosa
                     </span>
-                    <span className="text-xs text-[#64748b]">Upload direto ou link SharePoint</span>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                    
-                    {/* Card Foto NG */}
-                    <div className="card-saas p-4 border-2 border-rose-200 bg-rose-50/30 flex flex-col justify-between gap-3">
-                      <div>
-                        <div className="flex items-center justify-between text-xs font-bold text-rose-800 pb-2 border-b border-rose-200">
-                          <span>Peça Não Conforme (NG - Defeito)</span>
-                          <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 text-[10px] font-bold">
-                            Defeito
-                          </span>
-                        </div>
-
-                        <div className="h-48 rounded-xl bg-white border border-rose-200 overflow-hidden my-3 flex items-center justify-center p-1.5 shadow-2xs">
-                          <ImageWithFallback 
-                            src={form.fotoPecaNg}
-                            alt="Peça NG"
-                            variant="ng"
-                            className="w-full h-full object-contain"
-                            emptyLabel="Sem foto anexada"
-                            allowZoom={true}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col gap-2">
-                        <input 
-                          type="file" 
-                          ref={fileInputNgRef} 
-                          accept="image/*" 
-                          className="hidden" 
-                          onChange={e => handleFileUpload(e, 'fotoPecaNg')} 
-                        />
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => fileInputNgRef.current?.click()}
-                            className="btn-secondary w-full text-xs h-9 font-semibold text-rose-800 bg-white border-rose-300 hover:bg-rose-50"
-                          >
-                            <Upload className="w-3.5 h-3.5 text-rose-600" />
-                            <span>Carregar Foto NG</span>
-                          </button>
-                        </div>
-                        <input 
-                          type="text"
-                          className="form-input text-xs font-mono h-8"
-                          placeholder="Ou cole a URL da imagem..."
-                          value={form.fotoPecaNg}
-                          onChange={e => setForm({ ...form, fotoPecaNg: e.target.value })}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Card Foto OK */}
-                    <div className="card-saas p-4 border-2 border-emerald-200 bg-emerald-50/30 flex flex-col justify-between gap-3">
-                      <div>
-                        <div className="flex items-center justify-between text-xs font-bold text-emerald-800 pb-2 border-b border-emerald-200">
-                          <span>Peça Conforme (OK - Padrão)</span>
-                          <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold">
-                            Padrão
-                          </span>
-                        </div>
-
-                        <div className="h-48 rounded-xl bg-white border border-emerald-200 overflow-hidden my-3 flex items-center justify-center p-1.5 shadow-2xs">
-                          <ImageWithFallback 
-                            src={form.fotoPecaOk}
-                            alt="Peça OK"
-                            variant="ok"
-                            className="w-full h-full object-contain"
-                            emptyLabel="Sem foto padrão cadastrada"
-                            allowZoom={true}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col gap-2">
-                        <input 
-                          type="file" 
-                          ref={fileInputOkRef} 
-                          accept="image/*" 
-                          className="hidden" 
-                          onChange={e => handleFileUpload(e, 'fotoPecaOk')} 
-                        />
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => fileInputOkRef.current?.click()}
-                            className="btn-secondary w-full text-xs h-9 font-semibold text-emerald-800 bg-white border-emerald-300 hover:bg-emerald-50"
-                          >
-                            <Upload className="w-3.5 h-3.5 text-emerald-600" />
-                            <span>Carregar Foto OK</span>
-                          </button>
-                        </div>
-                        <input 
-                          type="text"
-                          className="form-input text-xs font-mono h-8"
-                          placeholder="Ou cole a URL da imagem..."
-                          value={form.fotoPecaOk}
-                          onChange={e => setForm({ ...form, fotoPecaOk: e.target.value })}
-                        />
-                      </div>
-                    </div>
-
+                    <span className="text-[11px] text-slate-400">
+                      JPG, PNG ou WEBP
+                    </span>
                   </div>
                 </div>
-
-              </div>
+              )}
+              <input
+                ref={fileInputNgRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={e => handleFileUpload(e, 'fotoPecaNg')}
+              />
             </div>
-          )}
 
-          {/* ========================================================================= */}
-          {/* ETAPA 4: AVALIAÇÃO DE RISCO */}
-          {/* ========================================================================= */}
-          {activeTab === 'risco' && (
-            <div className="flex flex-col gap-5 animate-in fade-in">
-              <div className="border-b border-[#f1f5f9] pb-3">
-                <h2 className="text-sm sm:text-base font-bold text-[#0f172a] flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-[#0f6cbd]" />
-                  <span>Matriz de Risco e Segurança do Produto</span>
-                </h2>
-                <p className="text-xs text-[#64748b] mt-0.5">
-                  Classificação de criticidade, itens de segurança, co-produto e reincidência.
-                </p>
+            {/* Foto Peça OK (Padrão de Referência) */}
+            <div className="flex flex-col gap-2 p-4 rounded-xl border border-emerald-200/80 bg-emerald-50/20">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-emerald-800 flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                  Padrão Aceitável / Peça Boa (OK)
+                </span>
+                {form.fotoPecaOk && (
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveFoto('fotoPecaOk')}
+                    className="text-xs text-rose-600 hover:text-rose-800 flex items-center gap-1 cursor-pointer"
+                    title="Remover foto"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Remover</span>
+                  </button>
+                )}
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
-                <div className="p-4 rounded-xl border border-[#e2e8f0] bg-[#f8fafc]">
-                  <label className="form-label">
-                    Item de Segurança?
-                  </label>
-                  <select 
-                    className="form-input"
-                    value={form.caracteristicaSeguranca}
-                    onChange={e => setForm({ ...form, caracteristicaSeguranca: e.target.value as any })}
-                  >
-                    <option value="Não">Não</option>
-                    <option value="Sim">Sim (Componente de Proteção / Airbag / Cinto)</option>
-                  </select>
-                </div>
-
-                <div className="p-4 rounded-xl border border-[#e2e8f0] bg-[#f8fafc]">
-                  <label className="form-label">
-                    Co-Produto Afetado?
-                  </label>
-                  <select 
-                    className="form-input"
-                    value={form.coProduto}
-                    onChange={e => setForm({ ...form, coProduto: e.target.value as any })}
-                  >
-                    <option value="Não">Não</option>
-                    <option value="Sim">Sim</option>
-                  </select>
-                </div>
-
-                <div className="p-4 rounded-xl border border-[#e2e8f0] bg-[#f8fafc]">
-                  <label className="form-label">
-                    Carry Over?
-                  </label>
-                  <select 
-                    className="form-input"
-                    value={form.carryOver}
-                    onChange={e => setForm({ ...form, carryOver: e.target.value as any })}
-                  >
-                    <option value="Não">Não</option>
-                    <option value="Sim">Sim</option>
-                  </select>
-                </div>
-
-                <div className="p-4 rounded-xl border border-[#e2e8f0] bg-[#f8fafc]">
-                  <label className="form-label">
-                    Falha Reincidente?
-                  </label>
-                  <select 
-                    className="form-input"
-                    value={form.reincidente}
-                    onChange={e => setForm({ ...form, reincidente: e.target.value as any })}
-                  >
-                    <option value="NÃO">NÃO</option>
-                    <option value="SIM (Já ocorrido nos últimos 12 meses)">SIM (Já ocorrido nos últimos 12 meses)</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ========================================================================= */}
-          {/* ETAPA 5: CONTENÇÃO (D3) */}
-          {/* ========================================================================= */}
-          {activeTab === 'contencao' && (
-            <div className="flex flex-col gap-5 animate-in fade-in">
-              <div className="border-b border-[#f1f5f9] pb-3">
-                <h2 className="text-sm sm:text-base font-bold text-[#0f172a] flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-[#0f6cbd]" />
-                  <span>Ações de Contenção Imediata (D3) & Diretrizes 5W2H</span>
-                </h2>
-                <p className="text-xs text-[#64748b] mt-0.5">
-                  Proteção da linha do cliente e estoque em quarentena.
-                </p>
-              </div>
-
-              <div className="flex flex-col gap-4">
-                <div>
-                  <label className="form-label">
-                    Ações de Contenção Adotadas
-                  </label>
-                  <textarea 
-                    rows={2}
-                    className="form-input resize-y"
-                    placeholder="Ex: Segregação 100% no posto, Inspeção visual por amostragem, Quarentena..."
-                    value={form.acoesContencao || ''}
-                    onChange={e => setForm({ ...form, acoesContencao: e.target.value })}
+              {form.fotoPecaOk ? (
+                <div className="relative group rounded-xl overflow-hidden border border-emerald-200 bg-white h-44 flex items-center justify-center">
+                  <img
+                    src={form.fotoPecaOk}
+                    alt="Peça OK"
+                    className="w-full h-full object-contain p-1"
                   />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPreviewFoto({ url: form.fotoPecaOk!, titulo: 'Foto do Padrão de Referência (OK)' })}
+                      className="px-3 py-1.5 bg-white text-slate-900 rounded-lg text-xs font-semibold flex items-center gap-1 shadow-sm"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>Visualizar</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => fileInputOkRef.current?.click()}
+                      className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold flex items-center gap-1 shadow-sm"
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>Trocar</span>
+                    </button>
+                  </div>
                 </div>
-
-                {/* Métricas de Contenção */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-                  <div className="p-3.5 rounded-xl border border-[#e2e8f0] bg-blue-50/50">
-                    <span className="text-[11px] font-bold text-[#0f6cbd] uppercase block">
-                      Inspecionadas
+              ) : (
+                <div
+                  onClick={() => fileInputOkRef.current?.click()}
+                  className="h-44 rounded-xl border-2 border-dashed border-emerald-300 hover:border-emerald-500 bg-white/70 hover:bg-white flex flex-col items-center justify-center gap-2 cursor-pointer transition-all text-center p-4"
+                >
+                  <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                    <Camera className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-semibold text-emerald-900 block">
+                      Clique para anexar foto do padrão de peça OK
                     </span>
-                    <input 
+                    <span className="text-[11px] text-slate-400">
+                      Opcional - Referência para auditoria
+                    </span>
+                  </div>
+                </div>
+              )}
+              <input
+                ref={fileInputOkRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={e => handleFileUpload(e, 'fotoPecaOk')}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* =========================================================================
+            CARD 5: EMISSOR / DETECTOR CONECTADO (RASTREABILIDADE)
+            ========================================================================= */}
+        <div className="card-saas p-4 bg-gradient-to-r from-blue-50/60 via-white to-slate-50/60 border-blue-200/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[#0b5796] text-white flex items-center justify-center font-bold text-sm shadow-xs">
+              <User className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-display font-bold text-slate-900">
+                  {currentUser.nome}
+                </span>
+                <span className="text-[10px] font-bold text-[#0b5796] bg-blue-100/80 px-2 py-0.5 rounded-full">
+                  RE: {currentUser.reAcesso}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500">
+                Detector registrado • Perfil: {currentUser.perfil} • {currentUser.cargo || 'Operação / Inspeção'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 self-start sm:self-auto text-xs font-semibold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200/70">
+            <ShieldCheck className="w-4 h-4 text-emerald-600" />
+            <span>Assinatura Digital de Detecção Ativa</span>
+          </div>
+        </div>
+
+        {/* =========================================================================
+            SEÇÃO EXPANSÍVEL: COMPLEMENTO DA QUALIDADE (APENAS SE EDICAO === TRUE)
+            ========================================================================= */}
+        {edicao && (
+          <div className="card-saas border-indigo-200/70 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setQualidadeExpandida(!qualidadeExpandida)}
+              className="w-full p-4 bg-indigo-50/40 hover:bg-indigo-50/70 flex items-center justify-between text-left transition-colors cursor-pointer"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-800 flex items-center justify-center font-bold">
+                  <ShieldCheck className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-display font-bold text-indigo-950">
+                    Complemento da Qualidade (Contenção D3 & 8D)
+                  </h3>
+                  <p className="text-xs text-indigo-800/80">
+                    Ações de contenção imediatas, estoques bloqueados e plano de ação.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 text-indigo-800 font-semibold text-xs">
+                <span>{qualidadeExpandida ? 'Recolher' : 'Expandir'}</span>
+                {qualidadeExpandida ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </div>
+            </button>
+
+            {qualidadeExpandida && (
+              <div className="p-5 flex flex-col gap-4 border-t border-indigo-100 bg-white">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-slate-700">Qtd Inspecionada (D3)</label>
+                    <input
                       type="number"
-                      min="0"
-                      className="form-input mt-1.5 font-mono font-bold"
                       value={form.qtdInspecionada || 0}
-                      onChange={e => setForm({ ...form, qtdInspecionada: Number(e.target.value) })}
+                      onChange={e => setForm(prev => ({ ...prev, qtdInspecionada: Number(e.target.value) }))}
+                      className="w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border border-slate-200 outline-none"
                     />
                   </div>
-
-                  <div className="p-3.5 rounded-xl border border-rose-200 bg-rose-50/50">
-                    <span className="text-[11px] font-bold text-rose-800 uppercase block">
-                      Bloqueadas
-                    </span>
-                    <input 
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-slate-700">Qtd Suspeita (D3)</label>
+                    <input
                       type="number"
-                      min="0"
-                      className="form-input mt-1.5 font-mono font-bold"
-                      value={form.qtdBloqueada || 0}
-                      onChange={e => setForm({ ...form, qtdBloqueada: Number(e.target.value) })}
-                    />
-                  </div>
-
-                  <div className="p-3.5 rounded-xl border border-amber-200 bg-amber-50/50">
-                    <span className="text-[11px] font-bold text-amber-800 uppercase block">
-                      Suspeitas
-                    </span>
-                    <input 
-                      type="number"
-                      min="0"
-                      className="form-input mt-1.5 font-mono font-bold"
                       value={form.qtdSuspeita || 0}
-                      onChange={e => setForm({ ...form, qtdSuspeita: Number(e.target.value) })}
+                      onChange={e => setForm(prev => ({ ...prev, qtdSuspeita: Number(e.target.value) }))}
+                      className="w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border border-slate-200 outline-none"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-slate-700">Qtd Bloqueada (D3)</label>
+                    <input
+                      type="number"
+                      value={form.qtdBloqueada || 0}
+                      onChange={e => setForm(prev => ({ ...prev, qtdBloqueada: Number(e.target.value) }))}
+                      className="w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border border-slate-200 outline-none"
                     />
                   </div>
                 </div>
 
-                {/* 5W2H */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-[#f1f5f9]">
-                  <div>
-                    <label className="form-label">O que fazer? (What)</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      placeholder="Ação corretiva..."
-                      value={form.oQueFazer || ''}
-                      onChange={e => setForm({ ...form, oQueFazer: e.target.value })}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="form-label">Como fazer? (How)</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      placeholder="Procedimento técnico..."
-                      value={form.comoFazer || ''}
-                      onChange={e => setForm({ ...form, comoFazer: e.target.value })}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="form-label">Por que fazer? (Why)</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      placeholder="Garantir a não evasão do defeito..."
-                      value={form.porQueFazer || ''}
-                      onChange={e => setForm({ ...form, porQueFazer: e.target.value })}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="form-label">Quem fará? (Who)</label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      placeholder="Responsável da contenção..."
-                      value={form.quemFara || ''}
-                      onChange={e => setForm({ ...form, quemFara: e.target.value })}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ========================================================================= */}
-          {/* ETAPA 6: SAP & DECISÃO 8D */}
-          {/* ========================================================================= */}
-          {activeTab === '8d' && (
-            <div className="flex flex-col gap-5 animate-in fade-in">
-              <div className="border-b border-[#f1f5f9] pb-3">
-                <h2 className="text-sm sm:text-base font-bold text-[#0f172a] flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-[#0f6cbd]" />
-                  <span>Rastreabilidade SAP e Decisão Metodologia 8D</span>
-                </h2>
-                <p className="text-xs text-[#64748b] mt-0.5">
-                  Vínculo com etiqueta SAP de 9 dígitos e decisão formal de abertura de relatório 8D.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
-                <div>
-                  <label className="form-label">
-                    Tipo de Documento de Rastreabilidade
-                  </label>
-                  <select 
-                    className="form-input"
-                    value={form.documentoRastreabilidade}
-                    onChange={e => setForm({ ...form, documentoRastreabilidade: e.target.value as any })}
-                  >
-                    <option value="Etiqueta SAP">Etiqueta SAP (Padrão)</option>
-                    <option value="Ordem de Produção">Ordem de Produção</option>
-                    <option value="Lote Fornecedor">Lote Fornecedor</option>
-                    <option value="Nota Fiscal">Nota Fiscal</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="form-label">
-                    Código de Rastreabilidade / Etiqueta SAP
-                  </label>
-                  <input 
-                    type="text"
-                    className="form-input font-mono font-bold"
-                    placeholder="Ex: 668327624 (9 dígitos)"
-                    value={form.codigoRastreabilidade}
-                    onChange={e => setForm({ ...form, codigoRastreabilidade: e.target.value })}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-slate-700">Ações de Contenção Imediata (D3)</label>
+                  <textarea
+                    rows={2}
+                    value={form.acoesContencao || ''}
+                    onChange={e => setForm(prev => ({ ...prev, acoesContencao: e.target.value }))}
+                    placeholder="Descreva as ações de contenção adotadas na linha / cliente..."
+                    className="w-full p-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border border-slate-200 outline-none resize-y"
                   />
                 </div>
-
-                <div>
-                  <label className="form-label">
-                    Ativar Proteção ao Cliente?
-                  </label>
-                  <select 
-                    className="form-input"
-                    value={form.protcliente}
-                    onChange={e => setForm({ ...form, protcliente: e.target.value as any })}
-                  >
-                    <option value="Não">Não</option>
-                    <option value="Sim">Sim (Exige triagem 100% no estoque)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="form-label">
-                    Abrir Metodologia 8D Completa?
-                  </label>
-                  <select 
-                    className="form-input font-bold"
-                    value={form.abrir8D}
-                    onChange={e => setForm({ ...form, abrir8D: e.target.value as any })}
-                  >
-                    <option value="Não">Não (Tratativa Local RNC)</option>
-                    <option value="Sim">Sim (8 Disciplinas Mandatórias)</option>
-                  </select>
-                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
+        )}
 
-        </form>
-      </div>
+        {/* 6. BARRA INFERIOR DE BOTÕES */}
+        <div className="flex items-center justify-between gap-3 pt-3 border-t border-slate-200">
+          <button
+            type="button"
+            onClick={() => onNavigate('lista-8d')}
+            className="btn-secondary h-10 px-4 text-xs font-semibold"
+          >
+            Cancelar
+          </button>
 
-      {/* 4. BARRA INFERIOR ADESIVA / STICKY FOOTER PARA NAVEGAÇÃO ENTRE ETAPAS */}
-      <div className="sticky bottom-0 z-30 bg-white/95 backdrop-blur-sm border border-[#e2e8f0] p-3 sm:p-4 rounded-2xl shadow-xl flex items-center justify-between gap-3">
-        <button
-          type="button"
-          onClick={handlePrevStep}
-          disabled={currentStepIndex === 0}
-          className="btn-secondary h-10 px-4 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Etapa Anterior</span>
-        </button>
-
-        <div className="text-xs font-bold text-[#64748b] hidden sm:block">
-          Etapa {currentStepObj.stepNum} de 6
+          <button
+            type="button"
+            onClick={handleSave}
+            className="btn-primary h-11 px-6 text-xs sm:text-sm font-semibold shadow-sm hover:shadow flex items-center gap-2 cursor-pointer"
+          >
+            <Save className="w-4 h-4" />
+            <span className="font-display">
+              {edicao ? 'Salvar Alterações da Ocorrência' : 'Emitir Relatório Inicial (NCC)'}
+            </span>
+          </button>
         </div>
 
-        <div className="flex items-center gap-2">
-          {currentStepIndex < STEPS.length - 1 ? (
-            <button
-              type="button"
-              onClick={handleNextStep}
-              className="btn-primary h-10 px-5 text-xs font-bold"
-            >
-              <span>Próximo</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={handleSave}
-              className="btn-primary h-10 px-6 text-xs font-bold bg-emerald-700 hover:bg-emerald-800 border-emerald-700"
-            >
-              <Check className="w-4 h-4" />
-              <span>Concluir e Salvar RNC</span>
-            </button>
-          )}
-        </div>
-      </div>
-
+      </form>
     </div>
   );
 };

@@ -95,20 +95,18 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
         )}
 
         {/* 1. BOTÃO DE AÇÃO PRINCIPAL: + Nova RNC / 8D */}
-        {!isOperator && (
-          <div>
-            <button
-              type="button"
-              onClick={() => handleItemClick('registro-8d', { edicao: false })}
-              className={`btn-primary w-full !h-10.5 text-[13px] font-semibold !justify-center shadow-sm hover:shadow ${
-                currentScreen === 'registro-8d' ? 'ring-2 ring-[#0f6cbd] ring-offset-2' : ''
-              }`}
-            >
-              <Plus className="w-4 h-4 stroke-[2.5]" />
-              <span className="font-display">Nova RNC / 8D</span>
-            </button>
-          </div>
-        )}
+        <div>
+          <button
+            type="button"
+            onClick={() => handleItemClick('registro-8d', { edicao: false, rncId: undefined, timestamp: Date.now() })}
+            className={`btn-primary w-full !h-10.5 text-[13px] font-semibold !justify-center shadow-sm hover:shadow ${
+              currentScreen === 'registro-8d' ? 'ring-2 ring-[#0f6cbd] ring-offset-2' : ''
+            }`}
+          >
+            <Plus className="w-4 h-4 stroke-[2.5]" />
+            <span className="font-display">Nova RNC / 8D</span>
+          </button>
+        </div>
 
         {/* 2. CATEGORIA: ACESSO PRINCIPAL */}
         <div>

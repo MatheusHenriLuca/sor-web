@@ -79,7 +79,7 @@ export const FalhaEntregaView: React.FC<FalhaEntregaViewProps> = ({ onNavigate, 
   const totalPecas = falhas.reduce((acc, curr) => acc + (curr.qtdFalha || 0), 0);
 
   return (
-    <div className="w-full max-w-7xl mx-auto pb-16 px-4 sm:px-6">
+    <div className="w-full flex flex-col gap-6 pb-16 animate-in fade-in duration-200">
       
       {/* Toast Notification */}
       {notification && (
@@ -98,25 +98,26 @@ export const FalhaEntregaView: React.FC<FalhaEntregaViewProps> = ({ onNavigate, 
         </div>
       )}
 
-      {/* Header Planner Style */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 pb-5 border-b border-[#e1dfdd] mb-5">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#e2e8f0]">
         <div className="flex items-center gap-3">
           <button 
             type="button"
             onClick={() => onNavigate('menu-2')}
-            className="w-8 h-8 rounded-md flex items-center justify-center text-[#616161] hover:text-[#242424] hover:bg-[#edebe9] transition-colors"
+            className="btn-secondary h-9 px-3 text-xs font-semibold"
             title="Voltar à Visão Geral"
           >
             <ArrowLeft size={16} />
+            <span className="hidden sm:inline">Voltar</span>
           </button>
-          <div className="w-8 h-8 rounded-md bg-[#e0e7ff] text-[#4338ca] flex items-center justify-center">
-            <Truck size={18} />
+          <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100 shadow-xs">
+            <Truck size={20} />
           </div>
           <div>
-            <h1 className="text-base sm:text-lg font-bold text-[#242424] tracking-tight">
+            <h1 className="text-lg sm:text-2xl font-display font-bold text-[#0f172a] tracking-tight">
               Gestão de Falhas de Entrega
             </h1>
-            <p className="text-xs text-[#616161]">
+            <p className="text-xs text-[#64748b]">
               Registro e rastreabilidade logística de expedição e montadoras
             </p>
           </div>
@@ -125,60 +126,60 @@ export const FalhaEntregaView: React.FC<FalhaEntregaViewProps> = ({ onNavigate, 
         <button 
           type="button"
           onClick={() => setModalOpen(true)}
-          className="btn-fluent-primary"
+          className="btn-primary h-9 px-4 text-xs font-semibold"
         >
           <Plus size={15} />
           <span>Registrar Falha de Entrega</span>
         </button>
       </div>
 
-      {/* KPI Stats Strip - Microsoft Planner Style */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
-        <div className="bg-white rounded-lg border border-[#edebe9] p-3.5 shadow-sm">
-          <span className="text-[11px] font-semibold text-[#616161] uppercase tracking-wider">
+      {/* KPI Stats Strip */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="card-saas p-4 flex flex-col justify-between">
+          <span className="text-[11px] font-semibold text-[#64748b] uppercase tracking-wider">
             Total Ocorrências
           </span>
-          <div className="text-xl font-bold text-[#242424] mt-1 font-mono">
+          <div className="text-2xl font-bold font-display text-[#0f172a] mt-2 font-mono">
             {falhas.length}
           </div>
         </div>
 
-        <div className="bg-white rounded-lg border border-[#edebe9] p-3.5 shadow-sm">
-          <span className="text-[11px] font-semibold text-[#616161] uppercase tracking-wider">
+        <div className="card-saas p-4 flex flex-col justify-between">
+          <span className="text-[11px] font-semibold text-[#64748b] uppercase tracking-wider">
             Peças Não Entregues
           </span>
-          <div className="text-xl font-bold text-[#dc2626] mt-1 font-mono">
-            {totalPecas}
+          <div className="text-2xl font-bold font-display text-rose-600 mt-2 font-mono">
+            {totalPecas.toLocaleString('pt-BR')}
           </div>
         </div>
 
-        <div className="bg-white rounded-lg border border-[#edebe9] p-3.5 shadow-sm">
-          <span className="text-[11px] font-semibold text-[#616161] uppercase tracking-wider">
+        <div className="card-saas p-4 flex flex-col justify-between">
+          <span className="text-[11px] font-semibold text-[#64748b] uppercase tracking-wider">
             Status Operacional
           </span>
-          <div className="text-xs font-semibold text-[#0f7b3a] mt-2 flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-[#0f7b3a]" />
+          <div className="text-xs font-semibold text-emerald-700 mt-2 flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             Monitoramento Ativo
           </div>
         </div>
 
-        <div className="bg-white rounded-lg border border-[#edebe9] p-3.5 shadow-sm">
-          <span className="text-[11px] font-semibold text-[#616161] uppercase tracking-wider">
+        <div className="card-saas p-4 flex flex-col justify-between">
+          <span className="text-[11px] font-semibold text-[#64748b] uppercase tracking-wider">
             Repositório SharePoint
           </span>
-          <div className="text-xs font-medium text-[#242424] mt-2 truncate">
+          <div className="text-xs font-medium text-[#0f172a] mt-2 truncate font-mono">
             Lista_Falha_de_Entrega
           </div>
         </div>
       </div>
 
-      {/* Search Input Planner Style */}
-      <div className="flex items-center justify-between gap-3 mb-4">
+      {/* Search Input */}
+      <div className="flex items-center justify-between gap-3">
         <div className="relative w-full sm:w-80">
-          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#8a8886]" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input 
             type="text"
-            className="w-full h-8 pl-8 pr-7 rounded-md border border-[#e1dfdd] bg-white text-xs text-[#242424] placeholder:text-[#8a8886] focus:border-[#0f6cbd] focus:outline-none transition-colors"
+            className="form-input !h-9 !pl-9 !pr-8 text-xs"
             placeholder="Buscar por cliente, motivo ou FMDS..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
@@ -186,39 +187,39 @@ export const FalhaEntregaView: React.FC<FalhaEntregaViewProps> = ({ onNavigate, 
           {searchTerm && (
             <button 
               onClick={() => setSearchTerm('')} 
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-[#8a8886] hover:text-[#242424]"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
             >
-              <X size={13} />
+              <X size={14} />
             </button>
           )}
         </div>
 
-        <span className="text-xs text-[#616161] font-medium hidden sm:inline">
+        <span className="text-xs text-[#64748b] font-medium hidden sm:inline tabular-nums">
           {filteredFalhas.length} registros encontrados
         </span>
       </div>
 
-      {/* Tabela Planner Style */}
-      <div className="bg-white rounded-lg border border-[#edebe9] shadow-sm overflow-hidden">
+      {/* Tabela SaaS */}
+      <div className="card-saas overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-[#edebe9] bg-[#faf9f8] text-[11px] font-semibold text-[#616161]">
-                <th className="py-2.5 px-4 w-12 text-center">#</th>
-                <th className="py-2.5 px-4">Data</th>
-                <th className="py-2.5 px-4">Cliente (Montadora)</th>
-                <th className="py-2.5 px-4">Produto / Veículo</th>
-                <th className="py-2.5 px-4">Turno</th>
-                <th className="py-2.5 px-4 text-center">Qtd Falha</th>
-                <th className="py-2.5 px-4">Motivo da Falha</th>
-                <th className="py-2.5 px-4">Área / FMDS</th>
-                <th className="py-2.5 px-4 text-right">Ações</th>
+              <tr className="border-b border-[#e2e8f0] bg-[#f8fafc]/90 text-xs font-display font-semibold text-[#64748b]">
+                <th className="py-3 px-4 w-12 text-center font-semibold">#</th>
+                <th className="py-3 px-4 font-semibold">Data</th>
+                <th className="py-3 px-4 font-semibold">Cliente (Montadora)</th>
+                <th className="py-3 px-4 font-semibold">Produto / Veículo</th>
+                <th className="py-3 px-4 font-semibold">Turno</th>
+                <th className="py-3 px-4 text-center font-semibold">Qtd Falha</th>
+                <th className="py-3 px-4 font-semibold">Motivo da Falha</th>
+                <th className="py-3 px-4 font-semibold">Área / FMDS</th>
+                <th className="py-3 px-4 text-right font-semibold">Ações</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#edebe9] text-xs">
+            <tbody className="divide-y divide-[#f1f5f9] text-xs">
               {filteredFalhas.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="text-center py-10 text-[#8a8886]">
+                  <td colSpan={9} className="text-center py-12 text-[#64748b]">
                     Nenhuma falha de entrega localizada com os filtros atuais.
                   </td>
                 </tr>
@@ -226,45 +227,45 @@ export const FalhaEntregaView: React.FC<FalhaEntregaViewProps> = ({ onNavigate, 
                 filteredFalhas.map(f => {
                   const badge = getClientBadge(f.cliente || '');
                   return (
-                    <tr key={f.id} className="hover:bg-[#f3f2f1] transition-colors group">
-                      <td className="py-2 px-4 text-center">
-                        <div className={`w-7 h-7 rounded flex items-center justify-center font-bold text-[10px] ${badge.color}`}>
+                    <tr key={f.id} className="hover:bg-[#f8fafc] transition-colors group">
+                      <td className="py-3 px-4 text-center">
+                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-[10px] ${badge.color}`}>
                           {badge.code}
                         </div>
                       </td>
-                      <td className="py-2 px-4 font-mono text-[#616161]">
+                      <td className="py-3 px-4 font-mono text-[#64748b]">
                         {f.data}
                       </td>
-                      <td className="py-2 px-4 font-semibold text-[#242424]">
+                      <td className="py-3 px-4 font-semibold text-[#0f172a]">
                         {f.cliente}
                       </td>
-                      <td className="py-2 px-4 text-[#242424]">
+                      <td className="py-3 px-4 text-[#0f172a]">
                         {f.produto}
                       </td>
-                      <td className="py-2 px-4 text-[#616161]">
+                      <td className="py-3 px-4 text-[#64748b]">
                         {f.turno}
                       </td>
-                      <td className="py-2 px-4 text-center">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold font-mono bg-[#fef2f2] text-[#dc2626] border border-[#fecaca]">
+                      <td className="py-3 px-4 text-center">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold font-mono bg-rose-50 text-rose-600 border border-rose-100">
                           {f.qtdFalha} pçs
                         </span>
                       </td>
-                      <td className="py-2 px-4 text-[#242424]">
+                      <td className="py-3 px-4 text-[#334155] max-w-xs truncate" title={f.motivoFalha}>
                         {f.motivoFalha}
                       </td>
-                      <td className="py-2 px-4">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-[#f3f2f1] text-[#242424] border border-[#e1dfdd]">
+                      <td className="py-3 px-4">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
                           {f.areaFmds}
                         </span>
                       </td>
-                      <td className="py-2 px-4 text-right">
+                      <td className="py-3 px-4 text-right">
                         <button 
                           type="button"
                           onClick={() => setDeleteId(f.id)}
-                          className="w-7 h-7 rounded inline-flex items-center justify-center text-[#616161] hover:text-[#dc2626] hover:bg-[#edebe9] transition-colors opacity-70 group-hover:opacity-100"
+                          className="w-7 h-7 rounded-lg inline-flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors opacity-70 group-hover:opacity-100"
                           title="Excluir ocorrência"
                         >
-                          <Trash2 size={13} />
+                          <Trash2 size={14} />
                         </button>
                       </td>
                     </tr>
@@ -276,41 +277,43 @@ export const FalhaEntregaView: React.FC<FalhaEntregaViewProps> = ({ onNavigate, 
         </div>
       </div>
 
-      {/* Modal: Novo Registro Planner */}
+      {/* Modal: Novo Registro */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px] flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg border border-[#edebe9] shadow-xl w-full max-w-lg overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-[#edebe9] flex items-center justify-between bg-[#faf9f8]">
-              <div className="flex items-center gap-2">
-                <Truck size={16} className="text-[#0f6cbd]" />
-                <h3 className="font-bold text-[#242424] text-sm">
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="card-saas !p-0 shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-150">
+            <div className="px-5 py-4 border-b border-[#e2e8f0] flex items-center justify-between bg-[#f8fafc]">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center border border-indigo-100">
+                  <Truck size={16} />
+                </div>
+                <h3 className="font-display font-bold text-[#0f172a] text-sm sm:text-base">
                   Registrar Nova Falha de Entrega
                 </h3>
               </div>
               <button 
                 onClick={() => setModalOpen(false)} 
-                className="w-7 h-7 rounded flex items-center justify-center text-[#616161] hover:text-[#242424] hover:bg-[#edebe9]"
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100"
               >
-                <X size={15} />
+                <X size={16} />
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="p-5 space-y-3.5">
-              <div className="grid grid-cols-2 gap-3">
+            <form onSubmit={handleSave} className="p-5 flex flex-col gap-4">
+              <div className="grid grid-cols-2 gap-3.5">
                 <div>
-                  <label className="block text-[11px] font-semibold text-[#242424] mb-1">Data da Falha</label>
+                  <label className="form-label block mb-1">Data da Falha</label>
                   <input 
                     type="date"
-                    className="w-full h-8 px-2.5 rounded border border-[#e1dfdd] text-xs text-[#242424] focus:border-[#0f6cbd] focus:outline-none font-mono"
+                    className="form-input text-xs font-mono"
                     value={form.data}
                     onChange={e => setForm(prev => ({ ...prev, data: e.target.value }))}
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-[#242424] mb-1">Turno</label>
+                  <label className="form-label block mb-1">Turno</label>
                   <select 
-                    className="w-full h-8 px-2 rounded border border-[#e1dfdd] text-xs text-[#242424] focus:border-[#0f6cbd] focus:outline-none bg-white"
+                    className="form-input text-xs"
                     value={form.turno}
                     onChange={e => setForm(prev => ({ ...prev, turno: e.target.value }))}
                   >
@@ -322,11 +325,11 @@ export const FalhaEntregaView: React.FC<FalhaEntregaViewProps> = ({ onNavigate, 
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3.5">
                 <div>
-                  <label className="block text-[11px] font-semibold text-[#242424] mb-1">Cliente</label>
+                  <label className="form-label block mb-1">Cliente</label>
                   <select 
-                    className="w-full h-8 px-2 rounded border border-[#e1dfdd] text-xs text-[#242424] focus:border-[#0f6cbd] focus:outline-none bg-white"
+                    className="form-input text-xs"
                     value={form.cliente}
                     onChange={e => setForm(prev => ({ ...prev, cliente: e.target.value }))}
                   >
@@ -336,10 +339,10 @@ export const FalhaEntregaView: React.FC<FalhaEntregaViewProps> = ({ onNavigate, 
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-[#242424] mb-1">Produto / Veículo</label>
+                  <label className="form-label block mb-1">Produto / Veículo</label>
                   <input 
                     type="text"
-                    className="w-full h-8 px-2.5 rounded border border-[#e1dfdd] text-xs text-[#242424] focus:border-[#0f6cbd] focus:outline-none"
+                    className="form-input text-xs"
                     value={form.produto}
                     onChange={e => setForm(prev => ({ ...prev, produto: e.target.value }))}
                     placeholder="Ex: COROLLA, YARIS"
@@ -348,23 +351,23 @@ export const FalhaEntregaView: React.FC<FalhaEntregaViewProps> = ({ onNavigate, 
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3.5">
                 <div>
-                  <label className="block text-[11px] font-semibold text-[#242424] mb-1">Qtd. Afetada</label>
+                  <label className="form-label block mb-1">Qtd. Afetada</label>
                   <input 
                     type="number"
                     min="1"
-                    className="w-full h-8 px-2.5 rounded border border-[#e1dfdd] text-xs font-mono font-bold text-[#242424] focus:border-[#0f6cbd] focus:outline-none"
+                    className="form-input text-xs font-mono font-bold"
                     value={form.qtdFalha}
                     onChange={e => setForm(prev => ({ ...prev, qtdFalha: Number(e.target.value) }))}
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-[#242424] mb-1">Área / FMDS</label>
+                  <label className="form-label block mb-1">Área / FMDS</label>
                   <input 
                     type="text"
-                    className="w-full h-8 px-2.5 rounded border border-[#e1dfdd] text-xs text-[#242424] focus:border-[#0f6cbd] focus:outline-none"
+                    className="form-input text-xs"
                     value={form.areaFmds}
                     onChange={e => setForm(prev => ({ ...prev, areaFmds: e.target.value }))}
                     placeholder="Ex: FMDS 01, Expedição"
@@ -374,10 +377,10 @@ export const FalhaEntregaView: React.FC<FalhaEntregaViewProps> = ({ onNavigate, 
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-[#242424] mb-1">Motivo da Falha</label>
+                <label className="form-label block mb-1">Motivo da Falha</label>
                 <input 
                   type="text"
-                  className="w-full h-8 px-2.5 rounded border border-[#e1dfdd] text-xs text-[#242424] focus:border-[#0f6cbd] focus:outline-none"
+                  className="form-input text-xs"
                   value={form.motivoFalha}
                   onChange={e => setForm(prev => ({ ...prev, motivoFalha: e.target.value }))}
                   placeholder="Ex: Atraso Logístico, Divergência de Quantidade..."
@@ -385,17 +388,17 @@ export const FalhaEntregaView: React.FC<FalhaEntregaViewProps> = ({ onNavigate, 
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#edebe9] mt-4">
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#e2e8f0] mt-2">
                 <button 
                   type="button" 
                   onClick={() => setModalOpen(false)}
-                  className="btn-fluent-secondary"
+                  className="btn-secondary h-9 px-4 text-xs font-semibold"
                 >
                   Cancelar
                 </button>
                 <button 
                   type="submit"
-                  className="btn-fluent-primary"
+                  className="btn-primary h-9 px-4 text-xs font-semibold"
                 >
                   Salvar Ocorrência
                 </button>
@@ -405,31 +408,33 @@ export const FalhaEntregaView: React.FC<FalhaEntregaViewProps> = ({ onNavigate, 
         </div>
       )}
 
-      {/* Modal: Confirm Delete Planner */}
+      {/* Modal: Confirm Delete */}
       {deleteId && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px] flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg border border-[#edebe9] shadow-xl w-full max-w-sm overflow-hidden p-5 text-center">
-            <div className="w-10 h-10 rounded-full bg-[#fef2f2] text-[#dc2626] flex items-center justify-center mx-auto mb-3">
-              <Trash2 size={20} />
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="card-saas !p-6 shadow-2xl w-full max-w-sm overflow-hidden text-center flex flex-col gap-4 animate-in zoom-in-95 duration-150">
+            <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto border border-rose-100">
+              <Trash2 size={22} />
             </div>
-            <h3 className="font-bold text-[#242424] text-sm">Excluir Registro?</h3>
-            <p className="text-xs text-[#616161] mt-1 mb-5">
-              Tem certeza de que deseja remover permanentemente este registro de falha de entrega?
-            </p>
-            <div className="flex items-center justify-center gap-2">
+            <div>
+              <h3 className="font-display font-bold text-[#0f172a] text-base">Excluir Registro?</h3>
+              <p className="text-xs text-[#64748b] mt-1">
+                Tem certeza de que deseja remover permanentemente este registro de falha de entrega?
+              </p>
+            </div>
+            <div className="flex items-center justify-center gap-2.5 pt-2">
               <button 
                 type="button" 
                 onClick={() => setDeleteId(null)}
-                className="btn-fluent-secondary"
+                className="btn-secondary h-9 px-4 text-xs font-semibold flex-1"
               >
                 Cancelar
               </button>
               <button 
                 type="button" 
                 onClick={handleDelete}
-                className="inline-flex items-center justify-center h-8 px-3.5 rounded text-xs font-semibold text-white bg-[#dc2626] hover:bg-[#b91c1c] transition-colors"
+                className="btn-primary !bg-rose-600 hover:!bg-rose-700 !border-rose-600 h-9 px-4 text-xs font-semibold flex-1"
               >
-                Confirmar Exclusão
+                Confirmar
               </button>
             </div>
           </div>

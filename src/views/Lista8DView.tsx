@@ -192,7 +192,7 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
   };
 
   return (
-    <div className="w-full space-y-5 animate-in fade-in duration-200 pb-12">
+    <div className="w-full flex flex-col gap-5 animate-in fade-in duration-200 pb-12">
       
       {/* 1. CABEÇALHO DA PÁGINA */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 pb-4 border-b border-[#e2e8f0]">
@@ -342,7 +342,7 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
                 {paginatedRncs.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="py-16 text-center">
-                      <div className="flex flex-col items-center justify-center max-w-sm mx-auto space-y-3">
+                      <div className="flex flex-col items-center justify-center max-w-sm mx-auto gap-3">
                         <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 border border-slate-200">
                           <Search className="w-6 h-6" />
                         </div>
@@ -443,7 +443,7 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
                   <div
                     key={r.id}
                     onClick={() => onNavigate('detalhes-8d', { rncId: r.id })}
-                    className="p-4 hover:bg-[#f8fafc] transition cursor-pointer space-y-2 active:bg-[#f1f5f9]"
+                    className="p-4 hover:bg-[#f8fafc] transition cursor-pointer flex flex-col gap-2 active:bg-[#f1f5f9]"
                   >
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
@@ -489,7 +489,7 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
               <div
                 key={r.id}
                 onClick={() => onNavigate('detalhes-8d', { rncId: r.id })}
-                className="card-saas card-saas-hover cursor-pointer flex flex-col justify-between space-y-3 p-4"
+                className="card-saas card-saas-hover cursor-pointer flex flex-col justify-between gap-3 p-4"
               >
                 <div>
                   <div className="flex items-center justify-between gap-2 mb-2">

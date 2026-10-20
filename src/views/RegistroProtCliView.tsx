@@ -96,7 +96,7 @@ export const RegistroProtCliView: React.FC<RegistroProtCliViewProps> = ({ onNavi
   const isValidSap = etiquetaSap.length === 9 && /^\d+$/.test(etiquetaSap);
 
   return (
-    <div className="w-full max-w-4xl mx-auto space-y-6">
+    <div className="w-full max-w-4xl flex flex-col gap-6 pb-16">
       
       {/* Toast Notification */}
       {notification && (
@@ -151,7 +151,7 @@ export const RegistroProtCliView: React.FC<RegistroProtCliViewProps> = ({ onNavi
       </div>
 
       {/* 2. FORMULÁRIO (Card Limpo SaaS B2B) */}
-      <div className="card-saas p-6 space-y-6">
+      <div className="card-saas p-6 flex flex-col gap-6">
         
         {/* Campo Crítico: Validação de Etiqueta SAP 9 Dígitos */}
         <div className={`p-4 rounded-xl border transition-all ${

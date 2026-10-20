@@ -56,20 +56,20 @@ export const DetalhesImpressaoView: React.FC<DetalhesImpressaoViewProps> = ({ rn
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto pb-16 px-2 sm:px-4">
+    <div className="w-full flex flex-col gap-5 pb-16 animate-in fade-in duration-200">
       
       {/* Top Action Bar (Hidden during print) */}
-      <div className="no-print flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+      <div className="no-print flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <button 
             type="button"
             onClick={() => onNavigate('detalhes-8d', { rncId: rnc.id })}
-            className="btn-fluent-secondary"
+            className="btn-secondary"
           >
-            <ArrowLeft size={14} />
+            <ArrowLeft size={15} />
             <span>Voltar para Detalhes 8D</span>
           </button>
-          <span className="text-xs text-[#616161] font-medium hidden sm:inline">
+          <span className="text-xs text-slate-500 font-medium hidden sm:inline">
             Visualização de Ficha Física de Posto de Trabalho (A4)
           </span>
         </div>
@@ -77,9 +77,9 @@ export const DetalhesImpressaoView: React.FC<DetalhesImpressaoViewProps> = ({ rn
         <button 
           type="button"
           onClick={handlePrint}
-          className="btn-fluent-primary"
+          className="btn-primary"
         >
-          <Printer size={14} />
+          <Printer size={15} />
           <span>Imprimir Ficha A4</span>
         </button>
       </div>

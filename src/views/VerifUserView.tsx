@@ -97,56 +97,56 @@ export const VerifUserView: React.FC<VerifUserViewProps> = ({ onLoginSuccess }) 
   };
 
   return (
-    <div className="min-h-screen bg-[#faf9f8] flex flex-col justify-between font-sans select-none text-[#242424]">
+    <div className="min-h-screen bg-[#f8fafc] flex flex-col justify-between font-sans select-none text-[#0f172a]">
       
-      {/* Top Header - Microsoft 365 Style */}
-      <header className="h-12 px-6 flex items-center justify-between border-b border-[#edebe9] bg-white">
+      {/* Top Header */}
+      <header className="h-14 px-6 flex items-center justify-between border-b border-[#e2e8f0] bg-white">
         <div className="flex items-center gap-3">
-          <div className="w-7 h-7 rounded bg-[#0f6cbd] text-white flex items-center justify-center font-bold text-xs">
+          <div className="w-8 h-8 rounded-xl bg-blue-50 text-[#0f6cbd] flex items-center justify-center font-display font-bold text-xs border border-blue-100 shadow-xs">
             G
           </div>
           <div>
-            <span className="text-xs font-bold text-[#242424]">
+            <span className="text-xs sm:text-sm font-display font-bold text-[#0f172a]">
               SOR • Gestão da Qualidade Automotiva
             </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 text-xs text-[#616161]">
-          <Building2 size={14} />
-          <span>Gestamp Sorocaba • Planta Sorocaba</span>
+        <div className="flex items-center gap-2 text-xs text-[#64748b]">
+          <Building2 size={15} />
+          <span className="hidden sm:inline">Gestamp Sorocaba • Planta Sorocaba</span>
         </div>
       </header>
 
-      {/* Main Login Card - Fluent Planner Style */}
+      {/* Main Login Card */}
       <main className="flex-1 max-w-lg w-full mx-auto p-4 sm:p-6 flex items-center justify-center">
-        <div className="bg-white rounded-lg border border-[#edebe9] shadow-md p-6 sm:p-8 w-full space-y-5">
+        <div className="card-saas p-6 sm:p-8 w-full flex flex-col gap-5 shadow-lg">
           
           {/* Header Card */}
-          <div className="text-center space-y-1">
-            <div className="w-10 h-10 rounded-full bg-[#f3f2f1] text-[#0f6cbd] flex items-center justify-center mx-auto mb-2">
-              <KeyRound size={20} />
+          <div className="text-center flex flex-col gap-1">
+            <div className="w-12 h-12 rounded-2xl bg-blue-50 text-[#0f6cbd] flex items-center justify-center mx-auto mb-2 border border-blue-100 shadow-2xs">
+              <KeyRound size={22} />
             </div>
-            <h1 className="text-lg font-bold text-[#242424] tracking-tight">
+            <h1 className="text-lg sm:text-xl font-display font-bold text-[#0f172a] tracking-tight">
               Identificação de Usuário
             </h1>
-            <p className="text-xs text-[#616161]">
+            <p className="text-xs text-[#64748b]">
               Insira sua matrícula (RE) ou utilize o teclado touch de fábrica
             </p>
           </div>
 
           {/* Erro */}
           {errorMessage && (
-            <div className="p-2.5 bg-[#fef2f2] border border-[#fecaca] rounded-md flex items-center gap-2 text-[#991b1b] text-xs font-medium">
-              <AlertCircle size={15} className="shrink-0" />
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-2.5 text-rose-700 text-xs font-semibold">
+              <AlertCircle size={16} className="shrink-0" />
               <span>{errorMessage}</span>
             </div>
           )}
 
           {/* Inputs Form */}
-          <div className="space-y-3">
+          <div className="flex flex-col gap-3.5">
             <div>
-              <label className="block text-[11px] font-semibold text-[#242424] mb-1">
+              <label className="form-label block mb-1">
                 Matrícula de Empregado (RE) <span className="text-rose-500">*</span>
               </label>
               <input 
@@ -155,14 +155,14 @@ export const VerifUserView: React.FC<VerifUserViewProps> = ({ onLoginSuccess }) 
                 onChange={e => setReInput(e.target.value.replace(/\D/g, ''))}
                 onKeyDown={e => e.key === 'Enter' && handleLogin()}
                 placeholder="Ex: 88123"
-                className="w-full h-9 px-3 rounded-md border border-[#e1dfdd] bg-white text-center font-mono text-base font-bold text-[#242424] placeholder:text-[#8a8886] focus:border-[#0f6cbd] focus:outline-none transition-colors"
+                className="form-input text-center font-mono text-lg font-bold tracking-wider"
                 autoFocus
               />
             </div>
 
             <div>
-              <label className="block text-[11px] font-semibold text-[#242424] mb-1">
-                Senha de Acesso <span className="text-[10px] text-[#8a8886] font-normal">(apenas cargos de chefia / engenharia)</span>
+              <label className="form-label block mb-1">
+                Senha de Acesso <span className="text-[10px] text-slate-400 font-normal">(apenas cargos de chefia / engenharia)</span>
               </label>
               <input 
                 type="password"
@@ -170,7 +170,7 @@ export const VerifUserView: React.FC<VerifUserViewProps> = ({ onLoginSuccess }) 
                 onChange={e => setSenhaInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleLogin()}
                 placeholder="••••••"
-                className="w-full h-9 px-3 rounded-md border border-[#e1dfdd] bg-white text-center text-sm font-medium text-[#242424] placeholder:text-[#8a8886] focus:border-[#0f6cbd] focus:outline-none transition-colors"
+                className="form-input text-center text-sm font-medium"
               />
             </div>
           </div>
@@ -179,24 +179,24 @@ export const VerifUserView: React.FC<VerifUserViewProps> = ({ onLoginSuccess }) 
           <button 
             type="button"
             onClick={handleLogin}
-            className="w-full h-9 rounded-md bg-[#0f6cbd] hover:bg-[#0c5da5] text-white font-semibold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-sm"
+            className="btn-primary w-full h-10 text-xs font-semibold gap-2 shadow-sm"
           >
             <LogIn size={15} />
             <span>Acessar o Cockpit</span>
           </button>
 
           {/* Teclado Numérico Virtual Compacto */}
-          <div className="border-t border-[#edebe9] pt-3.5">
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-[#616161] text-center mb-2.5">
+          <div className="border-t border-[#e2e8f0] pt-4">
+            <div className="text-[10px] font-display font-semibold uppercase tracking-wider text-[#64748b] text-center mb-3">
               Teclado Numérico Touch
             </div>
-            <div className="grid grid-cols-3 gap-1.5 max-w-[240px] mx-auto">
+            <div className="grid grid-cols-3 gap-2 max-w-[260px] mx-auto">
               {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
                 <button
                   key={num}
                   type="button"
                   onClick={() => handleKeypadPress(String(num))}
-                  className="h-9 bg-[#f3f2f1] hover:bg-[#edebe9] active:bg-[#e1dfdd] font-mono font-bold text-sm text-[#242424] rounded border border-[#e1dfdd] transition-colors"
+                  className="h-10 bg-slate-50 hover:bg-slate-100 active:bg-slate-200 font-mono font-bold text-sm text-[#0f172a] rounded-xl border border-slate-200 transition-colors shadow-2xs"
                 >
                   {num}
                 </button>
@@ -204,21 +204,21 @@ export const VerifUserView: React.FC<VerifUserViewProps> = ({ onLoginSuccess }) 
               <button
                 type="button"
                 onClick={() => handleKeypadPress('clear')}
-                className="h-9 bg-[#fef2f2] hover:bg-[#fee2e2] font-semibold text-xs text-[#dc2626] rounded border border-[#fecaca] transition-colors"
+                className="h-10 bg-rose-50 hover:bg-rose-100 active:bg-rose-200 font-semibold text-xs text-rose-700 rounded-xl border border-rose-200 transition-colors"
               >
                 Limpar
               </button>
               <button
                 type="button"
                 onClick={() => handleKeypadPress('0')}
-                className="h-9 bg-[#f3f2f1] hover:bg-[#edebe9] active:bg-[#e1dfdd] font-mono font-bold text-sm text-[#242424] rounded border border-[#e1dfdd] transition-colors"
+                className="h-10 bg-slate-50 hover:bg-slate-100 active:bg-slate-200 font-mono font-bold text-sm text-[#0f172a] rounded-xl border border-slate-200 transition-colors shadow-2xs"
               >
                 0
               </button>
               <button
                 type="button"
                 onClick={() => handleKeypadPress('back')}
-                className="h-9 bg-[#f3f2f1] hover:bg-[#edebe9] active:bg-[#e1dfdd] text-[#616161] hover:text-[#242424] rounded border border-[#e1dfdd] flex items-center justify-center transition-colors"
+                className="h-10 bg-slate-50 hover:bg-slate-100 active:bg-slate-200 text-[#64748b] hover:text-[#0f172a] rounded-xl border border-slate-200 flex items-center justify-center transition-colors shadow-2xs"
                 title="Apagar"
               >
                 <Delete size={16} />
@@ -227,8 +227,8 @@ export const VerifUserView: React.FC<VerifUserViewProps> = ({ onLoginSuccess }) 
           </div>
 
           {/* Perfis Rápidos */}
-          <div className="border-t border-[#edebe9] pt-3.5 space-y-2">
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-[#616161] text-center">
+          <div className="border-t border-[#e2e8f0] pt-4 flex flex-col gap-2.5">
+            <div className="text-[10px] font-display font-semibold uppercase tracking-wider text-[#64748b] text-center">
               Acesso Rápido para Teste
             </div>
             <div className="grid grid-cols-2 gap-2 text-left">
@@ -237,16 +237,16 @@ export const VerifUserView: React.FC<VerifUserViewProps> = ({ onLoginSuccess }) 
                   key={u.id}
                   type="button"
                   onClick={() => handleQuickSelect(u)}
-                  className="p-2 text-left rounded-md border border-[#edebe9] hover:border-[#0f6cbd] hover:bg-[#f3f2f1] transition-colors group flex items-center gap-2"
+                  className="p-2.5 text-left rounded-xl border border-slate-200 hover:border-[#0f6cbd] hover:bg-blue-50/50 transition-colors group flex items-center gap-2.5 bg-[#f8fafc]"
                 >
-                  <div className="w-6 h-6 rounded bg-[#e0e7ff] text-[#4338ca] flex items-center justify-center font-bold text-[10px] shrink-0">
+                  <div className="w-7 h-7 rounded-lg bg-blue-100 text-[#0f6cbd] flex items-center justify-center font-bold text-[10px] shrink-0 border border-blue-200/60">
                     {getInitials(u.nome)}
                   </div>
                   <div className="min-w-0">
-                    <div className="text-xs font-semibold text-[#242424] group-hover:text-[#0f6cbd] truncate">
+                    <div className="text-xs font-semibold text-[#0f172a] group-hover:text-[#0f6cbd] truncate">
                       {u.nome.split(' ')[0]}
                     </div>
-                    <div className="text-[10px] text-[#616161] font-mono truncate">
+                    <div className="text-[10px] text-[#64748b] font-mono truncate">
                       RE: {u.reAcesso} • {u.perfil}
                     </div>
                   </div>
@@ -258,11 +258,11 @@ export const VerifUserView: React.FC<VerifUserViewProps> = ({ onLoginSuccess }) 
         </div>
       </main>
 
-      {/* Footer Planner Style */}
-      <footer className="h-10 px-6 flex items-center justify-between border-t border-[#edebe9] bg-white text-xs text-[#616161]">
+      {/* Footer */}
+      <footer className="h-10 px-6 flex items-center justify-between border-t border-[#e2e8f0] bg-white text-xs text-[#64748b]">
         <span>Gestamp Brasil • Indústria 4.0</span>
         <div className="flex items-center gap-1.5">
-          <span className={`w-2 h-2 rounded-full ${varserver > 5 ? 'bg-[#dc2626]' : 'bg-[#0f7b3a]'}`} />
+          <span className={`w-2 h-2 rounded-full ${varserver > 5 ? 'bg-rose-500' : 'bg-emerald-500'}`} />
           <span>Status: {varserver > 5 ? 'Oscilação de Rede' : 'Conectado'}</span>
         </div>
       </footer>

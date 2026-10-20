@@ -151,7 +151,7 @@ export const SharePointSyncModal: React.FC<SharePointSyncModalProps> = ({
         </div>
 
         {/* Modal Content */}
-        <div className="p-6 overflow-y-auto space-y-6 text-slate-800">
+        <div className="p-6 overflow-y-auto flex flex-col gap-6 text-slate-800">
           {/* Status Message */}
           {statusMsg && (
             <div className={`p-3 rounded-lg flex items-center gap-3 text-sm font-medium ${
@@ -250,7 +250,7 @@ export const SharePointSyncModal: React.FC<SharePointSyncModalProps> = ({
           </div>
 
           {/* SharePoint Online Endpoint Config */}
-          <div className="border-t border-slate-200 pt-5 space-y-4">
+          <div className="border-t border-slate-200 pt-5 flex flex-col gap-4">
             <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
               <Database className="w-4 h-4 text-sky-600" />
               Conexão Direta ao SharePoint Online (Tenant Gestamp)
@@ -302,7 +302,7 @@ export const SharePointSyncModal: React.FC<SharePointSyncModalProps> = ({
           </div>
 
           {/* Import / Export Tools */}
-          <div className="border-t border-slate-200 pt-5 space-y-3">
+          <div className="border-t border-slate-200 pt-5 flex flex-col gap-3">
             <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
               <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
               Importação & Exportação de Dados do SharePoint
@@ -347,7 +347,7 @@ export const SharePointSyncModal: React.FC<SharePointSyncModalProps> = ({
             </div>
 
             {showImportBox && (
-              <div className="mt-3 p-4 bg-slate-100 border border-slate-300 rounded-lg space-y-2">
+              <div className="mt-3 p-4 bg-slate-100 border border-slate-300 rounded-lg flex flex-col gap-2">
                 <div className="text-xs font-bold text-slate-700">
                   Cole as linhas do CSV de Peças (formato: Identificação;Material;Descrição;Cliente;Nesting Level;Posto;FMDS;CodCliText;Componente;CarryOver):
                 </div>

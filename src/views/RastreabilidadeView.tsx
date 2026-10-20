@@ -69,15 +69,15 @@ export const RastreabilidadeView: React.FC<RastreabilidadeViewProps> = ({ onNavi
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto pb-16 px-4 sm:px-6">
+    <div className="w-full flex flex-col gap-6 pb-16 animate-in fade-in duration-200">
       
       {/* Toast Notification */}
       {notification && (
         <div className="fixed top-14 right-6 z-50">
-          <div className={`flex items-center gap-2.5 px-4 py-2.5 rounded-lg text-xs font-semibold shadow-lg border ${
+          <div className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-xs font-semibold shadow-lg border ${
             notification.type === 'success' 
-              ? 'bg-[#edfdf3] text-[#0f7b3a] border-[#b8e8c8]' 
-              : 'bg-[#fef2f2] text-[#991b1b] border-[#fecaca]'
+              ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
+              : 'bg-rose-50 text-rose-800 border-rose-200'
           }`}>
             {notification.type === 'success' ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}
             <span>{notification.message}</span>
@@ -88,35 +88,35 @@ export const RastreabilidadeView: React.FC<RastreabilidadeViewProps> = ({ onNavi
         </div>
       )}
 
-      {/* Header Planner Style */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 pb-5 border-b border-[#e1dfdd] mb-5">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#e2e8f0]">
         <div className="flex items-center gap-3">
           <button 
             type="button"
             onClick={() => rncId ? onNavigate('detalhes-8d', { rncId: selectedRncId }) : onNavigate('lista-8d')}
-            className="h-8 px-2.5 rounded-md flex items-center gap-1.5 text-xs font-semibold text-[#616161] hover:text-[#242424] hover:bg-[#edebe9] transition-colors cursor-pointer border border-[#e1dfdd] bg-white shadow-xs"
+            className="btn-secondary h-9 px-3 text-xs font-semibold"
             title={rncId ? "Voltar para Detalhes da Ocorrência" : "Voltar para a Lista"}
           >
-            <ArrowLeft size={14} />
+            <ArrowLeft size={16} />
             <span>Voltar</span>
           </button>
-          <div className="w-8 h-8 rounded-md bg-[#e0e7ff] text-[#4338ca] flex items-center justify-center">
-            <Barcode size={18} />
+          <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#0f6cbd] flex items-center justify-center border border-blue-100 shadow-xs">
+            <Barcode size={20} />
           </div>
           <div>
-            <h1 className="text-base sm:text-lg font-bold text-[#242424] tracking-tight">
+            <h1 className="text-lg sm:text-2xl font-display font-bold text-[#0f172a] tracking-tight">
               Rastreabilidade & Controle de Produção
             </h1>
-            <p className="text-xs text-[#616161]">
+            <p className="text-xs text-[#64748b]">
               Auditoria de lotes, etiquetas vivas e estoque retido em cabeceiras
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-[#616161] font-medium hidden sm:inline">RNC Ativa:</span>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <span className="text-xs text-[#64748b] font-medium hidden sm:inline">RNC Ativa:</span>
           <select 
-            className="h-8 px-2.5 rounded-md border border-[#e1dfdd] bg-white text-xs font-mono text-[#242424] focus:border-[#0f6cbd] focus:outline-none"
+            className="form-input !h-9 text-xs font-mono"
             value={selectedRncId}
             onChange={e => setSelectedRncId(Number(e.target.value))}
           >
@@ -129,23 +129,25 @@ export const RastreabilidadeView: React.FC<RastreabilidadeViewProps> = ({ onNavi
         </div>
       </div>
 
-      {/* Card Novo Rastreio - Planner Compact */}
-      <div className="bg-white rounded-lg border border-[#edebe9] p-4 shadow-sm mb-5">
-        <div className="flex items-center gap-2 mb-3 pb-2.5 border-b border-[#edebe9]">
-          <Plus size={15} className="text-[#0f6cbd]" />
-          <h2 className="text-xs font-bold text-[#242424] uppercase tracking-wide">
+      {/* Card Novo Rastreio */}
+      <div className="card-saas p-5 flex flex-col gap-4">
+        <div className="flex items-center gap-2 pb-3 border-b border-[#e2e8f0]">
+          <div className="w-7 h-7 rounded-lg bg-blue-50 text-[#0f6cbd] flex items-center justify-center border border-blue-100">
+            <Plus size={15} />
+          </div>
+          <h2 className="text-xs font-display font-bold text-[#0f172a] uppercase tracking-wide">
             Nova Solicitação de Rastreamento no SAP
           </h2>
         </div>
 
-        <form onSubmit={handleCadastrarRastreio} className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
+        <form onSubmit={handleCadastrarRastreio} className="grid grid-cols-1 sm:grid-cols-12 gap-3.5 items-end">
           <div className="sm:col-span-5">
-            <label className="block text-[11px] font-semibold text-[#242424] mb-1">
+            <label className="form-label block mb-1">
               Código do Componente
             </label>
             <input 
               type="text" 
-              className="w-full h-8 px-2.5 rounded-md border border-[#e1dfdd] bg-white text-xs text-[#242424] focus:border-[#0f6cbd] focus:outline-none font-mono" 
+              className="form-input text-xs font-mono" 
               value={novoComp} 
               onChange={e => setNovoComp(e.target.value)}
               placeholder="Ex: 53201-0D120"
@@ -154,12 +156,12 @@ export const RastreabilidadeView: React.FC<RastreabilidadeViewProps> = ({ onNavi
           </div>
 
           <div className="sm:col-span-4">
-            <label className="block text-[11px] font-semibold text-[#242424] mb-1">
+            <label className="form-label block mb-1">
               Código do Lote SAP (Mín. 5 Dígitos) <span className="text-rose-500">*</span>
             </label>
             <input 
               type="text" 
-              className="w-full h-8 px-2.5 rounded-md border border-[#e1dfdd] bg-white text-xs text-[#242424] focus:border-[#0f6cbd] focus:outline-none font-mono font-bold" 
+              className="form-input text-xs font-mono font-bold" 
               value={novoLote} 
               onChange={e => setNovoLote(e.target.value)}
               placeholder="Ex: 9842105"
@@ -170,7 +172,7 @@ export const RastreabilidadeView: React.FC<RastreabilidadeViewProps> = ({ onNavi
           <div className="sm:col-span-3">
             <button 
               type="submit" 
-              className="w-full btn-fluent-primary"
+              className="btn-primary w-full h-9 text-xs font-semibold"
             >
               <Barcode size={15} />
               <span>Rastrear no SAP</span>
@@ -179,15 +181,15 @@ export const RastreabilidadeView: React.FC<RastreabilidadeViewProps> = ({ onNavi
         </form>
       </div>
 
-      {/* Pill Filter Tabs - Exactly matching Planner */}
-      <div className="flex items-center gap-1.5 mb-4 overflow-x-auto pb-1">
+      {/* Pill Filter Tabs */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1">
         <button 
           type="button"
           onClick={() => setActiveTab('lotes')}
-          className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all border ${
             activeTab === 'lotes'
-              ? 'bg-[#ffffff] text-[#0f6cbd] border border-[#0f6cbd] font-semibold shadow-sm'
-              : 'text-[#616161] hover:bg-[#edebe9] hover:text-[#242424]'
+              ? 'bg-blue-50/90 text-[#0b5796] border-[#0f6cbd]/40 shadow-xs'
+              : 'bg-white text-[#64748b] border-[#e2e8f0] hover:bg-slate-50 hover:text-[#0f172a]'
           }`}
         >
           1. Lotes SAP ({lotes.length})
@@ -196,10 +198,10 @@ export const RastreabilidadeView: React.FC<RastreabilidadeViewProps> = ({ onNavi
         <button 
           type="button"
           onClick={() => setActiveTab('etiquetas')}
-          className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all border ${
             activeTab === 'etiquetas'
-              ? 'bg-[#ffffff] text-[#0f6cbd] border border-[#0f6cbd] font-semibold shadow-sm'
-              : 'text-[#616161] hover:bg-[#edebe9] hover:text-[#242424]'
+              ? 'bg-blue-50/90 text-[#0b5796] border-[#0f6cbd]/40 shadow-xs'
+              : 'bg-white text-[#64748b] border-[#e2e8f0] hover:bg-slate-50 hover:text-[#0f172a]'
           }`}
         >
           2. Etiquetas Vivas ({etiquetas.length})
@@ -208,61 +210,61 @@ export const RastreabilidadeView: React.FC<RastreabilidadeViewProps> = ({ onNavi
         <button 
           type="button"
           onClick={() => setActiveTab('cabeceiras')}
-          className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all border ${
             activeTab === 'cabeceiras'
-              ? 'bg-[#ffffff] text-[#0f6cbd] border border-[#0f6cbd] font-semibold shadow-sm'
-              : 'text-[#616161] hover:bg-[#edebe9] hover:text-[#242424]'
+              ? 'bg-blue-50/90 text-[#0b5796] border-[#0f6cbd]/40 shadow-xs'
+              : 'bg-white text-[#64748b] border-[#e2e8f0] hover:bg-slate-50 hover:text-[#0f172a]'
           }`}
         >
           3. Cabeceiras & Estoque ({cabeceiras.length})
         </button>
       </div>
 
-      {/* Tabela Planner Style */}
-      <div className="bg-white rounded-lg border border-[#edebe9] shadow-sm overflow-hidden">
+      {/* Tabela SaaS */}
+      <div className="card-saas overflow-hidden">
         
         {/* TAB 1: LOTES SAP */}
         {activeTab === 'lotes' && (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-[#edebe9] bg-[#faf9f8] text-[11px] font-semibold text-[#616161]">
-                  <th className="py-2.5 px-4 w-12 text-center">#</th>
-                  <th className="py-2.5 px-4">Sequência</th>
-                  <th className="py-2.5 px-4">Produto / Material</th>
-                  <th className="py-2.5 px-4">Lote Identificado</th>
-                  <th className="py-2.5 px-4">Quantidade</th>
-                  <th className="py-2.5 px-4">Data Fabricação</th>
+                <tr className="border-b border-[#e2e8f0] bg-[#f8fafc]/90 text-xs font-display font-semibold text-[#64748b]">
+                  <th className="py-3 px-4 w-12 text-center font-semibold">#</th>
+                  <th className="py-3 px-4 font-semibold">Sequência</th>
+                  <th className="py-3 px-4 font-semibold">Produto / Material</th>
+                  <th className="py-3 px-4 font-semibold">Lote Identificado</th>
+                  <th className="py-3 px-4 font-semibold">Quantidade</th>
+                  <th className="py-3 px-4 font-semibold">Data Fabricação</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#edebe9] text-xs">
+              <tbody className="divide-y divide-[#f1f5f9] text-xs">
                 {lotes.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="text-center py-10 text-[#8a8886]">
+                    <td colSpan={6} className="text-center py-12 text-[#64748b]">
                       Nenhum lote rastreado para este ID de ocorrência.
                     </td>
                   </tr>
                 ) : (
                   lotes.map((l, i) => (
-                    <tr key={i} className="hover:bg-[#f3f2f1] transition-colors">
-                      <td className="py-2 px-4 text-center">
-                        <div className="w-7 h-7 rounded bg-[#f3f2f1] text-[#4f46e5] flex items-center justify-center font-bold text-[10px]">
+                    <tr key={i} className="hover:bg-[#f8fafc] transition-colors">
+                      <td className="py-3 px-4 text-center">
+                        <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-700 flex items-center justify-center font-bold text-[10px] border border-indigo-100">
                           LT
                         </div>
                       </td>
-                      <td className="py-2 px-4 font-mono text-[#616161]">
+                      <td className="py-3 px-4 font-mono text-[#64748b]">
                         {l.seqRel}
                       </td>
-                      <td className="py-2 px-4 font-semibold text-[#242424]">
+                      <td className="py-3 px-4 font-semibold text-[#0f172a]">
                         {l.produto}
                       </td>
-                      <td className="py-2 px-4 font-mono font-bold text-[#0f6cbd]">
+                      <td className="py-3 px-4 font-mono font-bold text-[#0f6cbd]">
                         {l.lote}
                       </td>
-                      <td className="py-2 px-4 font-medium text-[#242424]">
+                      <td className="py-3 px-4 font-medium text-[#0f172a]">
                         {l.qtd} pçs
                       </td>
-                      <td className="py-2 px-4 text-[#616161] font-mono">
+                      <td className="py-3 px-4 text-[#64748b] font-mono">
                         {l.data}
                       </td>
                     </tr>
@@ -278,55 +280,55 @@ export const RastreabilidadeView: React.FC<RastreabilidadeViewProps> = ({ onNavi
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-[#edebe9] bg-[#faf9f8] text-[11px] font-semibold text-[#616161]">
-                  <th className="py-2.5 px-4 w-12 text-center">#</th>
-                  <th className="py-2.5 px-4">Etiqueta SAP</th>
-                  <th className="py-2.5 px-4">Produto</th>
-                  <th className="py-2.5 px-4">Lote</th>
-                  <th className="py-2.5 px-4">Depósito</th>
-                  <th className="py-2.5 px-4">Qtd</th>
-                  <th className="py-2.5 px-4">Status no SAP</th>
+                <tr className="border-b border-[#e2e8f0] bg-[#f8fafc]/90 text-xs font-display font-semibold text-[#64748b]">
+                  <th className="py-3 px-4 w-12 text-center font-semibold">#</th>
+                  <th className="py-3 px-4 font-semibold">Etiqueta SAP</th>
+                  <th className="py-3 px-4 font-semibold">Produto</th>
+                  <th className="py-3 px-4 font-semibold">Lote</th>
+                  <th className="py-3 px-4 font-semibold">Depósito</th>
+                  <th className="py-3 px-4 font-semibold">Qtd</th>
+                  <th className="py-3 px-4 font-semibold">Status no SAP</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#edebe9] text-xs">
+              <tbody className="divide-y divide-[#f1f5f9] text-xs">
                 {etiquetas.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="text-center py-10 text-[#8a8886]">
+                    <td colSpan={7} className="text-center py-12 text-[#64748b]">
                       Nenhuma etiqueta viva encontrada no depósito.
                     </td>
                   </tr>
                 ) : (
                   etiquetas.map((e, i) => (
-                    <tr key={i} className="hover:bg-[#f3f2f1] transition-colors">
-                      <td className="py-2 px-4 text-center">
-                        <div className="w-7 h-7 rounded bg-[#eff6ff] text-[#1d4ed8] flex items-center justify-center font-bold text-[10px]">
+                    <tr key={i} className="hover:bg-[#f8fafc] transition-colors">
+                      <td className="py-3 px-4 text-center">
+                        <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center font-bold text-[10px] border border-blue-100">
                           ET
                         </div>
                       </td>
-                      <td className="py-2 px-4 font-mono font-bold text-[#242424]">
+                      <td className="py-3 px-4 font-mono font-bold text-[#0f172a]">
                         {e.etiquetasap}
                       </td>
-                      <td className="py-2 px-4 font-semibold text-[#242424]">
+                      <td className="py-3 px-4 font-semibold text-[#0f172a]">
                         {e.produto}
                       </td>
-                      <td className="py-2 px-4 font-mono text-[#616161]">
+                      <td className="py-3 px-4 font-mono text-[#64748b]">
                         {e.lote}
                       </td>
-                      <td className="py-2 px-4 text-[#616161]">
+                      <td className="py-3 px-4 text-[#64748b]">
                         {e.deposito}
                       </td>
-                      <td className="py-2 px-4 font-medium text-[#242424]">
+                      <td className="py-3 px-4 font-medium text-[#0f172a]">
                         {e.qtd} pçs
                       </td>
-                      <td className="py-2 px-4">
+                      <td className="py-3 px-4">
                         {e.statusBloqueio === 'bloq' ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-[#fef2f2] text-[#991b1b] border border-[#fecaca]">
-                            <Lock size={10} />
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                            <Lock size={11} />
                             BLOQUEADA
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-[#edfdf3] text-[#0f7b3a] border border-[#b8e8c8]">
-                            <Unlock size={10} />
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <Unlock size={11} />
                             LIBERADA
                           </span>
                         )}
@@ -344,40 +346,40 @@ export const RastreabilidadeView: React.FC<RastreabilidadeViewProps> = ({ onNavi
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-[#edebe9] bg-[#faf9f8] text-[11px] font-semibold text-[#616161]">
-                  <th className="py-2.5 px-4 w-12 text-center">#</th>
-                  <th className="py-2.5 px-4">Material</th>
-                  <th className="py-2.5 px-4">Lote</th>
-                  <th className="py-2.5 px-4">Quantidade</th>
-                  <th className="py-2.5 px-4">Posição / Estoque</th>
+                <tr className="border-b border-[#e2e8f0] bg-[#f8fafc]/90 text-xs font-display font-semibold text-[#64748b]">
+                  <th className="py-3 px-4 w-12 text-center font-semibold">#</th>
+                  <th className="py-3 px-4 font-semibold">Material</th>
+                  <th className="py-3 px-4 font-semibold">Lote</th>
+                  <th className="py-3 px-4 font-semibold">Quantidade</th>
+                  <th className="py-3 px-4 font-semibold">Posição / Estoque</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#edebe9] text-xs">
+              <tbody className="divide-y divide-[#f1f5f9] text-xs">
                 {cabeceiras.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="text-center py-10 text-[#8a8886]">
+                    <td colSpan={5} className="text-center py-12 text-[#64748b]">
                       Nenhum estoque de cabeceira retido.
                     </td>
                   </tr>
                 ) : (
                   cabeceiras.map((c, i) => (
-                    <tr key={i} className="hover:bg-[#f3f2f1] transition-colors">
-                      <td className="py-2 px-4 text-center">
-                        <div className="w-7 h-7 rounded bg-[#fffbeb] text-[#b45309] flex items-center justify-center font-bold text-[10px]">
+                    <tr key={i} className="hover:bg-[#f8fafc] transition-colors">
+                      <td className="py-3 px-4 text-center">
+                        <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-800 flex items-center justify-center font-bold text-[10px] border border-amber-200">
                           CB
                         </div>
                       </td>
-                      <td className="py-2 px-4 font-semibold text-[#242424]">
+                      <td className="py-3 px-4 font-semibold text-[#0f172a]">
                         {c.produto}
                       </td>
-                      <td className="py-2 px-4 font-mono text-[#616161]">
+                      <td className="py-3 px-4 font-mono text-[#64748b]">
                         {c.lote}
                       </td>
-                      <td className="py-2 px-4 font-medium text-[#242424]">
+                      <td className="py-3 px-4 font-medium text-[#0f172a]">
                         {c.qtd} pçs
                       </td>
-                      <td className="py-2 px-4">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-[#fffbeb] text-[#92400e] border border-[#fde68a]">
+                      <td className="py-3 px-4">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-amber-50 text-amber-800 border border-amber-200">
                           {c.estoque}
                         </span>
                       </td>

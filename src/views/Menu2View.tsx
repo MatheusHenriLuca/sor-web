@@ -113,7 +113,7 @@ export const Menu2View: React.FC<Menu2ViewProps> = ({
   };
 
   return (
-    <div className="w-full flex flex-col !gap-6 sm:!gap-8 animate-in fade-in duration-200">
+    <div className="w-full flex flex-col gap-6 sm:gap-8 animate-in fade-in duration-200">
       
       {/* 1. CABEÇALHO DA PÁGINA INICIAL */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#e2e8f0]">
@@ -321,7 +321,7 @@ export const Menu2View: React.FC<Menu2ViewProps> = ({
       </div>
 
       {/* 4. RESUMO GERENCIAL POR MONTADORA (DADOS REAIS COM BARRAS PROPORCIONAIS) */}
-      <div className="card-saas p-6 space-y-4">
+      <div className="card-saas p-6 flex flex-col gap-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3.5 border-b border-[#e2e8f0] gap-2">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-blue-50 text-[#0f6cbd] flex items-center justify-center border border-blue-100/70 shadow-xs">
@@ -479,7 +479,7 @@ export const Menu2View: React.FC<Menu2ViewProps> = ({
               <div
                 key={r.id}
                 onClick={() => onNavigate('detalhes-8d', { rncId: r.id })}
-                className="p-4 hover:bg-[#f8fafc] transition cursor-pointer space-y-2.5 active:bg-[#f1f5f9]"
+                className="p-4 hover:bg-[#f8fafc] transition cursor-pointer flex flex-col gap-2.5 active:bg-[#f1f5f9]"
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">

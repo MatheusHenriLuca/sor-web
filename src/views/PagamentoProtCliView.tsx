@@ -56,15 +56,15 @@ export const PagamentoProtCliView: React.FC<PagamentoProtCliViewProps> = ({ onNa
   );
 
   return (
-    <div className="w-full max-w-7xl mx-auto pb-16 px-4 sm:px-6">
+    <div className="w-full flex flex-col gap-6 pb-16 animate-in fade-in duration-200">
       
       {/* Toast Notification */}
       {notification && (
         <div className="fixed top-14 right-6 z-50">
-          <div className={`flex items-center gap-2.5 px-4 py-2.5 rounded-lg text-xs font-semibold shadow-lg border ${
+          <div className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-xs font-semibold shadow-lg border ${
             notification.type === 'success' 
-              ? 'bg-[#edfdf3] text-[#0f7b3a] border-[#b8e8c8]' 
-              : 'bg-[#fef2f2] text-[#991b1b] border-[#fecaca]'
+              ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
+              : 'bg-rose-50 text-rose-800 border-rose-200'
           }`}>
             <CheckCircle2 size={16} />
             <span>{notification.message}</span>
@@ -75,25 +75,26 @@ export const PagamentoProtCliView: React.FC<PagamentoProtCliViewProps> = ({ onNa
         </div>
       )}
 
-      {/* Header Planner Style */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 pb-5 border-b border-[#e1dfdd] mb-5">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#e2e8f0]">
         <div className="flex items-center gap-3">
           <button 
             type="button"
             onClick={() => onNavigate('menu-2')}
-            className="w-8 h-8 rounded-md flex items-center justify-center text-[#616161] hover:text-[#242424] hover:bg-[#edebe9] transition-colors"
+            className="btn-secondary h-9 px-3 text-xs font-semibold"
             title="Voltar à Visão Geral"
           >
             <ArrowLeft size={16} />
+            <span className="hidden sm:inline">Voltar</span>
           </button>
-          <div className="w-8 h-8 rounded-md bg-[#e6f4ea] text-[#137333] flex items-center justify-center">
-            <DollarSign size={18} />
+          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center border border-emerald-100 shadow-xs">
+            <DollarSign size={20} />
           </div>
           <div>
-            <h1 className="text-base sm:text-lg font-bold text-[#242424] tracking-tight">
+            <h1 className="text-lg sm:text-2xl font-display font-bold text-[#0f172a] tracking-tight">
               Liquidação de Pagamentos: Proteção ao Cliente
             </h1>
-            <p className="text-xs text-[#616161]">
+            <p className="text-xs text-[#64748b]">
               Autorização e baixa financeira de RNCs com proteção aprovada
             </p>
           </div>
@@ -103,10 +104,10 @@ export const PagamentoProtCliView: React.FC<PagamentoProtCliViewProps> = ({ onNa
           <button 
             type="button"
             onClick={loadData}
-            className="btn-fluent-secondary"
+            className="btn-secondary h-9 px-3.5 text-xs font-semibold"
             title="Recarregar dados"
           >
-            <RefreshCw size={13} />
+            <RefreshCw size={14} />
             <span>Atualizar</span>
           </button>
 
@@ -114,7 +115,7 @@ export const PagamentoProtCliView: React.FC<PagamentoProtCliViewProps> = ({ onNa
             <button 
               type="button"
               onClick={handleLiquidarLote}
-              className="btn-fluent-primary bg-[#0f7b3a] hover:bg-[#0c632e] border-[#0f7b3a]"
+              className="btn-primary !bg-emerald-600 hover:!bg-emerald-700 !border-emerald-600 h-9 px-4 text-xs font-semibold"
             >
               <CheckCircle2 size={15} />
               <span>Liquidar Todos ({aprovados.length})</span>
@@ -123,14 +124,14 @@ export const PagamentoProtCliView: React.FC<PagamentoProtCliViewProps> = ({ onNa
         </div>
       </div>
 
-      {/* Search Input Planner Style */}
+      {/* Search Input */}
       {aprovados.length > 0 && (
-        <div className="flex items-center justify-between gap-3 mb-4">
+        <div className="flex items-center justify-between gap-3">
           <div className="relative w-full sm:w-80">
-            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#8a8886]" />
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input 
               type="text"
-              className="w-full h-8 pl-8 pr-7 rounded-md border border-[#e1dfdd] bg-white text-xs text-[#242424] placeholder:text-[#8a8886] focus:border-[#0f6cbd] focus:outline-none transition-colors"
+              className="form-input !h-9 !pl-9 !pr-8 text-xs"
               placeholder="Buscar RNC, cliente ou SAP..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
@@ -138,74 +139,76 @@ export const PagamentoProtCliView: React.FC<PagamentoProtCliViewProps> = ({ onNa
             {searchTerm && (
               <button 
                 onClick={() => setSearchTerm('')} 
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-[#8a8886] hover:text-[#242424]"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
               >
-                <X size={13} />
+                <X size={14} />
               </button>
             )}
           </div>
 
-          <span className="text-xs text-[#616161] font-medium hidden sm:inline">
+          <span className="text-xs text-[#64748b] font-medium hidden sm:inline tabular-nums">
             {filteredAprovados.length} de {aprovados.length} registros pendentes
           </span>
         </div>
       )}
 
-      {/* Main Table or Empty State Planner Style */}
-      <div className="bg-white rounded-lg border border-[#edebe9] shadow-sm overflow-hidden">
+      {/* Main Table or Empty State */}
+      <div className="card-saas overflow-hidden">
         {aprovados.length === 0 ? (
-          <div className="py-16 text-center text-[#616161]">
-            <div className="w-12 h-12 rounded-full bg-[#e6f4ea] text-[#137333] flex items-center justify-center mx-auto mb-3">
+          <div className="py-16 text-center text-[#64748b] flex flex-col items-center justify-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100 shadow-2xs">
               <CheckCircle2 size={24} />
             </div>
-            <h3 className="text-sm font-bold text-[#242424]">Nenhum pagamento pendente</h3>
-            <p className="text-xs text-[#616161] mt-1 max-w-sm mx-auto">
-              Todas as proteções ao cliente autorizadas já foram liquidadas e registradas como &apos;Registro Pago&apos;.
-            </p>
+            <div>
+              <h3 className="text-sm font-display font-bold text-[#0f172a]">Nenhum pagamento pendente</h3>
+              <p className="text-xs text-[#64748b] mt-1 max-w-sm mx-auto">
+                Todas as proteções ao cliente autorizadas já foram liquidadas e registradas como &apos;Registro Pago&apos;.
+              </p>
+            </div>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-[#edebe9] bg-[#faf9f8] text-[11px] font-semibold text-[#616161]">
-                  <th className="py-2.5 px-4 w-12 text-center">#</th>
-                  <th className="py-2.5 px-4">Código RNC</th>
-                  <th className="py-2.5 px-4">Data Ocorrência</th>
-                  <th className="py-2.5 px-4">Cliente (Montadora)</th>
-                  <th className="py-2.5 px-4">Peça / Componente</th>
-                  <th className="py-2.5 px-4">Etiqueta SAP (9 Dígitos)</th>
-                  <th className="py-2.5 px-4">Status Atual</th>
+                <tr className="border-b border-[#e2e8f0] bg-[#f8fafc]/90 text-xs font-display font-semibold text-[#64748b]">
+                  <th className="py-3 px-4 w-12 text-center font-semibold">#</th>
+                  <th className="py-3 px-4 font-semibold">Código RNC</th>
+                  <th className="py-3 px-4 font-semibold">Data Ocorrência</th>
+                  <th className="py-3 px-4 font-semibold">Cliente (Montadora)</th>
+                  <th className="py-3 px-4 font-semibold">Peça / Componente</th>
+                  <th className="py-3 px-4 font-semibold">Etiqueta SAP (9 Dígitos)</th>
+                  <th className="py-3 px-4 font-semibold">Status Atual</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#edebe9] text-xs">
+              <tbody className="divide-y divide-[#f1f5f9] text-xs">
                 {filteredAprovados.map(r => {
                   const badge = getClientBadge(r.cliente || '');
                   return (
-                    <tr key={r.id} className="hover:bg-[#f3f2f1] transition-colors">
-                      <td className="py-2 px-4 text-center">
-                        <div className={`w-7 h-7 rounded flex items-center justify-center font-bold text-[10px] ${badge.color}`}>
+                    <tr key={r.id} className="hover:bg-[#f8fafc] transition-colors">
+                      <td className="py-3 px-4 text-center">
+                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-[10px] ${badge.color}`}>
                           {badge.code}
                         </div>
                       </td>
-                      <td className="py-2 px-4 font-mono font-bold text-[#0f6cbd]">
+                      <td className="py-3 px-4 font-mono font-bold text-[#0f6cbd]">
                         {r.field1 || `RNC-${r.id}`}
                       </td>
-                      <td className="py-2 px-4 font-mono text-[#616161]">
+                      <td className="py-3 px-4 font-mono text-[#64748b]">
                         {r.dataOcorrencia}
                       </td>
-                      <td className="py-2 px-4 font-semibold text-[#242424]">
+                      <td className="py-3 px-4 font-semibold text-[#0f172a]">
                         {r.cliente}
                       </td>
-                      <td className="py-2 px-4 text-[#242424]">
+                      <td className="py-3 px-4 text-[#0f172a]">
                         {r.componente}
                       </td>
-                      <td className="py-2 px-4">
-                        <span className="font-mono font-bold text-[#242424] bg-[#f3f2f1] px-2 py-0.5 rounded border border-[#e1dfdd] text-[11px]">
+                      <td className="py-3 px-4">
+                        <span className="font-mono font-bold text-[#0f172a] bg-slate-100 px-2 py-0.5 rounded border border-slate-200 text-[11px]">
                           {r.codigoRastreabilidade || 'N/A'}
                         </span>
                       </td>
-                      <td className="py-2 px-4">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-[#edfdf3] text-[#0f7b3a] border border-[#b8e8c8]">
+                      <td className="py-3 px-4">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                           {r.protcliente}
                         </span>
                       </td>

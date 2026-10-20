@@ -114,15 +114,15 @@ export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({ onNa
   );
 
   return (
-    <div className="w-full max-w-7xl mx-auto pb-16 px-4 sm:px-6">
+    <div className="w-full flex flex-col gap-6 pb-16 animate-in fade-in duration-200">
       
       {/* Toast Notification */}
       {notification && (
         <div className="fixed top-14 right-6 z-50">
-          <div className={`flex items-center gap-2.5 px-4 py-2.5 rounded-lg text-xs font-semibold shadow-lg border ${
+          <div className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-xs font-semibold shadow-lg border ${
             notification.type === 'success' 
-              ? 'bg-[#edfdf3] text-[#0f7b3a] border-[#b8e8c8]' 
-              : 'bg-[#fef2f2] text-[#991b1b] border-[#fecaca]'
+              ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
+              : 'bg-rose-50 text-rose-800 border-rose-200'
           }`}>
             <CheckCircle2 size={16} />
             <span>{notification.message}</span>
@@ -133,25 +133,26 @@ export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({ onNa
         </div>
       )}
 
-      {/* Header Planner Style */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 pb-5 border-b border-[#e1dfdd] mb-5">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#e2e8f0]">
         <div className="flex items-center gap-3">
           <button 
             type="button"
             onClick={() => onNavigate('dashboard')}
-            className="w-8 h-8 rounded-md flex items-center justify-center text-[#616161] hover:text-[#242424] hover:bg-[#edebe9] transition-colors"
+            className="btn-secondary h-9 px-3 text-xs font-semibold"
             title="Voltar ao Dashboard"
           >
             <ArrowLeft size={16} />
+            <span className="hidden sm:inline">Voltar</span>
           </button>
-          <div className="w-8 h-8 rounded-md bg-[#e0e7ff] text-[#4338ca] flex items-center justify-center">
-            <Users size={18} />
+          <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#0f6cbd] flex items-center justify-center border border-blue-100 shadow-xs">
+            <Users size={20} />
           </div>
           <div>
-            <h1 className="text-base sm:text-lg font-bold text-[#242424] tracking-tight">
+            <h1 className="text-lg sm:text-2xl font-display font-bold text-[#0f172a] tracking-tight">
               Gestão de Usuários & Perfis
             </h1>
-            <p className="text-xs text-[#616161]">
+            <p className="text-xs text-[#64748b]">
               Controle de acesso por papel (RBAC) integrado ao SharePoint
             </p>
           </div>
@@ -164,7 +165,7 @@ export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({ onNa
               setForm({ nome: '', reAcesso: undefined, perfil: 'Inspqual', cargo: '', email: '' });
               setModalOpen(true);
             }}
-            className="btn-fluent-primary"
+            className="btn-primary h-9 px-4 text-xs font-semibold"
           >
             <Plus size={15} />
             <span>Novo Usuário</span>
@@ -172,13 +173,13 @@ export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({ onNa
         </div>
       </div>
 
-      {/* Search Bar Planner Style */}
-      <div className="flex items-center justify-between gap-3 mb-4">
+      {/* Search Bar */}
+      <div className="flex items-center justify-between gap-3">
         <div className="relative w-full sm:w-80">
-          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#8a8886]" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input 
             type="text"
-            className="w-full h-8 pl-8 pr-7 rounded-md border border-[#e1dfdd] bg-white text-xs text-[#242424] placeholder:text-[#8a8886] focus:border-[#0f6cbd] focus:outline-none transition-colors"
+            className="form-input !h-9 !pl-9 !pr-8 text-xs"
             placeholder="Buscar por nome, cargo ou RE..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
@@ -186,36 +187,36 @@ export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({ onNa
           {searchTerm && (
             <button 
               onClick={() => setSearchTerm('')} 
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-[#8a8886] hover:text-[#242424]"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
             >
-              <X size={13} />
+              <X size={14} />
             </button>
           )}
         </div>
 
-        <span className="text-xs text-[#616161] font-medium hidden sm:inline">
+        <span className="text-xs text-[#64748b] font-medium hidden sm:inline tabular-nums">
           {filteredUsers.length} de {users.length} usuários
         </span>
       </div>
 
-      {/* Tabela Planner Style */}
-      <div className="bg-white rounded-lg border border-[#edebe9] shadow-sm overflow-hidden">
+      {/* Tabela SaaS */}
+      <div className="card-saas overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-[#edebe9] bg-[#faf9f8] text-[11px] font-semibold text-[#616161]">
-                <th className="py-2.5 px-4 w-12 text-center">#</th>
-                <th className="py-2.5 px-4">Nome Completo</th>
-                <th className="py-2.5 px-4">Matrícula (RE)</th>
-                <th className="py-2.5 px-4">Cargo / Posição</th>
-                <th className="py-2.5 px-4">Perfil RBAC</th>
-                <th className="py-2.5 px-4 text-right">Ações</th>
+              <tr className="border-b border-[#e2e8f0] bg-[#f8fafc]/90 text-xs font-display font-semibold text-[#64748b]">
+                <th className="py-3 px-4 w-12 text-center font-semibold">#</th>
+                <th className="py-3 px-4 font-semibold">Nome Completo</th>
+                <th className="py-3 px-4 font-semibold">Matrícula (RE)</th>
+                <th className="py-3 px-4 font-semibold">Cargo / Posição</th>
+                <th className="py-3 px-4 font-semibold">Perfil RBAC</th>
+                <th className="py-3 px-4 text-right font-semibold">Ações</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#edebe9] text-xs">
+            <tbody className="divide-y divide-[#f1f5f9] text-xs">
               {filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-10 text-[#8a8886] text-xs">
+                  <td colSpan={6} className="text-center py-12 text-[#64748b] text-xs">
                     Nenhum colaborador encontrado para o termo pesquisado.
                   </td>
                 </tr>
@@ -224,28 +225,28 @@ export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({ onNa
                   const initials = getInitials(u.nome);
                   const badgeColor = getBadgeColor(u.perfil);
                   return (
-                    <tr key={u.id || idx} className="hover:bg-[#f3f2f1] transition-colors group">
-                      <td className="py-2 px-4 text-center">
-                        <div className={`w-7 h-7 rounded flex items-center justify-center font-bold text-[11px] ${badgeColor}`}>
+                    <tr key={u.id || idx} className="hover:bg-[#f8fafc] transition-colors group">
+                      <td className="py-3 px-4 text-center">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs ${badgeColor} shadow-2xs`}>
                           {initials}
                         </div>
                       </td>
-                      <td className="py-2 px-4">
-                        <div className="font-semibold text-[#242424]">{u.nome}</div>
-                        <div className="text-[11px] text-[#616161] font-normal">{u.email || 'Sem e-mail'}</div>
+                      <td className="py-3 px-4">
+                        <div className="font-semibold text-[#0f172a]">{u.nome}</div>
+                        <div className="text-[11px] text-[#64748b] font-normal">{u.email || 'Sem e-mail'}</div>
                       </td>
-                      <td className="py-2 px-4 font-mono font-medium text-[#242424]">
+                      <td className="py-3 px-4 font-mono font-medium text-[#0f172a]">
                         {u.reAcesso}
                       </td>
-                      <td className="py-2 px-4 text-[#616161]">
+                      <td className="py-3 px-4 text-[#64748b]">
                         {u.cargo || 'Não especificado'}
                       </td>
-                      <td className="py-2 px-4">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-[#f3f2f1] text-[#242424] border border-[#e1dfdd]">
+                      <td className="py-3 px-4">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
                           {u.perfil}
                         </span>
                       </td>
-                      <td className="py-2 px-4 text-right">
+                      <td className="py-3 px-4 text-right">
                         <div className="flex items-center justify-end gap-1 opacity-70 group-hover:opacity-100 transition-opacity">
                           <button 
                             type="button"
@@ -253,18 +254,18 @@ export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({ onNa
                               setForm(u);
                               setModalOpen(true);
                             }}
-                            className="w-7 h-7 rounded flex items-center justify-center text-[#616161] hover:text-[#0f6cbd] hover:bg-[#edebe9] transition-colors"
+                            className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-[#0f6cbd] hover:bg-blue-50 transition-colors"
                             title="Editar usuário"
                           >
-                            <Edit3 size={13} />
+                            <Edit3 size={14} />
                           </button>
                           <button 
                             type="button"
                             onClick={() => setDeleteId(u.id)}
-                            className="w-7 h-7 rounded flex items-center justify-center text-[#616161] hover:text-[#dc2626] hover:bg-[#edebe9] transition-colors"
+                            className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
                             title="Remover usuário"
                           >
-                            <Trash2 size={13} />
+                            <Trash2 size={14} />
                           </button>
                         </div>
                       </td>
@@ -277,34 +278,36 @@ export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({ onNa
         </div>
       </div>
 
-      {/* Modal de Cadastro / Edição Planner */}
+      {/* Modal de Cadastro / Edição */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px] flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg border border-[#edebe9] shadow-xl w-full max-w-md overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-[#edebe9] flex items-center justify-between bg-[#faf9f8]">
-              <div className="flex items-center gap-2">
-                <ShieldCheck size={16} className="text-[#0f6cbd]" />
-                <h3 className="font-bold text-[#242424] text-sm">
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="card-saas !p-0 shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-150">
+            <div className="px-5 py-4 border-b border-[#e2e8f0] flex items-center justify-between bg-[#f8fafc]">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-blue-50 text-[#0f6cbd] flex items-center justify-center border border-blue-100">
+                  <ShieldCheck size={16} />
+                </div>
+                <h3 className="font-display font-bold text-[#0f172a] text-sm sm:text-base">
                   {form.id ? 'Editar Permissões de Usuário' : 'Novo Usuário de Qualidade'}
                 </h3>
               </div>
               <button 
                 onClick={() => setModalOpen(false)} 
-                className="w-7 h-7 rounded flex items-center justify-center text-[#616161] hover:text-[#242424] hover:bg-[#edebe9]"
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100"
               >
-                <X size={15} />
+                <X size={16} />
               </button>
             </div>
             
-            <form onSubmit={handleSave} className="p-5 space-y-3.5">
+            <form onSubmit={handleSave} className="p-5 flex flex-col gap-4">
               
               {/* Seleção rápida pela Base de Ativos */}
-              <div className="p-2.5 bg-[#f8f9fa] rounded-md border border-[#e1dfdd]">
-                <label className="block text-[11px] font-semibold text-[#616161] mb-1">
+              <div className="p-3 bg-slate-50/80 rounded-xl border border-slate-200/80">
+                <label className="form-label block mb-1.5 text-[#475569]">
                   Preenchimento Automático via Base Geral ({baseAtivos.length})
                 </label>
                 <select 
-                  className="w-full h-8 px-2 rounded border border-[#e1dfdd] bg-white text-xs text-[#242424] focus:border-[#0f6cbd] focus:outline-none"
+                  className="form-input text-xs"
                   onChange={e => handleSelectColaborador(Number(e.target.value))}
                   defaultValue=""
                 >
@@ -318,12 +321,12 @@ export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({ onNa
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-[#242424] mb-1">
+                <label className="form-label block mb-1">
                   Nome Completo <span className="text-rose-500">*</span>
                 </label>
                 <input 
                   type="text"
-                  className="w-full h-8 px-2.5 rounded border border-[#e1dfdd] text-xs text-[#242424] focus:border-[#0f6cbd] focus:outline-none"
+                  className="form-input text-xs"
                   value={form.nome}
                   onChange={e => setForm({ ...form, nome: e.target.value })}
                   placeholder="Nome do colaborador"
@@ -331,14 +334,14 @@ export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({ onNa
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3.5">
                 <div>
-                  <label className="block text-[11px] font-semibold text-[#242424] mb-1">
+                  <label className="form-label block mb-1">
                     Matrícula (RE) <span className="text-rose-500">*</span>
                   </label>
                   <input 
                     type="number"
-                    className="w-full h-8 px-2.5 rounded border border-[#e1dfdd] font-mono text-xs text-[#242424] focus:border-[#0f6cbd] focus:outline-none"
+                    className="form-input text-xs font-mono"
                     value={form.reAcesso || ''}
                     onChange={e => setForm({ ...form, reAcesso: Number(e.target.value) })}
                     placeholder="Ex: 88123"
@@ -347,11 +350,11 @@ export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({ onNa
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-semibold text-[#242424] mb-1">
+                  <label className="form-label block mb-1">
                     Perfil RBAC <span className="text-rose-500">*</span>
                   </label>
                   <select 
-                    className="w-full h-8 px-2 rounded border border-[#e1dfdd] text-xs text-[#242424] focus:border-[#0f6cbd] focus:outline-none bg-white"
+                    className="form-input text-xs"
                     value={form.perfil}
                     onChange={e => setForm({ ...form, perfil: e.target.value as UserRole })}
                   >
@@ -367,10 +370,10 @@ export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({ onNa
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-[#242424] mb-1">Cargo / Posição</label>
+                <label className="form-label block mb-1">Cargo / Posição</label>
                 <input 
                   type="text"
-                  className="w-full h-8 px-2.5 rounded border border-[#e1dfdd] text-xs text-[#242424] focus:border-[#0f6cbd] focus:outline-none"
+                  className="form-input text-xs"
                   value={form.cargo}
                   onChange={e => setForm({ ...form, cargo: e.target.value })}
                   placeholder="Ex: Analista da Qualidade"
@@ -378,27 +381,27 @@ export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({ onNa
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-[#242424] mb-1">E-mail Corporativo</label>
+                <label className="form-label block mb-1">E-mail Corporativo</label>
                 <input 
                   type="email"
-                  className="w-full h-8 px-2.5 rounded border border-[#e1dfdd] text-xs text-[#242424] focus:border-[#0f6cbd] focus:outline-none"
+                  className="form-input text-xs"
                   value={form.email || ''}
                   onChange={e => setForm({ ...form, email: e.target.value })}
                   placeholder="nome.sobrenome@br.gestamp.com"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#edebe9] mt-4">
+              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#e2e8f0] mt-2">
                 <button 
                   type="button" 
                   onClick={() => setModalOpen(false)} 
-                  className="btn-fluent-secondary"
+                  className="btn-secondary h-9 px-4 text-xs font-semibold"
                 >
                   Cancelar
                 </button>
                 <button 
                   type="submit" 
-                  className="btn-fluent-primary"
+                  className="btn-primary h-9 px-4 text-xs font-semibold"
                 >
                   Salvar Usuário
                 </button>
@@ -408,31 +411,33 @@ export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({ onNa
         </div>
       )}
 
-      {/* Modal Delete Planner */}
+      {/* Modal Delete */}
       {deleteId !== null && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px] flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg border border-[#edebe9] shadow-xl w-full max-w-sm overflow-hidden p-5 text-center">
-            <div className="w-10 h-10 rounded-full bg-[#fef2f2] text-[#dc2626] flex items-center justify-center mx-auto mb-3">
-              <Trash2 size={20} />
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="card-saas !p-6 shadow-2xl w-full max-w-sm overflow-hidden text-center flex flex-col gap-4 animate-in zoom-in-95 duration-150">
+            <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto border border-rose-100">
+              <Trash2 size={22} />
             </div>
-            <h3 className="font-bold text-[#242424] text-sm">Remover Usuário?</h3>
-            <p className="text-xs text-[#616161] mt-1 mb-5">
-              Tem certeza que deseja remover este colaborador da lista de permissões da qualidade?
-            </p>
-            <div className="flex items-center justify-center gap-2">
+            <div>
+              <h3 className="font-display font-bold text-[#0f172a] text-base">Remover Usuário?</h3>
+              <p className="text-xs text-[#64748b] mt-1">
+                Tem certeza que deseja remover este colaborador da lista de permissões da qualidade?
+              </p>
+            </div>
+            <div className="flex items-center justify-center gap-2.5 pt-2">
               <button 
                 type="button"
                 onClick={() => setDeleteId(null)}
-                className="btn-fluent-secondary"
+                className="btn-secondary h-9 px-4 text-xs font-semibold flex-1"
               >
                 Cancelar
               </button>
               <button 
-                type="button"
+                type="button" 
                 onClick={handleDelete}
-                className="inline-flex items-center justify-center h-8 px-3.5 rounded text-xs font-semibold text-white bg-[#dc2626] hover:bg-[#b91c1c] transition-colors"
+                className="btn-primary !bg-rose-600 hover:!bg-rose-700 !border-rose-600 h-9 px-4 text-xs font-semibold flex-1"
               >
-                Confirmar Exclusão
+                Confirmar
               </button>
             </div>
           </div>

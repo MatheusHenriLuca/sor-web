@@ -69,7 +69,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
 
   if (!rnc) {
     return (
-      <div className="max-w-md mx-auto my-16 p-8 bg-white rounded-2xl border border-[#e2e8f0] text-center space-y-4 shadow-sm">
+      <div className="max-w-md mx-auto my-16 p-8 bg-white rounded-2xl border border-[#e2e8f0] text-center flex flex-col gap-4 shadow-sm">
         <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center mx-auto">
           <AlertTriangle className="w-6 h-6" />
         </div>
@@ -157,7 +157,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
   const isProtecaoAtiva = rnc.protcliente && rnc.protcliente !== 'Não';
 
   return (
-    <div className="w-full space-y-5 animate-in fade-in duration-150 pb-16">
+    <div className="w-full flex flex-col gap-6 animate-in fade-in duration-150 pb-16">
       
       {/* Toast Notification */}
       {notification && (
@@ -177,7 +177,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
       )}
 
       {/* 1. CABEÇALHO UNIFICADO DO REGISTRO (ÁREAS A, B, C, D COM HIERARQUIA E RESPIRO) */}
-      <div className="bg-white border border-[#e2e8f0] rounded-2xl p-6 sm:p-7 shadow-xs space-y-5">
+      <div className="card-saas p-6 sm:p-7 flex flex-col gap-5">
         
         {/* Bloco A — Identificação da Ocorrência (Número, Status, Tipo e Metadados com Amplo Respiro) */}
         <div className="flex flex-col gap-3 pb-4 border-b border-[#f1f5f9]">
@@ -214,7 +214,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
             </div>
           </div>
 
-          <div className="space-y-1">
+          <div className="flex flex-col gap-1">
             <h1 className="text-2xl sm:text-3xl font-extrabold text-[#0f172a] tracking-tight font-mono-numbers">
               {rnc.field1 || `RNC #${rnc.id}`}
             </h1>
@@ -330,7 +330,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
               <div className="w-10 h-10 rounded-xl bg-rose-200/60 text-rose-800 flex items-center justify-center shrink-0">
                 <ShieldAlert className="w-5 h-5 text-rose-700" />
               </div>
-              <div className="space-y-1 min-w-0">
+              <div className="flex flex-col gap-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-xs sm:text-sm font-bold text-rose-950">
                     Protocolo de Proteção ao Cliente Ativado ({rnc.protcliente})
@@ -384,10 +384,10 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
       {/* MODO 1: DETALHADO (LISTA COMPLETA - REFERÊNCIA IMAGEM 3) */}
       {/* ========================================================================= */}
       {activeViewMode === 'detalhes' && (
-        <div className="space-y-6 animate-in fade-in">
+        <div className="flex flex-col gap-6 animate-in fade-in">
           
           {/* SEÇÃO 1: HISTÓRICO & RELATO COMPLETO */}
-          <div className="card-saas p-6 space-y-4">
+          <div className="card-saas p-6 flex flex-col gap-5">
             <div className="flex items-center justify-between pb-3 border-b border-[#f1f5f9]">
               <div className="flex items-center gap-2.5">
                 <FileText className="w-4 h-4 text-[#0f6cbd]" />
@@ -400,7 +400,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
               </div>
             </div>
 
-            <div className="space-y-4 pt-1">
+            <div className="flex flex-col gap-3.5 pt-1">
               <div className="info-tile">
                 <span className="info-tile-label">
                   Descrição resumida da não conformidade
@@ -425,7 +425,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             
             {/* Bloco 1: Dados do Produto & Engenharia */}
-            <div className="card-saas p-6 space-y-5">
+            <div className="card-saas p-6 flex flex-col gap-5">
               <div className="flex items-center gap-2.5 pb-3 border-b border-[#f1f5f9]">
                 <div className="w-8 h-8 rounded-lg bg-blue-50 text-[#0f6cbd] flex items-center justify-center">
                   <Wrench className="w-4 h-4" />
@@ -495,7 +495,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
             </div>
 
             {/* Bloco 2: Origem Fabril & Detecção */}
-            <div className="card-saas p-6 space-y-5">
+            <div className="card-saas p-6 flex flex-col gap-5">
               <div className="flex items-center gap-2.5 pb-3 border-b border-[#f1f5f9]">
                 <div className="w-8 h-8 rounded-lg bg-blue-50 text-[#0f6cbd] flex items-center justify-center">
                   <MapPin className="w-4 h-4" />
@@ -564,7 +564,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
           </div>
 
           {/* SEÇÃO 3: CONTENÇÃO IMEDIATA & DIRETRIZES 5W2H */}
-          <div className="card-saas p-6 space-y-6">
+          <div className="card-saas p-6 flex flex-col gap-6">
             <div className="flex items-center justify-between pb-3 border-b border-[#f1f5f9]">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
@@ -644,7 +644,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
           </div>
 
           {/* SEÇÃO 4: EVIDÊNCIAS FOTOGRÁFICAS REGISTRADAS (NG x OK COM FOTOS REAIS) */}
-          <div className="card-saas p-5 space-y-4">
+          <div className="card-saas p-6 flex flex-col gap-5">
             <div className="flex items-center justify-between pb-3 border-b border-[#f1f5f9]">
               <div className="flex items-center gap-2">
                 <Layers className="w-4 h-4 text-[#0f6cbd]" />
@@ -786,7 +786,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
       {/* MODO 2: ALERTA DA QUALIDADE & CONTENÇÃO (FOCO EM IMAGENS GRANDES E CHÃO) */}
       {/* ========================================================================= */}
       {activeViewMode === 'alerta' && (
-        <div className="space-y-5 animate-in fade-in">
+        <div className="flex flex-col gap-6 animate-in fade-in">
           
           {/* Banner Chamativo de Alerta */}
           <div className="bg-gradient-to-r from-rose-50 via-amber-50 to-white border-l-4 border-l-rose-600 border border-rose-200 rounded-2xl p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -823,7 +823,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
             {/* Peça NG */}
-            <div className="card-saas p-5 border-2 border-rose-300 bg-rose-50/20 space-y-4">
+            <div className="card-saas p-6 border-2 border-rose-300 bg-rose-50/20 flex flex-col gap-4">
               <div className="flex items-center justify-between pb-3 border-b border-rose-200">
                 <div className="flex items-center gap-2">
                   <span className="px-2.5 py-1 rounded-md text-xs font-extrabold uppercase bg-rose-700 text-white">
@@ -846,7 +846,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                 />
               </div>
 
-              <div className="p-3.5 bg-white rounded-xl border border-rose-200 text-xs space-y-1">
+              <div className="p-3.5 bg-white rounded-xl border border-rose-200 text-xs flex flex-col gap-1">
                 <span className="font-bold text-rose-800 uppercase text-[11px] block">Defeito Identificado:</span>
                 <div className="text-sm font-bold text-[#0f172a]">{rnc.descricaoProblema}</div>
                 <div className="text-[#64748b]">Posto de Origem: <strong>{rnc.posto || 'Não especificado'}</strong></div>
@@ -854,7 +854,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
             </div>
 
             {/* Peça OK */}
-            <div className="card-saas p-5 border-2 border-emerald-300 bg-emerald-50/20 space-y-4">
+            <div className="card-saas p-6 border-2 border-emerald-300 bg-emerald-50/20 flex flex-col gap-4">
               <div className="flex items-center justify-between pb-3 border-b border-emerald-200">
                 <div className="flex items-center gap-2">
                   <span className="px-2.5 py-1 rounded-md text-xs font-extrabold uppercase bg-emerald-700 text-white">
@@ -877,7 +877,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                 />
               </div>
 
-              <div className="p-3.5 bg-white rounded-xl border border-emerald-200 text-xs space-y-1">
+              <div className="p-3.5 bg-white rounded-xl border border-emerald-200 text-xs flex flex-col gap-1">
                 <span className="font-bold text-emerald-800 uppercase text-[11px] block">Critério de Liberação:</span>
                 <div className="text-sm font-bold text-[#0f172a]">Livre de trincas, solda 100% contínua e conformidade dimensional.</div>
                 <div className="text-[#64748b]">Inspeção visual e dimensional aprovada.</div>
@@ -896,7 +896,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
       {/* Modal Concluir */}
       {modalConcluirOpen && (
         <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-[#e2e8f0] space-y-4 animate-in fade-in">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-[#e2e8f0] flex flex-col gap-4 animate-in fade-in">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
                 <CheckCircle className="w-5 h-5" />
@@ -939,7 +939,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
       {/* Modal Treinamento */}
       {modalTreinOpen && (
         <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <form onSubmit={handleSaveTreinamento} className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-[#e2e8f0] space-y-4 animate-in fade-in">
+          <form onSubmit={handleSaveTreinamento} className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-[#e2e8f0] flex flex-col gap-4 animate-in fade-in">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-blue-100 text-[#0f6cbd] flex items-center justify-center shrink-0">
                 <Users className="w-5 h-5" />
@@ -985,7 +985,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
       {/* Modal Alerta */}
       {modalAlertaOpen && (
         <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <form onSubmit={handleSaveAlerta} className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-[#e2e8f0] space-y-4 animate-in fade-in">
+          <form onSubmit={handleSaveAlerta} className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-[#e2e8f0] flex flex-col gap-4 animate-in fade-in">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
                 <Bell className="w-5 h-5" />
@@ -1028,7 +1028,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
       {/* Modal Excluir */}
       {modalDeleteOpen && (
         <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-[#e2e8f0] space-y-4 animate-in fade-in">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-[#e2e8f0] flex flex-col gap-4 animate-in fade-in">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center shrink-0">
                 <Trash2 className="w-5 h-5" />

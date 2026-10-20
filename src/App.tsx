@@ -100,9 +100,9 @@ export function App() {
           onCloseMobile={() => setMobileMenuOpen(false)}
         />
 
-        {/* Canvas de Conteúdo da Página: Contêiner com Separação Consistente e Margens Generosas */}
-        <main className="flex-1 overflow-y-auto bg-[#f8fafc]">
-          <div className="w-full max-w-[1536px] mx-auto !p-4 sm:!p-6 lg:!p-8 !pb-16">
+        {/* Canvas de Conteúdo da Página: Contêiner com Separação Consistente e Margens Harmonizadas */}
+        <main className="flex-1 overflow-y-auto bg-[#f8fafc] p-4 sm:p-5 lg:p-6 pb-20">
+          <div className="w-full max-w-[1600px] flex flex-col gap-6">
             {currentScreen === 'menu-2' && (
               <Menu2View 
                 currentUser={currentUser}

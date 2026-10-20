@@ -279,6 +279,14 @@ h1, h2, h3, h4, h5, h6 {
   transform: scale(0.975) translateY(1px);
 }
 
+/* Compatibilidade com classes anteriores */
+.btn-fluent-primary {
+  @apply btn-primary;
+}
+.btn-fluent-secondary {
+  @apply btn-secondary;
+}
+
 /* Botão Ícone */
 .btn-icon {
   display: inline-flex;
@@ -425,13 +433,14 @@ h1, h2, h3, h4, h5, h6 {
 /* Info Tiles para Exibição de Dados (5W2H, Origem Fabril, etc.) */
 .info-tile {
   padding: 14px 16px;
-  border-radius: var(--radius-md);
-  background-color: #ffffff;
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.02);
+  border-radius: var(--radius-lg);
+  background-color: #f8fafc;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  box-shadow: 0 1px 2px 0 rgba(15, 23, 42, 0.02);
   transition: all 0.2s var(--ease-spring);
 }
 .info-tile:hover {
+  background-color: #ffffff;
   border-color: var(--border-strong);
   box-shadow: 0 2px 6px 0 rgba(15, 23, 42, 0.04);
 }

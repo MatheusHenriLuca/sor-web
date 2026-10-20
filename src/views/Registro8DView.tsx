@@ -361,7 +361,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
   };
 
   return (
-    <div className="w-full max-w-5xl mx-auto pb-24 space-y-5 animate-in fade-in duration-150">
+    <div className="w-full max-w-5xl flex flex-col gap-6 pb-24 animate-in fade-in duration-150">
       
       {/* Toast Notification */}
       {notification && (
@@ -468,7 +468,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
       </div>
 
       {/* Versão Mobile / Tablet: Indicador Compacto de Progresso com Seleção Rápida */}
-      <div className="md:hidden card-saas p-3.5 space-y-2.5">
+      <div className="md:hidden card-saas p-3.5 flex flex-col gap-2.5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded-full bg-[#0f6cbd] text-white flex items-center justify-center text-xs font-bold">
@@ -523,13 +523,13 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
 
       {/* 3. CARD CENTRAL DO FORMULÁRIO (PADRÃO PROFISSIONAL DE ESPAÇAMENTO) */}
       <div className="card-saas p-5 sm:p-7 shadow-xs">
-        <form onSubmit={handleSave} className="space-y-6">
+        <form onSubmit={handleSave} className="flex flex-col gap-6">
           
           {/* ========================================================================= */}
           {/* ETAPA 1: GERAL & MONTADORA */}
           {/* ========================================================================= */}
           {activeTab === 'geral' && (
-            <div className="space-y-5 animate-in fade-in">
+            <div className="flex flex-col gap-5 animate-in fade-in">
               <div className="border-b border-[#f1f5f9] pb-3">
                 <h2 className="text-sm sm:text-base font-bold text-[#0f172a] flex items-center gap-2">
                   <Car className="w-4 h-4 text-[#0f6cbd]" />
@@ -683,7 +683,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
           {/* ETAPA 2: PRODUTO & POSTO */}
           {/* ========================================================================= */}
           {activeTab === 'pecas' && (
-            <div className="space-y-5 animate-in fade-in">
+            <div className="flex flex-col gap-5 animate-in fade-in">
               <div className="border-b border-[#f1f5f9] pb-3">
                 <h2 className="text-sm sm:text-base font-bold text-[#0f172a] flex items-center gap-2">
                   <Wrench className="w-4 h-4 text-[#0f6cbd]" />
@@ -797,7 +797,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
           {/* ETAPA 3: DEFEITO & FOTOS */}
           {/* ========================================================================= */}
           {activeTab === 'defeito' && (
-            <div className="space-y-5 animate-in fade-in">
+            <div className="flex flex-col gap-5 animate-in fade-in">
               <div className="border-b border-[#f1f5f9] pb-3">
                 <h2 className="text-sm sm:text-base font-bold text-[#0f172a] flex items-center gap-2">
                   <Camera className="w-4 h-4 text-[#0f6cbd]" />
@@ -808,7 +808,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                 </p>
               </div>
 
-              <div className="space-y-4">
+              <div className="flex flex-col gap-4">
                 <div>
                   <label className="form-label">
                     Descrição do Defeito / Modo de Falha <span className="text-rose-500">*</span>
@@ -896,7 +896,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     
                     {/* Card Foto NG */}
-                    <div className="card-saas p-4 border-2 border-rose-200 bg-rose-50/30 flex flex-col justify-between space-y-3">
+                    <div className="card-saas p-4 border-2 border-rose-200 bg-rose-50/30 flex flex-col justify-between gap-3">
                       <div>
                         <div className="flex items-center justify-between text-xs font-bold text-rose-800 pb-2 border-b border-rose-200">
                           <span>Peça Não Conforme (NG - Defeito)</span>
@@ -917,7 +917,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                         </div>
                       </div>
 
-                      <div className="space-y-2">
+                      <div className="flex flex-col gap-2">
                         <input 
                           type="file" 
                           ref={fileInputNgRef} 
@@ -946,7 +946,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                     </div>
 
                     {/* Card Foto OK */}
-                    <div className="card-saas p-4 border-2 border-emerald-200 bg-emerald-50/30 flex flex-col justify-between space-y-3">
+                    <div className="card-saas p-4 border-2 border-emerald-200 bg-emerald-50/30 flex flex-col justify-between gap-3">
                       <div>
                         <div className="flex items-center justify-between text-xs font-bold text-emerald-800 pb-2 border-b border-emerald-200">
                           <span>Peça Conforme (OK - Padrão)</span>
@@ -967,7 +967,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                         </div>
                       </div>
 
-                      <div className="space-y-2">
+                      <div className="flex flex-col gap-2">
                         <input 
                           type="file" 
                           ref={fileInputOkRef} 
@@ -1006,7 +1006,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
           {/* ETAPA 4: AVALIAÇÃO DE RISCO */}
           {/* ========================================================================= */}
           {activeTab === 'risco' && (
-            <div className="space-y-5 animate-in fade-in">
+            <div className="flex flex-col gap-5 animate-in fade-in">
               <div className="border-b border-[#f1f5f9] pb-3">
                 <h2 className="text-sm sm:text-base font-bold text-[#0f172a] flex items-center gap-2">
                   <AlertTriangle className="w-4 h-4 text-[#0f6cbd]" />
@@ -1070,7 +1070,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                     onChange={e => setForm({ ...form, reincidente: e.target.value as any })}
                   >
                     <option value="NÃO">NÃO</option>
-                    <option value="SIM">SIM (Já ocorrido nos últimos 12 meses)</option>
+                    <option value="SIM (Já ocorrido nos últimos 12 meses)">SIM (Já ocorrido nos últimos 12 meses)</option>
                   </select>
                 </div>
               </div>
@@ -1081,7 +1081,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
           {/* ETAPA 5: CONTENÇÃO (D3) */}
           {/* ========================================================================= */}
           {activeTab === 'contencao' && (
-            <div className="space-y-5 animate-in fade-in">
+            <div className="flex flex-col gap-5 animate-in fade-in">
               <div className="border-b border-[#f1f5f9] pb-3">
                 <h2 className="text-sm sm:text-base font-bold text-[#0f172a] flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4 text-[#0f6cbd]" />
@@ -1092,7 +1092,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                 </p>
               </div>
 
-              <div className="space-y-4">
+              <div className="flex flex-col gap-4">
                 <div>
                   <label className="form-label">
                     Ações de Contenção Adotadas
@@ -1202,7 +1202,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
           {/* ETAPA 6: SAP & DECISÃO 8D */}
           {/* ========================================================================= */}
           {activeTab === '8d' && (
-            <div className="space-y-5 animate-in fade-in">
+            <div className="flex flex-col gap-5 animate-in fade-in">
               <div className="border-b border-[#f1f5f9] pb-3">
                 <h2 className="text-sm sm:text-base font-bold text-[#0f172a] flex items-center gap-2">
                   <Activity className="w-4 h-4 text-[#0f6cbd]" />

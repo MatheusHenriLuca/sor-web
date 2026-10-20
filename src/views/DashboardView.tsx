@@ -36,10 +36,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, curren
   const isOperator = currentUser.perfil === 'User';
 
   return (
-    <div className="w-full max-w-7xl mx-auto pb-16 px-2 sm:px-4">
+    <div className="w-full flex flex-col gap-6 pb-16 animate-in fade-in duration-200">
       
       {/* Top Welcome Banner */}
-      <header className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#061338] via-[#092162] to-[#0d348a] text-white p-6 sm:p-8 mb-6 shadow-xl border border-sky-500/20">
+      <header className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#061338] via-[#092162] to-[#0d348a] text-white p-6 sm:p-8 shadow-xl border border-sky-500/20">
         <div className="absolute top-0 right-0 w-96 h-96 bg-sky-400/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
@@ -84,11 +84,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, curren
       </header>
 
       {/* KPI Stats Grid */}
-      <section className="grid grid-cols-2 lg:grid-cols-5 gap-3.5 sm:gap-4 mb-6">
+      <section className="grid grid-cols-2 lg:grid-cols-5 gap-3.5 sm:gap-4">
         
         <div 
           onClick={() => onNavigate('lista-8d', { tipo: 'Tudo' })}
-          className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-sm hover:shadow-md hover:border-sky-300 transition-all cursor-pointer group"
+          className="card-saas p-4 sm:p-5 flex flex-col justify-between hover:border-sky-300 transition-all cursor-pointer group"
         >
           <div className="flex items-center justify-between mb-3">
             <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 group-hover:text-sky-700 transition">
@@ -106,7 +106,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, curren
 
         <div 
           onClick={() => onNavigate('lista-8d', { status: 'Em Andamento' })}
-          className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-sm hover:shadow-md hover:border-amber-300 transition-all cursor-pointer group"
+          className="card-saas p-4 sm:p-5 flex flex-col justify-between hover:border-amber-300 transition-all cursor-pointer group"
         >
           <div className="flex items-center justify-between mb-3">
             <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 group-hover:text-amber-700 transition">
@@ -124,7 +124,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, curren
 
         <div 
           onClick={() => onNavigate('lista-8d', { status: 'Relatório Inicial' })}
-          className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-sm hover:shadow-md hover:border-sky-300 transition-all cursor-pointer group"
+          className="card-saas p-4 sm:p-5 flex flex-col justify-between hover:border-sky-300 transition-all cursor-pointer group"
         >
           <div className="flex items-center justify-between mb-3">
             <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 group-hover:text-sky-700 transition">
@@ -142,7 +142,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, curren
 
         <div 
           onClick={() => onNavigate('lista-8d', { status: 'Concluído' })}
-          className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-sm hover:shadow-md hover:border-emerald-300 transition-all cursor-pointer group"
+          className="card-saas p-4 sm:p-5 flex flex-col justify-between hover:border-emerald-300 transition-all cursor-pointer group"
         >
           <div className="flex items-center justify-between mb-3">
             <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 group-hover:text-emerald-700 transition">
@@ -160,7 +160,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, curren
 
         <div 
           onClick={() => onNavigate('lista-8d', { tipo: 'protcliente' })}
-          className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-sm hover:shadow-md hover:border-rose-300 transition-all cursor-pointer group col-span-2 lg:col-span-1"
+          className="card-saas p-4 sm:p-5 flex flex-col justify-between hover:border-rose-300 transition-all cursor-pointer group col-span-2 lg:col-span-1"
         >
           <div className="flex items-center justify-between mb-3">
             <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 group-hover:text-rose-700 transition">
@@ -182,7 +182,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, curren
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Tabela de Ocorrências Recentes (2 colunas) */}
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm flex flex-col justify-between">
+        <div className="lg:col-span-2 card-saas overflow-hidden flex flex-col justify-between">
           <div>
             <div className="px-6 py-4 bg-slate-50/80 border-b border-slate-200 flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -261,11 +261,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, curren
         </div>
 
         {/* Alertas & Atalhos Rápidos (1 coluna) */}
-        <div className="space-y-6">
+        <div className="flex flex-col gap-6">
           
           {/* Alertas da Qualidade */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-            <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100">
+          <div className="card-saas p-5 flex flex-col gap-3.5">
+            <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
               <AlertTriangle className="w-5 h-5 text-amber-500" />
               <h3 className="text-sm font-extrabold text-slate-900">
                 Alertas da Qualidade Divulgados
@@ -275,7 +275,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, curren
             {alertas.length === 0 ? (
               <p className="text-xs text-slate-400 py-4 text-center">Nenhum alerta registrado recentemente.</p>
             ) : (
-              <div className="space-y-2.5">
+              <div className="flex flex-col gap-2.5">
                 {alertas.slice(0, 3).map(alerta => (
                   <div 
                     key={alerta.id}
@@ -292,15 +292,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, curren
           </div>
 
           {/* Atalhos de Chão de Fábrica */}
-          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-            <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-100">
+          <div className="card-saas p-5 flex flex-col gap-3.5">
+            <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
               <Barcode className="w-5 h-5 text-sky-700" />
               <h3 className="text-sm font-extrabold text-slate-900">
                 Atalhos Rápidos de Chão de Fábrica
               </h3>
             </div>
 
-            <div className="space-y-2.5">
+            <div className="flex flex-col gap-2.5">
               <button 
                 onClick={() => onNavigate('rastreabilidade')}
                 className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left transition group cursor-pointer"

@@ -187,11 +187,10 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
   const getStatusBadge = (status: string, prot?: string) => {
     const isProtCliente = prot && prot !== 'Não';
     return (
-      <div className="flex flex-col gap-1 items-start">
+      <div className="flex items-center gap-1.5 whitespace-nowrap">
         {isProtCliente && (
-          <span className="badge-status bg-emerald-50 text-emerald-800 border border-emerald-300 font-semibold shadow-2xs">
-            <ShieldCheck className="w-3.5 h-3.5 shrink-0 text-emerald-600" />
-            <span>Produção/Cliente</span>
+          <span title="Proteção ao Cliente" className="text-emerald-600 shrink-0 inline-flex items-center">
+            <ShieldCheck className="w-4 h-4 stroke-[2.2]" />
           </span>
         )}
         {status === 'Concluído' ? (
@@ -232,7 +231,7 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
               <h1 className="text-lg sm:text-2xl font-display font-bold text-[#0f172a] tracking-tight">
                 {tipoFilter === 'Cliente' ? 'Ocorrências Cliente (Formal & Informal)' :
                  tipoFilter === 'Interno' ? 'Ocorrências Internas' :
-                 tipoFilter === 'protcliente' ? 'Programa Produção / Proteção ao Cliente' :
+                 tipoFilter === 'protcliente' ? 'Proteção ao Cliente' :
                  'Ocorrências registradas (8D)'}
               </h1>
               {tipoFilter !== 'Tudo' && (
@@ -258,19 +257,19 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
             type="button"
             onClick={() => handleRefresh(true)}
             disabled={isSyncing}
-            className="btn-secondary h-9 px-3.5 text-xs font-semibold"
+            className="btn-secondary !h-10 px-4 text-xs font-semibold flex items-center justify-center gap-2"
             title="Atualizar lista com o SharePoint"
           >
             <RotateCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
             <span className="hidden sm:inline">Atualizar</span>
           </button>
 
-          {/* Alternador de Visualização (Tabela vs Cartões) com proporção ampliada e espaçamento generoso */}
-          <div className="flex items-center gap-1.5 border border-[#e2e8f0] rounded-xl bg-slate-100/90 p-1 shadow-2xs">
+          {/* Alternador de Visualização (Tabela vs Cartões) com a mesma altura do botão Atualizar */}
+          <div className="!h-10 flex items-center gap-1 border border-[#e2e8f0] rounded-xl bg-slate-100/90 p-1 shadow-2xs box-border">
             <button
               type="button"
               onClick={() => setViewMode('list')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              className={`h-full flex items-center gap-1.5 px-3.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                 viewMode === 'list' 
                   ? 'bg-white text-[#0b5796] font-bold shadow-xs border border-slate-200/80' 
                   : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
@@ -283,7 +282,7 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
             <button
               type="button"
               onClick={() => setViewMode('grid')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              className={`h-full flex items-center gap-1.5 px-3.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                 viewMode === 'grid' 
                   ? 'bg-white text-[#0b5796] font-bold shadow-xs border border-slate-200/80' 
                   : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
@@ -299,7 +298,7 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
           <button
             type="button"
             onClick={() => onNavigate('registro-8d', { edicao: false, rncId: undefined, timestamp: Date.now() })}
-            className="btn-primary h-9 px-4 text-xs font-semibold shadow-sm hover:shadow flex items-center gap-1.5 cursor-pointer"
+            className="btn-primary !h-10 px-4 text-xs font-semibold shadow-sm hover:shadow flex items-center gap-1.5 cursor-pointer"
             title="Abrir novo Relatório Inicial de Não Conformidade"
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
@@ -379,7 +378,7 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
                 <tr className="border-b border-[#e2e8f0] text-xs font-display font-semibold text-[#64748b] bg-[#f8fafc]/90">
                   <th className="py-3.5 px-5 font-semibold">Identificação / peça</th>
                   <th className="py-3.5 px-5 font-semibold">Tipo</th>
-                  <th className="py-3.5 px-5 font-semibold hidden md:table-cell">Cliente / peça</th>
+                  <th className="py-3.5 px-5 font-semibold hidden md:table-cell">Cliente</th>
                   <th className="py-3.5 px-5 font-semibold hidden sm:table-cell">Setor / posto</th>
                   <th className="py-3.5 px-5 font-semibold">Status</th>
                   <th className="py-3.5 px-5 font-semibold hidden lg:table-cell">Data</th>
@@ -419,7 +418,6 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
                   </tr>
                 ) : (
                   paginatedRncs.map(r => {
-                    const badge = getClientBadge(r.cliente);
                     return (
                       <tr
                         key={r.id}
@@ -427,7 +425,7 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
                         className="hover:bg-[#f8fafc] transition-colors cursor-pointer group"
                       >
                         {/* Coluna 1: Miniatura da foto da peça não conforme + Identificação */}
-                        <td className="py-5 sm:py-6 px-5">
+                        <td className="py-6.5 sm:py-8 px-5">
                           <div className="flex items-center gap-3.5">
                             {/* Miniatura da foto da peça não conforme */}
                             <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden bg-slate-100 border border-slate-200/90 shadow-2xs flex items-center justify-center shrink-0 relative group-hover:border-[#0f6cbd]/40 transition-all">
@@ -463,7 +461,7 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
                         </td>
 
                         {/* Coluna 2: Tipo da RNC (Formal / Informal / Interno) */}
-                        <td className="py-5 sm:py-6 px-5">
+                        <td className="py-6.5 sm:py-8 px-5">
                           <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold border ${
                             r.tipoRnc === 'Formal' ? 'bg-blue-50 text-[#0b5796] border-blue-200' :
                             r.tipoRnc === 'Informal' ? 'bg-purple-50 text-purple-700 border-purple-200' :
@@ -474,19 +472,13 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
                           </span>
                         </td>
 
-                        {/* Coluna 3: Cliente / Montadora */}
-                        <td className="py-5 sm:py-6 px-5 hidden md:table-cell text-[#334155]">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-6 h-6 rounded-md flex items-center justify-center font-bold text-[10px] shrink-0 border ${badge.bg} ${badge.border}`}>
-                              {badge.label}
-                            </div>
-                            <span className="font-semibold block">{r.cliente}</span>
-                          </div>
-                          <span className="text-xs text-[#64748b] block font-mono truncate max-w-[200px] mt-1">{r.produto}</span>
+                        {/* Coluna 3: Cliente */}
+                        <td className="py-6.5 sm:py-8 px-5 hidden md:table-cell text-[#334155]">
+                          <span className="font-semibold text-xs sm:text-sm text-[#1e293b] block">{r.cliente}</span>
                         </td>
 
                         {/* Coluna 4: Setor / Posto */}
-                        <td className="py-5 sm:py-6 px-5 hidden sm:table-cell text-[#64748b]">
+                        <td className="py-6.5 sm:py-8 px-5 hidden sm:table-cell text-[#64748b]">
                           <span className="text-xs text-[#334155] block font-medium">{r.classificacaoSetor}</span>
                           <span className="text-[11px] text-[#94a3b8] block mt-0.5">
                             {r.posto || 'N/A'} {r.fmds ? `• ${r.fmds}` : ''}
@@ -494,17 +486,17 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
                         </td>
 
                         {/* Coluna 5: Status */}
-                        <td className="py-5 sm:py-6 px-5">
+                        <td className="py-6.5 sm:py-8 px-5">
                           {getStatusBadge(r.status, r.protcliente)}
                         </td>
 
                         {/* Coluna 6: Data */}
-                        <td className="py-5 sm:py-6 px-5 hidden lg:table-cell text-[#64748b] font-mono text-xs tabular-nums">
+                        <td className="py-6.5 sm:py-8 px-5 hidden lg:table-cell text-[#64748b] font-mono text-xs tabular-nums">
                           {r.dataOcorrencia}
                         </td>
 
                         {/* Coluna 7: Ação */}
-                        <td className="py-5 sm:py-6 px-5 text-right">
+                        <td className="py-6.5 sm:py-8 px-5 text-right">
                           <span className="btn-subtle text-xs text-[#0f6cbd] font-semibold group-hover:bg-blue-50 py-2 px-3.5 rounded-lg">
                             <span>Abrir</span>
                             <ChevronRight className="w-3.5 h-3.5" />

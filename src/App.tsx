@@ -100,8 +100,11 @@ export function App() {
           onCloseMobile={() => setMobileMenuOpen(false)}
         />
 
-        {/* Canvas de Conteúdo da Página: 16px padronizado (p-4) e espaçamento uniforme (gap-4) */}
-        <main className="flex-1 overflow-y-auto bg-[#f8fafc] p-4 pb-20">
+        {/* Canvas de Conteúdo da Página: 16px padronizado nas laterais e espaçamento uniforme */}
+        <main 
+          className="flex-1 overflow-y-auto bg-[#f8fafc] !p-4 !pb-20"
+          style={{ padding: '16px', paddingBottom: '80px' }}
+        >
           <div className="w-full flex flex-col gap-4">
             {currentScreen === 'menu-2' && (
               <Menu2View 

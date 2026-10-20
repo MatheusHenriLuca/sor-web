@@ -2,7 +2,6 @@ import React, { useMemo, useState } from 'react';
 import { 
   ClipboardList, 
   ShieldCheck, 
-  Plus, 
   Users, 
   Truck, 
   ArrowRight, 
@@ -169,8 +168,8 @@ export const Menu2View: React.FC<Menu2ViewProps> = ({
   return (
     <div className="w-full flex flex-col gap-4 animate-in fade-in duration-150 pb-12">
       
-      {/* 1. BARRA DE PESQUISA COMPACTA E ABERTURA DE NOVA OCORRÊNCIA */}
-      <div className="w-full flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+      {/* 1. BARRA DE PESQUISA COMPACTA */}
+      <div className="w-full">
         <form 
           onSubmit={(e) => {
             e.preventDefault();
@@ -199,16 +198,6 @@ export const Menu2View: React.FC<Menu2ViewProps> = ({
             </button>
           )}
         </form>
-
-        <button
-          type="button"
-          onClick={() => onNavigate('registro-8d', { edicao: false, rncId: undefined, timestamp: Date.now() })}
-          className="btn-primary h-10 px-4 text-xs font-semibold gap-2 shadow-xs shrink-0 flex items-center justify-center cursor-pointer whitespace-nowrap"
-          title="Abrir novo Relatório Inicial de Não Conformidade"
-        >
-          <Plus className="w-4 h-4" />
-          <span className="font-display">Nova NCC / RNC</span>
-        </button>
       </div>
 
       {/* 2. CARDS DE INDICADORES MACRO (KPI COCKPIT) */}

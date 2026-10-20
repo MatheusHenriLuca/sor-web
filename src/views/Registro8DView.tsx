@@ -26,7 +26,6 @@ import {
 import { RNCRecord, UsuarioQualidade, PecaCatalogo, TipoRNC } from '../types';
 import { spStore } from '../services/sharepointService';
 import { CLIENTES_LIST, DEFAULT_CLIENTE, getClientBadgeInfo } from '../constants/clientes';
-import { ImageWithFallback } from '../components/ImageWithFallback';
 
 interface Registro8DViewProps {
   onNavigate: (screen: any, params?: any) => void;
@@ -34,6 +33,23 @@ interface Registro8DViewProps {
   rncId?: number;
   edicao?: boolean;
 }
+
+// Determina o turno industrial de trabalho com base no horário local atual
+export const getTurnoPorHorario = (): '1º Turno' | '2º Turno' | '3º Turno' => {
+  const now = new Date();
+  const minutes = now.getHours() * 60 + now.getMinutes();
+
+  // 1º Turno: 06:00 (360 min) até 14:40 (880 min)
+  // 2º Turno: 14:40 (880 min) até 23:15 (1395 min)
+  // 3º Turno: 23:15 (1395 min) até 06:00 (360 min)
+  if (minutes >= 360 && minutes < 880) {
+    return '1º Turno';
+  } else if (minutes >= 880 && minutes < 1395) {
+    return '2º Turno';
+  } else {
+    return '3º Turno';
+  }
+};
 
 export const Registro8DView: React.FC<Registro8DViewProps> = ({ 
   onNavigate, 
@@ -50,20 +66,20 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
   const fileInputNgRef = useRef<HTMLInputElement>(null);
   const fileInputOkRef = useRef<HTMLInputElement>(null);
 
-  // Form State - Inicializado estritamente limpo para novo apontamento
+  // Form State - Estritamente limpo na criação: campos que dependem de escolha iniciam vazios
   const [form, setForm] = useState<Partial<RNCRecord>>({
-    tipoRnc: 'Formal',
+    tipoRnc: '' as any,
     status: 'Relatório Inicial',
-    cliente: DEFAULT_CLIENTE,
+    cliente: '',
     dataOcorrencia: new Date().toISOString().split('T')[0],
     dataOficializacao: new Date().toISOString().split('T')[0],
-    classificacaoSetor: 'SOLDA 2 - CEL. TOYOTA',
-    setorDeteccao: 'Linha de Solda Robotizada',
-    turno: '1º Turno',
+    classificacaoSetor: '',
+    setorDeteccao: '',
+    turno: getTurnoPorHorario(),
     produto: '',
     componente: '',
     finalComponente: 'Peça Final',
-    quantidadeAfetada: 1,
+    quantidadeAfetada: '' as any,
     descricaoProblema: '',
     descricaoCompleta: '',
     caracteristicaSeguranca: 'Não',
@@ -107,62 +123,59 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
         }
       }
     } else {
-      // Novo apontamento: reset limpo e aplicação do autopreenchimento da primeira peça do cliente padrão
-      const produtosIniciais = spStore.getProdutosPorCliente(DEFAULT_CLIENTE);
-      if (produtosIniciais.length > 0) {
-        const prod = produtosIniciais[0];
-        const componentes = spStore.getComponentesPorProduto(prod.codCliText);
-        setForm({
-          tipoRnc: 'Formal',
-          status: 'Relatório Inicial',
-          cliente: DEFAULT_CLIENTE,
-          dataOcorrencia: new Date().toISOString().split('T')[0],
-          dataOficializacao: new Date().toISOString().split('T')[0],
-          classificacaoSetor: prod.fmds || 'SOLDA 2 - CEL. TOYOTA',
-          setorDeteccao: 'Linha de Solda Robotizada',
-          turno: '1º Turno',
-          produto: prod.codCliText || prod.material,
-          componente: prod.descricao || (componentes[0] ? componentes[0].descricao : ''),
-          finalComponente: 'Peça Final',
-          quantidadeAfetada: 1,
-          descricaoProblema: '',
-          descricaoCompleta: '',
-          caracteristicaSeguranca: 'Não',
-          coProduto: 'Não',
-          carryOver: prod.carryOver === 'Sim' ? 'Sim' : 'Não',
-          reincidente: 'NÃO',
-          posto: prod.posto,
-          fmds: prod.fmds,
-          acoesContencao: '',
-          dataContencao: '',
-          qtdInspecionada: 0,
-          qtdSuspeita: 0,
-          qtdBloqueada: 0,
-          oQueFazer: '',
-          comoFazer: '',
-          porQueFazer: '',
-          quemFara: '',
-          quandoFara: '',
-          ondeFara: '',
-          documentoRastreabilidade: 'Etiqueta SAP',
-          codigoRastreabilidade: '',
-          abrir8D: 'Sim',
-          protcliente: 'Não',
-          detector: currentUser.nome,
-          reDetector: currentUser.reAcesso,
-          fotoPecaNg: '',
-          fotoPecaOk: ''
-        });
-      }
+      // Novo apontamento: 100% limpo! Somente data de hoje e turno automático pelo horário vêm preenchidos
+      setForm({
+        tipoRnc: '' as any,
+        status: 'Relatório Inicial',
+        cliente: '',
+        dataOcorrencia: new Date().toISOString().split('T')[0],
+        dataOficializacao: new Date().toISOString().split('T')[0],
+        classificacaoSetor: '',
+        setorDeteccao: '',
+        turno: getTurnoPorHorario(),
+        produto: '',
+        componente: '',
+        finalComponente: 'Peça Final',
+        quantidadeAfetada: '' as any,
+        descricaoProblema: '',
+        descricaoCompleta: '',
+        caracteristicaSeguranca: 'Não',
+        coProduto: 'Não',
+        carryOver: 'Não',
+        reincidente: 'NÃO',
+        posto: '',
+        fmds: '',
+        acoesContencao: '',
+        dataContencao: '',
+        qtdInspecionada: 0,
+        qtdSuspeita: 0,
+        qtdBloqueada: 0,
+        oQueFazer: '',
+        comoFazer: '',
+        porQueFazer: '',
+        quemFara: '',
+        quandoFara: '',
+        ondeFara: '',
+        documentoRastreabilidade: 'Etiqueta SAP',
+        codigoRastreabilidade: '',
+        abrir8D: 'Sim',
+        protcliente: 'Não',
+        detector: currentUser.nome,
+        reDetector: currentUser.reAcesso,
+        fotoPecaNg: '',
+        fotoPecaOk: ''
+      });
     }
   }, [edicao, rncId, currentUser]);
 
   const produtosDoCliente = useMemo(() => {
-    return spStore.getProdutosPorCliente(form.cliente || DEFAULT_CLIENTE);
+    if (!form.cliente) return [];
+    return spStore.getProdutosPorCliente(form.cliente);
   }, [form.cliente]);
 
   const componentesDoProduto = useMemo(() => {
-    return spStore.getComponentesPorProduto(form.produto || '');
+    if (!form.produto) return [];
+    return spStore.getComponentesPorProduto(form.produto);
   }, [form.produto]);
 
   const postosDisponiveis = useMemo(() => spStore.getDistinctPostos(), []);
@@ -177,29 +190,40 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
     });
   };
 
-  // Regra ProEPS: Troca de Cliente atualiza lista de peças e complementa Posto/FMDS
+  // Regra ProEPS: Troca de Cliente apenas disponibiliza a lista de peças daquele cliente.
+  // Nenhum produto ou posto é preenchido automaticamente antes da escolha do usuário!
   const handleClienteChange = (novoCliente: string) => {
     clearFieldError('cliente');
-    const produtos = spStore.getProdutosPorCliente(novoCliente);
-    const primeiroProd = produtos[0];
-    const componentes = primeiroProd ? spStore.getComponentesPorProduto(primeiroProd.codCliText) : [];
-
+    clearFieldError('produto');
     setForm(prev => ({
       ...prev,
       cliente: novoCliente,
-      produto: primeiroProd ? (primeiroProd.codCliText || primeiroProd.material) : '',
-      componente: primeiroProd ? primeiroProd.descricao : '',
-      finalComponente: 'Peça Final',
-      posto: primeiroProd ? primeiroProd.posto : '',
-      fmds: primeiroProd ? primeiroProd.fmds : '',
-      classificacaoSetor: primeiroProd ? primeiroProd.fmds : prev.classificacaoSetor,
-      carryOver: primeiroProd?.carryOver === 'Sim' ? 'Sim' : 'Não'
+      produto: '',
+      componente: '',
+      posto: '',
+      fmds: '',
+      classificacaoSetor: '',
+      carryOver: 'Não'
     }));
   };
 
-  // Regra ProEPS: Troca de Peça/Produto autocompleta Posto, FMDS, Componente e CarryOver
+  // Regra ProEPS: Somente quando o usuário escolhe a peça é que os dados associados
+  // (Posto, FMDS, Componente e CarryOver) são preenchidos automaticamente!
   const handlePecaChange = (codCliTextOuMaterial: string) => {
     clearFieldError('produto');
+    if (!codCliTextOuMaterial) {
+      setForm(prev => ({
+        ...prev,
+        produto: '',
+        componente: '',
+        posto: '',
+        fmds: '',
+        classificacaoSetor: '',
+        carryOver: 'Não'
+      }));
+      return;
+    }
+
     const selecionada = pecasCatalogo.find(
       p => p.codCliText === codCliTextOuMaterial || p.material === codCliTextOuMaterial
     );
@@ -210,9 +234,9 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
         produto: selecionada.codCliText || selecionada.material,
         componente: selecionada.descricao || selecionada.componente || '',
         finalComponente: 'Peça Final',
-        posto: selecionada.posto || prev.posto,
-        fmds: selecionada.fmds || prev.fmds,
-        classificacaoSetor: selecionada.fmds || prev.classificacaoSetor,
+        posto: selecionada.posto || '',
+        fmds: selecionada.fmds || '',
+        classificacaoSetor: selecionada.fmds || '',
         carryOver: selecionada.carryOver === 'Sim' ? 'Sim' : 'Não'
       }));
     }
@@ -220,6 +244,11 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
 
   // Regra ProEPS: Troca do Tipo de Componente ou seleção de Componente Específico
   const handleComponenteChange = (novoComponente: string) => {
+    if (!novoComponente) {
+      setForm(prev => ({ ...prev, componente: '' }));
+      return;
+    }
+
     const compObj = pecasCatalogo.find(
       p => p.componente === novoComponente || p.descricao === novoComponente || p.codCliText === novoComponente
     );
@@ -228,7 +257,8 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
       ...prev,
       componente: novoComponente,
       posto: compObj?.posto || prev.posto,
-      fmds: compObj?.fmds || prev.fmds
+      fmds: compObj?.fmds || prev.fmds,
+      classificacaoSetor: compObj?.fmds || prev.classificacaoSetor
     }));
   };
 
@@ -263,7 +293,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
       newErrors.cliente = 'Selecione o Cliente / Montadora.';
     }
     if (!form.tipoRnc) {
-      newErrors.tipoRnc = 'Selecione o Tipo de Ocorrência.';
+      newErrors.tipoRnc = 'Selecione o Tipo de Ocorrência (Formal, Informal ou Interno).';
     }
     if (!form.dataOcorrencia || !form.dataOcorrencia.trim()) {
       newErrors.dataOcorrencia = 'Informe a data da ocorrência.';
@@ -274,8 +304,8 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
     if (!form.descricaoProblema || form.descricaoProblema.trim().length < 3) {
       newErrors.descricaoProblema = 'Descreva o defeito ou modo de falha (mínimo de 3 caracteres).';
     }
-    if (form.quantidadeAfetada === undefined || form.quantidadeAfetada === null || Number(form.quantidadeAfetada) <= 0) {
-      newErrors.quantidadeAfetada = 'Informe uma quantidade válida de peças afetadas (maior que zero).';
+    if (form.quantidadeAfetada === undefined || form.quantidadeAfetada === null || String(form.quantidadeAfetada).trim() === '' || Number(form.quantidadeAfetada) <= 0) {
+      newErrors.quantidadeAfetada = 'Informe a quantidade de peças afetadas (maior que zero).';
     }
 
     setErrors(newErrors);
@@ -310,8 +340,8 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
           dataOcorrencia: form.dataOcorrencia || new Date().toISOString().split('T')[0],
           dataOficializacao: new Date().toISOString().split('T')[0],
           classificacaoSetor: form.classificacaoSetor || form.fmds || 'SOLDA 2 - CEL. TOYOTA',
-          setorDeteccao: form.setorDeteccao || 'Linha de Solda Robotizada',
-          turno: form.turno || '1º Turno',
+          setorDeteccao: form.setorDeteccao || 'Linha de Produção',
+          turno: form.turno || getTurnoPorHorario(),
           produto: form.produto || '',
           componente: form.componente || '',
           finalComponente: form.finalComponente || 'Peça Final',
@@ -360,10 +390,11 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
     }
   };
 
-  const clientBadge = getClientBadgeInfo(form.cliente || DEFAULT_CLIENTE);
+  const clientBadge = form.cliente ? getClientBadgeInfo(form.cliente) : null;
+  const isPecaSelecionada = Boolean(form.produto && form.produto.trim());
 
   return (
-    <div className="w-full max-w-5xl flex flex-col gap-5 pb-24 animate-in fade-in duration-150">
+    <div className="w-full flex flex-col gap-5 pb-24 animate-in fade-in duration-150">
       
       {/* Toast Notification */}
       {notification && (
@@ -389,7 +420,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
       {/* Modal de Pré-visualização de Foto */}
       {previewFoto && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full p-4 flex flex-col gap-3 shadow-2xl animate-in zoom-in-95">
+          <div className="bg-white rounded-2xl max-w-3xl w-full p-4 flex flex-col gap-3 shadow-2xl animate-in zoom-in-95">
             <div className="flex items-center justify-between border-b border-slate-100 pb-2">
               <h3 className="text-sm font-display font-bold text-slate-900">{previewFoto.titulo}</h3>
               <button 
@@ -400,19 +431,19 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="w-full max-h-[70vh] flex items-center justify-center bg-slate-950 rounded-xl overflow-hidden">
+            <div className="w-full max-h-[75vh] flex items-center justify-center bg-slate-950 rounded-xl overflow-hidden">
               <img 
                 src={previewFoto.url} 
                 alt={previewFoto.titulo} 
-                className="max-h-[68vh] w-auto object-contain"
+                className="max-h-[72vh] w-auto object-contain"
               />
             </div>
           </div>
         </div>
       )}
 
-      {/* 1. BARRA SUPERIOR: CONTEXTO, TÍTULO E AÇÕES */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 pb-4 border-b border-slate-200/80">
+      {/* 1. BARRA SUPERIOR: CONTEXTO, TÍTULO E AÇÕES (LARGURA TOTAL) */}
+      <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 pb-4 border-b border-slate-200/80">
         <div className="flex items-center gap-3">
           <button 
             type="button"
@@ -463,13 +494,13 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
         </div>
       </div>
 
-      {/* FORMULÁRIO UNIFICADO DO RELATÓRIO INICIAL */}
-      <form onSubmit={handleSave} className="flex flex-col gap-5">
+      {/* FORMULÁRIO RESPONSIVO DE LARGURA TOTAL */}
+      <form onSubmit={handleSave} className="w-full flex flex-col gap-5">
         
         {/* =========================================================================
             CARD 1: DADOS GERAIS DA NÃO CONFORMIDADE & MONTADORA
             ========================================================================= */}
-        <div className="card-saas p-5 flex flex-col gap-4">
+        <div className="w-full card-saas p-5 flex flex-col gap-4">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-blue-50 text-[#0b5796] flex items-center justify-center font-bold">
@@ -480,7 +511,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                   1. Dados Gerais & Montadora
                 </h2>
                 <p className="text-xs text-slate-500">
-                  Identificação do cliente montadora, classificação da ocorrência e data de detecção.
+                  Identificação do cliente montadora, classificação da ocorrência e dados de emissão.
                 </p>
               </div>
             </div>
@@ -489,22 +520,25 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {/* Cliente / Montadora */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+            {/* Cliente / Montadora (Inicia vazio para o usuário escolher) */}
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
                 <span>Cliente (Montadora) <strong className="text-rose-500">*</strong></span>
-                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${clientBadge.bg} ${clientBadge.color}`}>
-                  {form.cliente}
-                </span>
+                {clientBadge && (
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${clientBadge.bg} ${clientBadge.color}`}>
+                    {form.cliente}
+                  </span>
+                )}
               </label>
               <select
-                value={form.cliente}
+                value={form.cliente || ''}
                 onChange={e => handleClienteChange(e.target.value)}
                 className={`w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border outline-none transition-all ${
                   errors.cliente ? 'border-rose-500 focus:ring-2 focus:ring-rose-200' : 'border-slate-200 focus:border-[#0b5796] focus:ring-2 focus:ring-[#0b5796]/15'
                 }`}
               >
+                <option value="">-- Selecione a Montadora --</option>
                 {CLIENTES_LIST.map(cli => (
                   <option key={cli} value={cli}>{cli}</option>
                 ))}
@@ -512,13 +546,13 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
               {errors.cliente && <span className="text-[11px] text-rose-500 font-medium">{errors.cliente}</span>}
             </div>
 
-            {/* Tipo de Ocorrência */}
+            {/* Tipo de Ocorrência (Inicia vazio para o usuário escolher) */}
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold text-slate-700">
                 Tipo de Ocorrência <strong className="text-rose-500">*</strong>
               </label>
               <select
-                value={form.tipoRnc}
+                value={form.tipoRnc || ''}
                 onChange={e => {
                   clearFieldError('tipoRnc');
                   setForm(prev => ({ ...prev, tipoRnc: e.target.value as TipoRNC }));
@@ -527,6 +561,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                   errors.tipoRnc ? 'border-rose-500 focus:ring-2 focus:ring-rose-200' : 'border-slate-200 focus:border-[#0b5796] focus:ring-2 focus:ring-[#0b5796]/15'
                 }`}
               >
+                <option value="">-- Selecione o Tipo --</option>
                 <option value="Formal">Formal (Reclamação Oficial do Cliente)</option>
                 <option value="Informal">Informal (Alerta / Contato da Montadora)</option>
                 <option value="Interno">Interno (Detecção Interna na Linha de Produção)</option>
@@ -534,14 +569,14 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
               {errors.tipoRnc && <span className="text-[11px] text-rose-500 font-medium">{errors.tipoRnc}</span>}
             </div>
 
-            {/* Data da Ocorrência */}
+            {/* Data da Ocorrência (Vem data de hoje por padrão, editável) */}
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold text-slate-700">
                 Data da Ocorrência <strong className="text-rose-500">*</strong>
               </label>
               <input
                 type="date"
-                value={form.dataOcorrencia}
+                value={form.dataOcorrencia || ''}
                 onChange={e => {
                   clearFieldError('dataOcorrencia');
                   setForm(prev => ({ ...prev, dataOcorrencia: e.target.value }));
@@ -553,13 +588,16 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
               {errors.dataOcorrencia && <span className="text-[11px] text-rose-500 font-medium">{errors.dataOcorrencia}</span>}
             </div>
 
-            {/* Turno de Detecção */}
+            {/* Turno de Detecção (Calculado automaticamente pelo horário atual) */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-slate-700">
-                Turno de Detecção
+              <label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
+                <span>Turno de Detecção</span>
+                <span className="text-[10px] font-medium text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded">
+                  Horário atual
+                </span>
               </label>
               <select
-                value={form.turno}
+                value={form.turno || '1º Turno'}
                 onChange={e => setForm(prev => ({ ...prev, turno: e.target.value as any }))}
                 className="w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border border-slate-200 focus:border-[#0b5796] focus:ring-2 focus:ring-[#0b5796]/15 outline-none transition-all"
               >
@@ -570,8 +608,8 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
               </select>
             </div>
 
-            {/* Setor de Detecção */}
-            <div className="flex flex-col gap-1.5 sm:col-span-2">
+            {/* Setor de Detecção (Inicia vazio para o usuário preencher) */}
+            <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold text-slate-700">
                 Setor de Detecção
               </label>
@@ -579,7 +617,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                 type="text"
                 value={form.setorDeteccao || ''}
                 onChange={e => setForm(prev => ({ ...prev, setorDeteccao: e.target.value }))}
-                placeholder="Ex: Linha de Solda Robotizada, Célula Manual, Estamparia, Expedição..."
+                placeholder="Ex: Linha de Solda, Estamparia..."
                 className="w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border border-slate-200 focus:border-[#0b5796] focus:ring-2 focus:ring-[#0b5796]/15 outline-none transition-all"
               />
             </div>
@@ -589,7 +627,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
         {/* =========================================================================
             CARD 2: IDENTIFICAÇÃO DA PEÇA & POSTO (AUTOPREENCHIMENTO PROEPS)
             ========================================================================= */}
-        <div className="card-saas p-5 flex flex-col gap-4">
+        <div className="w-full card-saas p-5 flex flex-col gap-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center font-bold">
@@ -600,7 +638,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                   2. Peça, Posto & FMDS (Autopreenchimento ProEPS)
                 </h2>
                 <p className="text-xs text-slate-500">
-                  Ao escolher o produto, o posto cadastrado e a área FMDS são preenchidos automaticamente conforme o ProEPS.
+                  Selecione o produto. As informações cadastradas de posto de trabalho e área FMDS serão preenchidas automaticamente.
                 </p>
               </div>
             </div>
@@ -611,28 +649,43 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Produto / Conjunto (Peça Final) */}
-            <div className="flex flex-col gap-1.5 sm:col-span-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            
+            {/* Produto / Conjunto (Peça Final) - Ocupa 2 colunas */}
+            <div className="flex flex-col gap-1.5 md:col-span-2">
               <label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
                 <span>Produto / Conjunto (Peça Final) <strong className="text-rose-500">*</strong></span>
-                <span className="text-[11px] text-slate-500">
-                  {produtosDoCliente.length} itens disponíveis para {form.cliente}
-                </span>
+                {form.cliente ? (
+                  <span className="text-[11px] text-slate-500">
+                    {produtosDoCliente.length} peças cadastradas para {form.cliente}
+                  </span>
+                ) : (
+                  <span className="text-[11px] text-amber-600 font-medium">
+                    Selecione a Montadora primeiro
+                  </span>
+                )}
               </label>
               <select
-                value={form.produto}
+                disabled={!form.cliente}
+                value={form.produto || ''}
                 onChange={e => handlePecaChange(e.target.value)}
                 className={`w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border outline-none transition-all ${
+                  !form.cliente ? 'bg-slate-50 text-slate-400 cursor-not-allowed border-slate-200' :
                   errors.produto ? 'border-rose-500 focus:ring-2 focus:ring-rose-200' : 'border-slate-200 focus:border-[#0b5796] focus:ring-2 focus:ring-[#0b5796]/15'
                 }`}
               >
-                <option value="">-- Selecione o produto / conjunto --</option>
-                {produtosDoCliente.map(p => (
-                  <option key={`${p.identificacao}-${p.codCliText}`} value={p.codCliText || p.material}>
-                    {p.codCliText ? `${p.codCliText} - ` : ''}{p.descricao} (SAP: {p.material})
-                  </option>
-                ))}
+                {!form.cliente ? (
+                  <option value="">-- Selecione a Montadora primeiro no Passo 1 --</option>
+                ) : (
+                  <>
+                    <option value="">-- Selecione o Produto / Conjunto --</option>
+                    {produtosDoCliente.map(p => (
+                      <option key={`${p.identificacao}-${p.codCliText}`} value={p.codCliText || p.material}>
+                        {p.codCliText ? `${p.codCliText} - ` : ''}{p.descricao} (SAP: {p.material})
+                      </option>
+                    ))}
+                  </>
+                )}
               </select>
               {errors.produto && <span className="text-[11px] text-rose-500 font-medium">{errors.produto}</span>}
             </div>
@@ -643,6 +696,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                 Tipo de Componente
               </label>
               <select
+                disabled={!isPecaSelecionada}
                 value={form.finalComponente || 'Peça Final'}
                 onChange={e => {
                   const val = e.target.value as any;
@@ -654,21 +708,35 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                       : prev.componente
                   }));
                 }}
-                className="w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border border-slate-200 focus:border-[#0b5796] focus:ring-2 focus:ring-[#0b5796]/15 outline-none transition-all"
+                className={`w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border outline-none transition-all ${
+                  !isPecaSelecionada ? 'bg-slate-50 text-slate-400 cursor-not-allowed border-slate-200' : 'border-slate-200 focus:border-[#0b5796] focus:ring-2 focus:ring-[#0b5796]/15'
+                }`}
               >
                 <option value="Peça Final">Peça Final (Conjunto Completo)</option>
-                <option value="Peça Final + Componente">Peça Final + Componente Específico</option>
+                <option value="Peça Final + Componente">Peça Final + Componente</option>
                 <option value="Componente">Componente Isolado</option>
                 <option value="SubComponente + Componente">SubComponente + Componente</option>
               </select>
             </div>
 
-            {/* Componente Específico / Subcomponente */}
+            {/* Componente / Descrição da Peça */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-slate-700">
-                Componente
+              <label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
+                <span>Componente</span>
+                {isPecaSelecionada && (
+                  <span className="text-[10px] font-medium text-emerald-700">
+                    {form.finalComponente === 'Peça Final' ? 'Conjunto' : 'Subcomponente'}
+                  </span>
+                )}
               </label>
-              {form.finalComponente === 'Peça Final' ? (
+              {!isPecaSelecionada ? (
+                <input
+                  type="text"
+                  disabled
+                  placeholder="Aguardando seleção da peça..."
+                  className="w-full h-10 px-3 bg-slate-50 text-slate-400 text-xs sm:text-sm rounded-xl border border-slate-200 cursor-not-allowed outline-none"
+                />
+              ) : form.finalComponente === 'Peça Final' ? (
                 <input
                   type="text"
                   value={form.componente || ''}
@@ -692,62 +760,85 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
               )}
             </div>
 
-            {/* Posto de Trabalho (Autopreenchido com opção de ajuste) */}
+            {/* Posto de Trabalho (Preenchido após seleção da peça) */}
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
                 <span>Posto de Trabalho Cadastrado</span>
-                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/60">
-                  Autopreenchido
-                </span>
-              </label>
-              <select
-                value={form.posto || ''}
-                onChange={e => setForm(prev => ({ ...prev, posto: e.target.value }))}
-                className="w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border border-slate-200 focus:border-[#0b5796] focus:ring-2 focus:ring-[#0b5796]/15 outline-none transition-all"
-              >
-                {form.posto && !postosDisponiveis.includes(form.posto) && (
-                  <option value={form.posto}>{form.posto}</option>
+                {isPecaSelecionada && form.posto && (
+                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/60">
+                    ✓ Autopreenchido
+                  </span>
                 )}
-                {postosDisponiveis.map(p => (
-                  <option key={p} value={p}>{p}</option>
-                ))}
-              </select>
+              </label>
+              {!isPecaSelecionada ? (
+                <input
+                  type="text"
+                  disabled
+                  placeholder="Aguardando seleção da peça..."
+                  className="w-full h-10 px-3 bg-slate-50 text-slate-400 text-xs sm:text-sm rounded-xl border border-slate-200 cursor-not-allowed outline-none"
+                />
+              ) : (
+                <select
+                  value={form.posto || ''}
+                  onChange={e => setForm(prev => ({ ...prev, posto: e.target.value }))}
+                  className="w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border border-slate-200 focus:border-[#0b5796] focus:ring-2 focus:ring-[#0b5796]/15 outline-none transition-all"
+                >
+                  {form.posto && !postosDisponiveis.includes(form.posto) && (
+                    <option value={form.posto}>{form.posto}</option>
+                  )}
+                  {postosDisponiveis.map(p => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+              )}
             </div>
 
-            {/* Área FMDS / Setor Fabril (Autopreenchido) */}
+            {/* Área FMDS / Setor Fabril (Preenchido após seleção da peça) */}
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
                 <span>Área FMDS / Setor Fabril</span>
-                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/60">
-                  Autopreenchido
-                </span>
-              </label>
-              <select
-                value={form.fmds || ''}
-                onChange={e => setForm(prev => ({ 
-                  ...prev, 
-                  fmds: e.target.value,
-                  classificacaoSetor: e.target.value 
-                }))}
-                className="w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border border-slate-200 focus:border-[#0b5796] focus:ring-2 focus:ring-[#0b5796]/15 outline-none transition-all"
-              >
-                {form.fmds && !fmdsDisponiveis.includes(form.fmds) && (
-                  <option value={form.fmds}>{form.fmds}</option>
+                {isPecaSelecionada && form.fmds && (
+                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/60">
+                    ✓ Autopreenchido
+                  </span>
                 )}
-                {fmdsDisponiveis.map(f => (
-                  <option key={f} value={f}>{f}</option>
-                ))}
-              </select>
+              </label>
+              {!isPecaSelecionada ? (
+                <input
+                  type="text"
+                  disabled
+                  placeholder="Aguardando seleção da peça..."
+                  className="w-full h-10 px-3 bg-slate-50 text-slate-400 text-xs sm:text-sm rounded-xl border border-slate-200 cursor-not-allowed outline-none"
+                />
+              ) : (
+                <select
+                  value={form.fmds || ''}
+                  onChange={e => setForm(prev => ({ 
+                    ...prev, 
+                    fmds: e.target.value,
+                    classificacaoSetor: e.target.value 
+                  }))}
+                  className="w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border border-slate-200 focus:border-[#0b5796] focus:ring-2 focus:ring-[#0b5796]/15 outline-none transition-all"
+                >
+                  {form.fmds && !fmdsDisponiveis.includes(form.fmds) && (
+                    <option value={form.fmds}>{form.fmds}</option>
+                  )}
+                  {fmdsDisponiveis.map(f => (
+                    <option key={f} value={f}>{f}</option>
+                  ))}
+                </select>
+              )}
             </div>
 
             {/* Carry Over & Reincidente */}
-            <div className="flex items-center gap-6 pt-1 sm:col-span-2">
+            <div className="flex items-center gap-6 pt-2 md:col-span-2">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-semibold text-slate-700">Carry Over:</span>
                 <span className={`text-xs font-bold px-2.5 py-1 rounded-lg border ${
+                  !isPecaSelecionada ? 'bg-slate-50 text-slate-400 border-slate-200' :
                   form.carryOver === 'Sim' ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-slate-50 text-slate-700 border-slate-200'
                 }`}>
-                  {form.carryOver || 'Não'}
+                  {isPecaSelecionada ? (form.carryOver || 'Não') : '-'}
                 </span>
               </div>
 
@@ -779,13 +870,14 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                 </div>
               </div>
             </div>
+
           </div>
         </div>
 
         {/* =========================================================================
             CARD 3: DESCRIÇÃO DO DEFEITO, QUANTIDADE & RASTREABILIDADE
             ========================================================================= */}
-        <div className="card-saas p-5 flex flex-col gap-4">
+        <div className="w-full card-saas p-5 flex flex-col gap-4">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-700 flex items-center justify-center font-bold">
@@ -805,9 +897,9 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {/* Descrição do Defeito / Modo de Falha */}
-            <div className="flex flex-col gap-1.5 sm:col-span-2">
+            <div className="flex flex-col gap-1.5 lg:col-span-2 xl:col-span-3">
               <label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
                 <span>Modo de Falha / Descrição da Não Conformidade <strong className="text-rose-500">*</strong></span>
                 <span className="text-[11px] text-slate-400 font-normal">
@@ -838,11 +930,13 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                 <input
                   type="number"
                   min={1}
-                  value={form.quantidadeAfetada ?? 1}
+                  value={form.quantidadeAfetada ?? ''}
                   onChange={e => {
                     clearFieldError('quantidadeAfetada');
-                    setForm(prev => ({ ...prev, quantidadeAfetada: Math.max(1, parseInt(e.target.value) || 1) }));
+                    const val = e.target.value;
+                    setForm(prev => ({ ...prev, quantidadeAfetada: val === '' ? ('' as any) : Math.max(1, parseInt(val) || 1) }));
                   }}
+                  placeholder="Ex: 1, 5, 10..."
                   className={`w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border outline-none transition-all ${
                     errors.quantidadeAfetada ? 'border-rose-500 focus:ring-2 focus:ring-rose-200' : 'border-slate-200 focus:border-[#0b5796] focus:ring-2 focus:ring-[#0b5796]/15'
                   }`}
@@ -873,7 +967,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
         {/* =========================================================================
             CARD 4: EVIDÊNCIAS FOTOGRÁFICAS (FOTO PEÇA NG & FOTO PEÇA OK)
             ========================================================================= */}
-        <div className="card-saas p-5 flex flex-col gap-4">
+        <div className="w-full card-saas p-5 flex flex-col gap-4">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center font-bold">
@@ -893,7 +987,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {/* Foto Peça NG (Não Conforme) */}
             <div className="flex flex-col gap-2 p-4 rounded-xl border border-rose-200/80 bg-rose-50/20">
               <div className="flex items-center justify-between">
@@ -915,7 +1009,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
               </div>
 
               {form.fotoPecaNg ? (
-                <div className="relative group rounded-xl overflow-hidden border border-rose-200 bg-white h-44 flex items-center justify-center">
+                <div className="relative group rounded-xl overflow-hidden border border-rose-200 bg-white h-48 flex items-center justify-center">
                   <img
                     src={form.fotoPecaNg}
                     alt="Peça NG"
@@ -925,7 +1019,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                     <button
                       type="button"
                       onClick={() => setPreviewFoto({ url: form.fotoPecaNg!, titulo: 'Foto da Peça Não Conforme (NG)' })}
-                      className="px-3 py-1.5 bg-white text-slate-900 rounded-lg text-xs font-semibold flex items-center gap-1 shadow-sm"
+                      className="px-3 py-1.5 bg-white text-slate-900 rounded-lg text-xs font-semibold flex items-center gap-1 shadow-sm cursor-pointer"
                     >
                       <Eye className="w-3.5 h-3.5" />
                       <span>Visualizar</span>
@@ -933,7 +1027,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                     <button
                       type="button"
                       onClick={() => fileInputNgRef.current?.click()}
-                      className="px-3 py-1.5 bg-rose-600 text-white rounded-lg text-xs font-semibold flex items-center gap-1 shadow-sm"
+                      className="px-3 py-1.5 bg-rose-600 text-white rounded-lg text-xs font-semibold flex items-center gap-1 shadow-sm cursor-pointer"
                     >
                       <Upload className="w-3.5 h-3.5" />
                       <span>Trocar</span>
@@ -943,7 +1037,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
               ) : (
                 <div
                   onClick={() => fileInputNgRef.current?.click()}
-                  className="h-44 rounded-xl border-2 border-dashed border-rose-300 hover:border-rose-500 bg-white/70 hover:bg-white flex flex-col items-center justify-center gap-2 cursor-pointer transition-all text-center p-4"
+                  className="h-48 rounded-xl border-2 border-dashed border-rose-300 hover:border-rose-500 bg-white/70 hover:bg-white flex flex-col items-center justify-center gap-2 cursor-pointer transition-all text-center p-4"
                 >
                   <div className="w-10 h-10 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center">
                     <Camera className="w-5 h-5" />
@@ -988,7 +1082,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
               </div>
 
               {form.fotoPecaOk ? (
-                <div className="relative group rounded-xl overflow-hidden border border-emerald-200 bg-white h-44 flex items-center justify-center">
+                <div className="relative group rounded-xl overflow-hidden border border-emerald-200 bg-white h-48 flex items-center justify-center">
                   <img
                     src={form.fotoPecaOk}
                     alt="Peça OK"
@@ -998,7 +1092,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                     <button
                       type="button"
                       onClick={() => setPreviewFoto({ url: form.fotoPecaOk!, titulo: 'Foto do Padrão de Referência (OK)' })}
-                      className="px-3 py-1.5 bg-white text-slate-900 rounded-lg text-xs font-semibold flex items-center gap-1 shadow-sm"
+                      className="px-3 py-1.5 bg-white text-slate-900 rounded-lg text-xs font-semibold flex items-center gap-1 shadow-sm cursor-pointer"
                     >
                       <Eye className="w-3.5 h-3.5" />
                       <span>Visualizar</span>
@@ -1006,7 +1100,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                     <button
                       type="button"
                       onClick={() => fileInputOkRef.current?.click()}
-                      className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold flex items-center gap-1 shadow-sm"
+                      className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold flex items-center gap-1 shadow-sm cursor-pointer"
                     >
                       <Upload className="w-3.5 h-3.5" />
                       <span>Trocar</span>
@@ -1016,7 +1110,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
               ) : (
                 <div
                   onClick={() => fileInputOkRef.current?.click()}
-                  className="h-44 rounded-xl border-2 border-dashed border-emerald-300 hover:border-emerald-500 bg-white/70 hover:bg-white flex flex-col items-center justify-center gap-2 cursor-pointer transition-all text-center p-4"
+                  className="h-48 rounded-xl border-2 border-dashed border-emerald-300 hover:border-emerald-500 bg-white/70 hover:bg-white flex flex-col items-center justify-center gap-2 cursor-pointer transition-all text-center p-4"
                 >
                   <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">
                     <Camera className="w-5 h-5" />
@@ -1045,7 +1139,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
         {/* =========================================================================
             CARD 5: EMISSOR / DETECTOR CONECTADO (RASTREABILIDADE)
             ========================================================================= */}
-        <div className="card-saas p-4 bg-gradient-to-r from-blue-50/60 via-white to-slate-50/60 border-blue-200/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="w-full card-saas p-4 bg-gradient-to-r from-blue-50/60 via-white to-slate-50/60 border-blue-200/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-[#0b5796] text-white flex items-center justify-center font-bold text-sm shadow-xs">
               <User className="w-5 h-5" />
@@ -1075,7 +1169,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
             SEÇÃO EXPANSÍVEL: COMPLEMENTO DA QUALIDADE (APENAS SE EDICAO === TRUE)
             ========================================================================= */}
         {edicao && (
-          <div className="card-saas border-indigo-200/70 overflow-hidden">
+          <div className="w-full card-saas border-indigo-200/70 overflow-hidden">
             <button
               type="button"
               onClick={() => setQualidadeExpandida(!qualidadeExpandida)}
@@ -1147,8 +1241,8 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
           </div>
         )}
 
-        {/* 6. BARRA INFERIOR DE BOTÕES */}
-        <div className="flex items-center justify-between gap-3 pt-3 border-t border-slate-200">
+        {/* 6. BARRA INFERIOR DE BOTÕES (LARGURA TOTAL) */}
+        <div className="w-full flex items-center justify-between gap-3 pt-3 border-t border-slate-200">
           <button
             type="button"
             onClick={() => onNavigate('lista-8d')}

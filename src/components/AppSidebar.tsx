@@ -17,6 +17,7 @@ import { ActiveScreen, UsuarioQualidade } from '../types';
 
 interface AppSidebarProps {
   currentScreen: ActiveScreen;
+  screenParams?: any;
   onNavigate: (screen: ActiveScreen, params?: any) => void;
   currentUser: UsuarioQualidade;
   isMobileOpen?: boolean;
@@ -25,6 +26,7 @@ interface AppSidebarProps {
 
 export const AppSidebar: React.FC<AppSidebarProps> = ({
   currentScreen,
+  screenParams,
   onNavigate,
   currentUser,
   isMobileOpen = false,
@@ -145,37 +147,61 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
 
           {openOcorr && (
             <div className="flex flex-col !gap-1 !mt-1.5">
-              <button
-                type="button"
-                onClick={() => handleItemClick('lista-8d', { tipo: 'Tudo' })}
-                className={getLinkClasses(currentScreen === 'lista-8d')}
-              >
-                {currentScreen === 'lista-8d' && (
-                  <span className="absolute left-0 top-2 bottom-2 w-1.25 bg-[#0f6cbd] rounded-r-full shadow-[0_0_8px_rgba(15,108,189,0.5)]" />
-                )}
-                <Layers className={getIconClasses(currentScreen === 'lista-8d')} />
-                <span className="truncate">Ocorrências gerais</span>
-              </button>
+              {/* 1. Ocorrências gerais (Todas) */}
+              {(() => {
+                const isActive = currentScreen === 'lista-8d' && (!screenParams?.tipo || screenParams?.tipo === 'Tudo');
+                return (
+                  <button
+                    type="button"
+                    onClick={() => handleItemClick('lista-8d', { tipo: 'Tudo' })}
+                    className={getLinkClasses(isActive)}
+                  >
+                    {isActive && (
+                      <span className="absolute left-0 top-2 bottom-2 w-1.25 bg-[#0f6cbd] rounded-r-full shadow-[0_0_8px_rgba(15,108,189,0.5)]" />
+                    )}
+                    <Layers className={getIconClasses(isActive)} />
+                    <span className="truncate">Ocorrências gerais</span>
+                  </button>
+                );
+              })()}
 
               {canSeeOcorrClienteInterna && (
                 <>
-                  <button
-                    type="button"
-                    onClick={() => handleItemClick('lista-8d', { tipo: 'Cliente' })}
-                    className={getLinkClasses(false)}
-                  >
-                    <Building2 className={getIconClasses(false)} />
-                    <span className="truncate">Ocorrências cliente</span>
-                  </button>
+                  {/* 2. Ocorrências cliente (Formal e Informal) */}
+                  {(() => {
+                    const isActive = currentScreen === 'lista-8d' && screenParams?.tipo === 'Cliente';
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => handleItemClick('lista-8d', { tipo: 'Cliente' })}
+                        className={getLinkClasses(isActive)}
+                      >
+                        {isActive && (
+                          <span className="absolute left-0 top-2 bottom-2 w-1.25 bg-[#0f6cbd] rounded-r-full shadow-[0_0_8px_rgba(15,108,189,0.5)]" />
+                        )}
+                        <Building2 className={getIconClasses(isActive)} />
+                        <span className="truncate">Ocorrências cliente</span>
+                      </button>
+                    );
+                  })()}
 
-                  <button
-                    type="button"
-                    onClick={() => handleItemClick('lista-8d', { tipo: 'Interno' })}
-                    className={getLinkClasses(false)}
-                  >
-                    <Factory className={getIconClasses(false)} />
-                    <span className="truncate">Ocorrências internas</span>
-                  </button>
+                  {/* 3. Ocorrências internas (Interno) */}
+                  {(() => {
+                    const isActive = currentScreen === 'lista-8d' && screenParams?.tipo === 'Interno';
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => handleItemClick('lista-8d', { tipo: 'Interno' })}
+                        className={getLinkClasses(isActive)}
+                      >
+                        {isActive && (
+                          <span className="absolute left-0 top-2 bottom-2 w-1.25 bg-[#0f6cbd] rounded-r-full shadow-[0_0_8px_rgba(15,108,189,0.5)]" />
+                        )}
+                        <Factory className={getIconClasses(isActive)} />
+                        <span className="truncate">Ocorrências internas</span>
+                      </button>
+                    );
+                  })()}
                 </>
               )}
             </div>
@@ -211,14 +237,22 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                 <span className="truncate">Novo proteção ao cliente</span>
               </button>
 
-              <button
-                type="button"
-                onClick={() => handleItemClick('lista-8d', { tipo: 'protcliente' })}
-                className={getLinkClasses(false)}
-              >
-                <List className={getIconClasses(false)} />
-                <span className="truncate">Lista proteção ao cliente</span>
-              </button>
+              {(() => {
+                const isActive = currentScreen === 'lista-8d' && screenParams?.tipo === 'protcliente';
+                return (
+                  <button
+                    type="button"
+                    onClick={() => handleItemClick('lista-8d', { tipo: 'protcliente' })}
+                    className={getLinkClasses(isActive)}
+                  >
+                    {isActive && (
+                      <span className="absolute left-0 top-2 bottom-2 w-1.25 bg-[#0f6cbd] rounded-r-full shadow-[0_0_8px_rgba(15,108,189,0.5)]" />
+                    )}
+                    <List className={getIconClasses(isActive)} />
+                    <span className="truncate">Lista proteção ao cliente</span>
+                  </button>
+                );
+              })()}
             </div>
           )}
         </div>

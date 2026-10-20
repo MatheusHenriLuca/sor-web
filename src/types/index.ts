@@ -136,6 +136,11 @@ export interface RNCRecord {
   abrir8D?: 'Sim' | 'Não';
   local8d?: string;
   
+  // Avaliação da Qualidade (Produção / Cliente)
+  criticidade?: 'A' | 'B' | 'C' | string;
+  abrirRnc?: string; // "Sim - Realizar Análise / Contenção / Rastreabilidade" | "Não - Não realizar Análise / Contenção / Rastreabilidade"
+  comentarioGestor?: string;
+
   // Responsáveis e Auditoria
   detector: string;
   reDetector?: number;

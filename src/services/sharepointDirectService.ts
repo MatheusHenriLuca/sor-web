@@ -113,7 +113,10 @@ export class SharePointDirectService {
         ondeFara: f.Onde_x0020_fazer_x003f_ || '',
         quemFara: f.Quem_x0020_vai_x0020_fazer_x003f || '',
         documentoRastreabilidade: f.Tipo_x0020_de_x0020_documento_x0 || 'Etiqueta SAP',
-        codigoRastreabilidade: f.Rastreabilidade_x0020_da_x0020_e || ''
+        codigoRastreabilidade: f.Rastreabilidade_x0020_da_x0020_e || '',
+        criticidade: (f.criticidade && typeof f.criticidade === 'object' ? f.criticidade.Value : f.criticidade) || '',
+        abrirRnc: (f.abrirrnc && typeof f.abrirrnc === 'object' ? f.abrirrnc.Value : f.abrirrnc) || '',
+        comentarioGestor: f.comentario_gestor || ''
       } as RNCRecord;
     });
   }
@@ -201,6 +204,9 @@ export class SharePointDirectService {
     if (fields.ondeFara) fieldsPayload.Onde_x0020_fazer_x003f_ = fields.ondeFara;
     if (fields.quemFara) fieldsPayload.Quem_x0020_vai_x0020_fazer_x003f = fields.quemFara;
     if (fields.abrir8D) fieldsPayload.Abrir_x0020_8D_x003f_ = fields.abrir8D;
+    if (fields.criticidade) fieldsPayload.criticidade = fields.criticidade;
+    if (fields.abrirRnc) fieldsPayload.abrirrnc = fields.abrirRnc;
+    if (fields.comentarioGestor) fieldsPayload.comentario_gestor = fields.comentarioGestor;
 
     const res = await fetch(`/api/sp/rncs/${id}`, {
       method: 'PATCH',

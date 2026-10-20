@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { 
   ShieldAlert, 
+  ShieldCheck,
   Barcode, 
   ArrowLeft, 
   CheckCircle2, 
@@ -129,13 +130,13 @@ export const RegistroProtCliView: React.FC<RegistroProtCliViewProps> = ({ onNavi
           </button>
           <div>
             <div className="flex items-center gap-2">
-              <ShieldAlert className="w-5 h-5 text-rose-600" />
+              <ShieldCheck className="w-5 h-5 text-emerald-600" />
               <h1 className="text-xl font-bold text-slate-800 tracking-tight">
-                Registro de Proteção ao Cliente
+                Lançamento Produção / Proteção ao Cliente
               </h1>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              Protocolo de triagem 100% e contenção imediata em montadora (Gestamp).
+              Apontamento resumido de peça não conforme para avaliação técnica da equipe da Qualidade.
             </p>
           </div>
         </div>

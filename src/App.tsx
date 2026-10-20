@@ -94,6 +94,7 @@ export function App() {
         {/* Barra Lateral Responsiva */}
         <AppSidebar 
           currentScreen={currentScreen}
+          screenParams={screenParams}
           onNavigate={handleNavigate}
           currentUser={currentUser}
           isMobileOpen={mobileMenuOpen}
@@ -116,6 +117,7 @@ export function App() {
 
             {currentScreen === 'lista-8d' && (
               <Lista8DView 
+                key={`${screenParams?.tipo || 'all'}-${screenParams?.status || 'all'}-${screenParams?.search || ''}`}
                 onNavigate={handleNavigate} 
                 currentUser={currentUser}
                 initialTipo={screenParams.tipo}

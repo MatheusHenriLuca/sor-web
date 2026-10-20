@@ -63,7 +63,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   };
 
   return (
-    <header className="h-14 bg-white border-b border-[#e2e8f0] px-3 sm:px-6 flex items-center justify-between select-none sticky top-0 z-40 shadow-2xs">
+    <header className="h-14 glass-nav px-3 sm:px-6 flex items-center justify-between select-none sticky top-0 z-40">
       
       {/* Esquerda: Menu Hamburguer Mobile + Marca SOR */}
       <div className="flex items-center gap-2 sm:gap-3">
@@ -71,7 +71,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         <button
           type="button"
           onClick={onToggleMobileMenu}
-          className="lg:hidden w-9 h-9 rounded-lg flex items-center justify-center text-[#475569] hover:bg-[#f1f5f9] hover:text-[#0f172a] transition cursor-pointer"
+          className="lg:hidden w-9 h-9 rounded-xl flex items-center justify-center text-slate-600 hover:bg-slate-100/80 hover:text-slate-900 transition-all cursor-pointer active:scale-95"
           aria-label={isMobileMenuOpen ? "Fechar menu" : "Abrir menu"}
         >
           {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -81,7 +81,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         <button 
           type="button"
           onClick={() => onNavigate('menu-2')}
-          className="hidden sm:flex w-8 h-8 rounded-lg items-center justify-center text-[#475569] hover:bg-[#f1f5f9] hover:text-[#0f172a] transition cursor-pointer"
+          className="hidden sm:flex w-8 h-8 rounded-xl items-center justify-center text-slate-500 hover:bg-slate-100/80 hover:text-slate-900 transition-all cursor-pointer active:scale-95"
           title="Início / Painel Principal"
         >
           <Grip className="w-4 h-4" />
@@ -90,17 +90,22 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         {/* Logotipo e Nome do Sistema */}
         <div 
           onClick={() => onNavigate('menu-2')}
-          className="flex items-center gap-2.5 cursor-pointer pl-1"
+          className="flex items-center gap-2.5 cursor-pointer pl-0.5 group"
         >
-          <div className="w-7 h-7 rounded-lg bg-[#0f6cbd] text-white flex items-center justify-center font-bold text-xs shadow-xs">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#0e67b0] via-[#0b5796] to-[#073660] text-white flex items-center justify-center font-bold text-xs shadow-xs ring-1 ring-white/25 group-hover:scale-105 transition-transform">
             G
           </div>
-          <div className="flex items-baseline gap-1.5">
-            <span className="font-bold text-sm sm:text-base text-[#0f172a] tracking-tight">
-              SOR
-            </span>
-            <span className="hidden sm:inline text-xs font-medium text-[#64748b]">
-              • Gestão da Qualidade
+          <div className="flex flex-col">
+            <div className="flex items-baseline gap-1.5">
+              <span className="font-bold text-sm sm:text-base font-display text-slate-900 tracking-tight">
+                SOR
+              </span>
+              <span className="hidden sm:inline text-xs font-semibold text-slate-400">
+                • 8D & RNC
+              </span>
+            </div>
+            <span className="hidden md:block text-[10px] font-medium text-slate-500 leading-none -mt-0.5">
+              Gestamp Sorocaba
             </span>
           </div>
         </div>
@@ -109,24 +114,30 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
       {/* Centro: Barra de Pesquisa Rápida Global */}
       <div className="hidden md:flex items-center justify-center flex-1 max-w-md mx-6">
         <form onSubmit={handleGlobalSearch} className="w-full relative flex items-center">
-          <Search className="w-4 h-4 text-[#64748b] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
           <input
             type="text"
             placeholder="Pesquisar RNC, peça, cliente ou SAP..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className="w-full h-[38px] !pl-[42px] !pr-9 bg-[#f8fafc] hover:bg-[#f1f5f9] focus:bg-white text-[#0f172a] placeholder-[#94a3b8] text-[13px] rounded-lg border border-[#e2e8f0] focus:border-[#0f6cbd] focus:ring-2 focus:ring-[#0f6cbd]/15 focus:outline-none transition-all shadow-2xs leading-normal"
+            className="w-full h-[38px] !pl-[42px] !pr-16 bg-slate-50/80 hover:bg-slate-100/60 focus:bg-white text-slate-900 placeholder-slate-400 text-[13px] rounded-xl border border-slate-200/90 focus:border-[#0b5796] focus:ring-2 focus:ring-[#0b5796]/15 focus:outline-none transition-all shadow-2xs leading-normal"
           />
-          {searchTerm && (
-            <button
-              type="button"
-              onClick={() => setSearchTerm('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#94a3b8] hover:text-[#0f172a] p-1 cursor-pointer"
-              title="Limpar pesquisa"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
+          <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
+            {searchTerm ? (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                className="text-slate-400 hover:text-slate-700 p-1 cursor-pointer"
+                title="Limpar pesquisa"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            ) : (
+              <kbd className="hidden lg:inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono text-slate-400 bg-white/80 border border-slate-200/80 rounded shadow-2xs select-none pointer-events-none">
+                ⌘K
+              </kbd>
+            )}
+          </div>
         </form>
       </div>
 
@@ -137,7 +148,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         <button
           type="button"
           onClick={() => setMobileSearchOpen(!mobileSearchOpen)}
-          className="md:hidden w-9 h-9 rounded-lg flex items-center justify-center text-[#475569] hover:bg-[#f1f5f9] transition cursor-pointer"
+          className="md:hidden w-9 h-9 rounded-xl flex items-center justify-center text-slate-600 hover:bg-slate-100/80 transition-all cursor-pointer active:scale-95"
           title="Pesquisar"
         >
           <Search className="w-4 h-4" />
@@ -147,12 +158,15 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         <button
           type="button"
           onClick={onOpenSyncModal}
-          className="hidden sm:flex items-center gap-2 h-8 px-3 rounded-lg text-xs font-semibold text-[#475569] hover:bg-[#f1f5f9] transition cursor-pointer border border-transparent hover:border-[#e2e8f0]"
+          className="hidden sm:flex items-center gap-2 h-8 px-3 rounded-full text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-50/80 hover:bg-slate-100/80 border border-slate-200/80 transition-all cursor-pointer shadow-2xs hover:shadow-xs active:scale-95"
           title="Clique para abrir status de conexão SharePoint"
         >
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="hidden lg:inline">SharePoint Online</span>
-          <span className="text-[#64748b] font-mono text-[11px]">({totalRncs.toLocaleString('pt-BR')})</span>
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          </span>
+          <span className="hidden lg:inline font-display">SharePoint</span>
+          <span className="text-slate-400 font-mono text-[11px] font-medium">({totalRncs.toLocaleString('pt-BR')})</span>
         </button>
 
         {/* Botão Sincronizar */}
@@ -161,43 +175,43 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           onClick={() => {
             if (onRefreshData) onRefreshData();
           }}
-          className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg flex items-center justify-center text-[#475569] hover:bg-[#f1f5f9] hover:text-[#0f172a] transition cursor-pointer"
-          title="Atualizar dados"
+          className="w-8 h-8 sm:w-8.5 sm:h-8.5 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-100/80 hover:text-slate-900 transition-all cursor-pointer active:scale-95"
+          title="Atualizar dados operacionais"
         >
-          <RefreshCw className="w-3.5 h-3.5" />
+          <RefreshCw className="w-3.5 h-3.5 hover:rotate-180 transition-transform duration-500" />
         </button>
 
         {/* Separador */}
-        <div className="h-5 w-px bg-[#e2e8f0] mx-0.5 sm:mx-1" />
+        <div className="h-4.5 w-px bg-slate-200 mx-0.5 sm:mx-1" />
 
         {/* Avatar / Perfil do Operador com Dropdown */}
         <div className="relative">
           <button
             type="button"
             onClick={() => setUsersDropdownOpen(!usersDropdownOpen)}
-            className="flex items-center gap-2 h-9 px-2 sm:px-2.5 rounded-lg hover:bg-[#f1f5f9] transition cursor-pointer border border-transparent hover:border-[#e2e8f0]"
+            className="flex items-center gap-2 h-9 px-2 sm:px-2.5 rounded-xl hover:bg-slate-100/80 transition-all cursor-pointer border border-transparent hover:border-slate-200/80 active:scale-98"
           >
-            <div className="w-7 h-7 rounded-full bg-[#0f6cbd] text-white flex items-center justify-center font-bold text-xs shadow-2xs">
+            <div className="w-7.5 h-7.5 rounded-xl bg-gradient-to-tr from-[#0e67b0] to-[#073660] text-white flex items-center justify-center font-bold text-xs shadow-2xs ring-1 ring-white/30">
               {getInitials(currentUser.nome)}
             </div>
             <div className="hidden sm:flex flex-col text-left">
-              <span className="text-xs font-semibold text-[#0f172a] leading-tight max-w-[130px] truncate">
+              <span className="text-xs font-semibold font-display text-slate-900 leading-tight max-w-[130px] truncate">
                 {currentUser.nome.split(' ')[0]}
               </span>
-              <span className="text-[11px] text-[#64748b] leading-tight">
+              <span className="text-[10px] font-medium text-slate-500 leading-tight">
                 {currentUser.perfil}
               </span>
             </div>
-            <ChevronDown className="w-3.5 h-3.5 text-[#64748b]" />
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
           </button>
 
           {/* Menu Dropdown de Troca de Operador */}
           {usersDropdownOpen && (
-            <div className="absolute right-0 mt-1.5 w-72 bg-white rounded-xl border border-[#e2e8f0] shadow-xl py-1.5 z-50 animate-in fade-in">
-              <div className="px-4 py-3 border-b border-[#f1f5f9] bg-[#f8fafc]/70 rounded-t-xl">
-                <div className="text-xs font-bold text-[#0f172a]">{currentUser.nome}</div>
-                <div className="text-[11px] text-[#64748b] mt-0.5">RE: {currentUser.reAcesso} • {currentUser.cargo || currentUser.perfil}</div>
-                <div className="text-[10px] text-[#94a3b8] mt-0.5">{currentUser.setor || 'Chão de Fábrica'}</div>
+            <div className="absolute right-0 mt-1.5 w-76 bg-white/95 backdrop-blur-xl rounded-2xl border border-slate-200/90 shadow-2xl py-1.5 z-50 animate-in fade-in slide-in-from-top-1">
+              <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/70 rounded-t-2xl">
+                <div className="text-xs font-bold font-display text-slate-900">{currentUser.nome}</div>
+                <div className="text-[11px] text-slate-500 mt-0.5 font-mono">RE: {currentUser.reAcesso} • {currentUser.cargo || currentUser.perfil}</div>
+                <div className="text-[10px] text-slate-400 mt-0.5">{currentUser.setor || 'Chão de Fábrica'}</div>
               </div>
 
               <div className="py-1.5">

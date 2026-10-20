@@ -52,14 +52,14 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
   };
 
   const getLinkClasses = (isActive: boolean) => `
-    relative group w-full flex items-center !gap-3 !px-3 !h-9 rounded-lg text-[13px] transition-colors cursor-pointer text-left select-none
+    relative group w-full flex items-center !gap-3 !px-3.5 !h-10 rounded-xl text-[13px] transition-all duration-200 cursor-pointer text-left select-none active:scale-[0.98]
     ${isActive 
-      ? 'bg-[#eff6fc] text-[#0f6cbd] font-semibold shadow-2xs' 
-      : 'text-[#334155] hover:bg-[#f8fafc] hover:text-[#0f172a] font-medium'}
+      ? 'bg-[#0f6cbd]/10 text-[#0b5796] font-semibold shadow-xs' 
+      : 'text-[#475569] hover:bg-slate-100/80 hover:text-[#0f172a] font-medium'}
   `.trim();
 
   const getIconClasses = (isActive: boolean) => `
-    w-4 h-4 shrink-0 transition-colors
+    w-4 h-4 shrink-0 transition-transform duration-200 group-hover:scale-105
     ${isActive ? 'text-[#0f6cbd]' : 'text-[#64748b] group-hover:text-[#0f172a]'}
   `.trim();
 
@@ -67,17 +67,17 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
     <div className="flex flex-col justify-between h-full select-none bg-white">
       
       {/* Área Superior com Navegação e Grupos */}
-      <div className="flex flex-col !gap-6 !p-4 overflow-y-auto flex-1">
+      <div className="flex flex-col !gap-5 !p-4 overflow-y-auto flex-1">
         
         {/* Header do Drawer Mobile (apenas em visualização mobile) */}
         {isMobileDrawer && (
           <div className="flex items-center justify-between !pb-3 border-b border-[#e2e8f0]">
             <div className="flex items-center !gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-[#0f6cbd] text-white flex items-center justify-center font-bold text-xs shadow-xs">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#0e67b0] to-[#09477d] text-white flex items-center justify-center font-display font-bold text-xs shadow-xs border border-white/20">
                 G
               </div>
               <div className="flex flex-col">
-                <span className="font-bold text-sm text-[#0f172a] leading-tight">SOR Qualidade</span>
+                <span className="font-display font-bold text-sm text-[#0f172a] leading-tight">SOR Qualidade</span>
                 <span className="text-[11px] text-[#64748b]">Gestamp Sorocaba</span>
               </div>
             </div>
@@ -98,20 +98,20 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
             <button
               type="button"
               onClick={() => handleItemClick('registro-8d', { edicao: false })}
-              className={`w-full flex items-center justify-center !gap-2 !px-4 !h-10 rounded-lg bg-[#0f6cbd] hover:bg-[#0b5a9e] active:scale-[0.98] text-white text-[13px] font-semibold shadow-xs hover:shadow transition-all cursor-pointer ${
+              className={`btn-primary w-full !h-10.5 text-[13px] font-semibold !justify-center shadow-sm hover:shadow ${
                 currentScreen === 'registro-8d' ? 'ring-2 ring-[#0f6cbd] ring-offset-2' : ''
               }`}
             >
               <Plus className="w-4 h-4 stroke-[2.5]" />
-              <span>Nova RNC / 8D</span>
+              <span className="font-display">Nova RNC / 8D</span>
             </button>
           </div>
         )}
 
         {/* 2. CATEGORIA: ACESSO PRINCIPAL */}
         <div>
-          <div className="!px-3 !pb-2 text-xs font-semibold text-[#64748b] select-none">
-            Acesso Principal
+          <div className="!px-3 !pb-1.5 text-[11px] font-display font-semibold tracking-wider uppercase text-[#94a3b8] select-none">
+            Acesso principal
           </div>
           <div className="flex flex-col !gap-1">
             <button
@@ -120,10 +120,10 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
               className={getLinkClasses(currentScreen === 'menu-2')}
             >
               {currentScreen === 'menu-2' && (
-                <span className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-[#0f6cbd] rounded-r-full" />
+                <span className="absolute left-0 top-2 bottom-2 w-1.25 bg-[#0f6cbd] rounded-r-full shadow-[0_0_8px_rgba(15,108,189,0.5)]" />
               )}
               <LayoutGrid className={getIconClasses(currentScreen === 'menu-2')} />
-              <span className="truncate">Menu Principal</span>
+              <span className="truncate">Menu principal</span>
             </button>
           </div>
         </div>
@@ -133,11 +133,11 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
           <button
             type="button"
             onClick={() => setOpenOcorr(!openOcorr)}
-            className="w-full flex items-center justify-between !px-3 !py-2 text-xs font-semibold text-[#475569] hover:text-[#0f172a] rounded-lg hover:bg-[#f8fafc] transition-colors select-none group cursor-pointer"
+            className="w-full flex items-center justify-between !px-3 !py-1.5 text-[11px] font-display font-semibold tracking-wider uppercase text-[#94a3b8] hover:text-[#0f172a] rounded-lg hover:bg-slate-100/60 transition-colors select-none group cursor-pointer"
           >
-            <span>Registro de Ocorrências</span>
+            <span>Registro de ocorrências</span>
             <ChevronDown 
-              className={`w-4 h-4 text-[#94a3b8] group-hover:text-[#64748b] ml-auto transition-transform duration-200 ${
+              className={`w-3.5 h-3.5 text-[#94a3b8] group-hover:text-[#64748b] ml-auto transition-transform duration-200 ${
                 !openOcorr ? '-rotate-90' : ''
               }`} 
             />
@@ -151,10 +151,10 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                 className={getLinkClasses(currentScreen === 'lista-8d')}
               >
                 {currentScreen === 'lista-8d' && (
-                  <span className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-[#0f6cbd] rounded-r-full" />
+                  <span className="absolute left-0 top-2 bottom-2 w-1.25 bg-[#0f6cbd] rounded-r-full shadow-[0_0_8px_rgba(15,108,189,0.5)]" />
                 )}
                 <Layers className={getIconClasses(currentScreen === 'lista-8d')} />
-                <span className="truncate">Ocorrências Gerais</span>
+                <span className="truncate">Ocorrências gerais</span>
               </button>
 
               {canSeeOcorrClienteInterna && (
@@ -165,7 +165,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                     className={getLinkClasses(false)}
                   >
                     <Building2 className={getIconClasses(false)} />
-                    <span className="truncate">Ocorrências Cliente</span>
+                    <span className="truncate">Ocorrências cliente</span>
                   </button>
 
                   <button
@@ -174,7 +174,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                     className={getLinkClasses(false)}
                   >
                     <Factory className={getIconClasses(false)} />
-                    <span className="truncate">Ocorrências Internas</span>
+                    <span className="truncate">Ocorrências internas</span>
                   </button>
                 </>
               )}
@@ -187,11 +187,11 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
           <button
             type="button"
             onClick={() => setOpenProtCli(!openProtCli)}
-            className="w-full flex items-center justify-between !px-3 !py-2 text-xs font-semibold text-[#475569] hover:text-[#0f172a] rounded-lg hover:bg-[#f8fafc] transition-colors select-none group cursor-pointer"
+            className="w-full flex items-center justify-between !px-3 !py-1.5 text-[11px] font-display font-semibold tracking-wider uppercase text-[#94a3b8] hover:text-[#0f172a] rounded-lg hover:bg-slate-100/60 transition-colors select-none group cursor-pointer"
           >
-            <span>Proteção ao Cliente</span>
+            <span>Proteção ao cliente</span>
             <ChevronDown 
-              className={`w-4 h-4 text-[#94a3b8] group-hover:text-[#64748b] ml-auto transition-transform duration-200 ${
+              className={`w-3.5 h-3.5 text-[#94a3b8] group-hover:text-[#64748b] ml-auto transition-transform duration-200 ${
                 !openProtCli ? '-rotate-90' : ''
               }`} 
             />
@@ -205,10 +205,10 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                 className={getLinkClasses(currentScreen === 'registro-protcli')}
               >
                 {currentScreen === 'registro-protcli' && (
-                  <span className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-[#0f6cbd] rounded-r-full" />
+                  <span className="absolute left-0 top-2 bottom-2 w-1.25 bg-[#0f6cbd] rounded-r-full shadow-[0_0_8px_rgba(15,108,189,0.5)]" />
                 )}
                 <ShieldPlus className={getIconClasses(currentScreen === 'registro-protcli')} />
-                <span className="truncate">Novo Proteção ao Cliente</span>
+                <span className="truncate">Novo proteção ao cliente</span>
               </button>
 
               <button
@@ -217,7 +217,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                 className={getLinkClasses(false)}
               >
                 <List className={getIconClasses(false)} />
-                <span className="truncate">Lista Proteção ao Cliente</span>
+                <span className="truncate">Lista proteção ao cliente</span>
               </button>
             </div>
           )}
@@ -229,11 +229,11 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
             <button
               type="button"
               onClick={() => setOpenFalha(!openFalha)}
-              className="w-full flex items-center justify-between !px-3 !py-2 text-xs font-semibold text-[#475569] hover:text-[#0f172a] rounded-lg hover:bg-[#f8fafc] transition-colors select-none group cursor-pointer"
+              className="w-full flex items-center justify-between !px-3 !py-1.5 text-[11px] font-display font-semibold tracking-wider uppercase text-[#94a3b8] hover:text-[#0f172a] rounded-lg hover:bg-slate-100/60 transition-colors select-none group cursor-pointer"
             >
-              <span>Falha de Entrega</span>
+              <span>Falha de entrega</span>
               <ChevronDown 
-                className={`w-4 h-4 text-[#94a3b8] group-hover:text-[#64748b] ml-auto transition-transform duration-200 ${
+                className={`w-3.5 h-3.5 text-[#94a3b8] group-hover:text-[#64748b] ml-auto transition-transform duration-200 ${
                   !openFalha ? '-rotate-90' : ''
                 }`} 
               />
@@ -247,10 +247,10 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                   className={getLinkClasses(currentScreen === 'falha-entrega')}
                 >
                   {currentScreen === 'falha-entrega' && (
-                    <span className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-[#0f6cbd] rounded-r-full" />
+                    <span className="absolute left-0 top-2 bottom-2 w-1.25 bg-[#0f6cbd] rounded-r-full shadow-[0_0_8px_rgba(15,108,189,0.5)]" />
                   )}
                   <Truck className={getIconClasses(currentScreen === 'falha-entrega')} />
-                  <span className="truncate">Incluir Falha de Entrega</span>
+                  <span className="truncate">Incluir falha de entrega</span>
                 </button>
               </div>
             )}
@@ -263,11 +263,11 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
             <button
               type="button"
               onClick={() => setOpenConfig(!openConfig)}
-              className="w-full flex items-center justify-between !px-3 !py-2 text-xs font-semibold text-[#475569] hover:text-[#0f172a] rounded-lg hover:bg-[#f8fafc] transition-colors select-none group cursor-pointer"
+              className="w-full flex items-center justify-between !px-3 !py-1.5 text-[11px] font-display font-semibold tracking-wider uppercase text-[#94a3b8] hover:text-[#0f172a] rounded-lg hover:bg-slate-100/60 transition-colors select-none group cursor-pointer"
             >
               <span>Configurações</span>
               <ChevronDown 
-                className={`w-4 h-4 text-[#94a3b8] group-hover:text-[#64748b] ml-auto transition-transform duration-200 ${
+                className={`w-3.5 h-3.5 text-[#94a3b8] group-hover:text-[#64748b] ml-auto transition-transform duration-200 ${
                   !openConfig ? '-rotate-90' : ''
                 }`} 
               />
@@ -281,10 +281,10 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                   className={getLinkClasses(currentScreen === 'cadastro-usuarios')}
                 >
                   {currentScreen === 'cadastro-usuarios' && (
-                    <span className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-[#0f6cbd] rounded-r-full" />
+                    <span className="absolute left-0 top-2 bottom-2 w-1.25 bg-[#0f6cbd] rounded-r-full shadow-[0_0_8px_rgba(15,108,189,0.5)]" />
                   )}
                   <Users className={getIconClasses(currentScreen === 'cadastro-usuarios')} />
-                  <span className="truncate">Cadastro de Usuários</span>
+                  <span className="truncate">Cadastro de usuários</span>
                 </button>
 
                 <button
@@ -293,10 +293,10 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                   className={getLinkClasses(currentScreen === 'verif-user')}
                 >
                   {currentScreen === 'verif-user' && (
-                    <span className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-[#0f6cbd] rounded-r-full" />
+                    <span className="absolute left-0 top-2 bottom-2 w-1.25 bg-[#0f6cbd] rounded-r-full shadow-[0_0_8px_rgba(15,108,189,0.5)]" />
                   )}
                   <UserCheck className={getIconClasses(currentScreen === 'verif-user')} />
-                  <span className="truncate">Trocar Usuário</span>
+                  <span className="truncate">Trocar usuário</span>
                 </button>
               </div>
             )}
@@ -306,9 +306,12 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
       </div>
 
       {/* Rodapé Corporativo Discreto */}
-      <div className="!p-4 border-t border-[#e2e8f0] text-xs text-[#64748b] bg-[#f8fafc]">
-        <div className="font-bold text-[#0f172a]">Gestamp Sorocaba</div>
-        <div className="text-[11px] text-[#64748b] mt-0.5">Planta Sorocaba • Qualidade</div>
+      <div className="!p-4 border-t border-[#e2e8f0] text-xs text-[#64748b] bg-[#f8fafc]/80 backdrop-blur-xs">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.6)]" />
+          <span className="font-display font-bold text-[#0f172a]">Gestamp Sorocaba</span>
+        </div>
+        <div className="text-[11px] text-[#64748b] mt-0.5 pl-4">Planta Sorocaba • Qualidade</div>
       </div>
 
     </div>

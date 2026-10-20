@@ -381,13 +381,13 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
       )}
 
       {/* 1. BARRA SUPERIOR DE CONTEXTO E TÍTULO */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[#e2e8f0]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 pb-4 border-b border-[#e2e8f0]">
         <div className="flex items-center gap-3">
           <button 
             type="button"
             onClick={() => onNavigate('lista-8d')}
             className="btn-secondary h-9 px-3 text-xs"
-            title="Voltar para a Lista"
+            title="Voltar para a lista"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>Voltar</span>
@@ -395,13 +395,13 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
           
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-[#0f6cbd] bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
-                {edicao ? 'Edição RNC' : 'Nova Ocorrência'}
+              <span className="text-[11px] font-display font-semibold uppercase tracking-wider text-[#0b5796] bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200/60 shadow-2xs">
+                {edicao ? 'Edição RNC' : 'Nova ocorrência'}
               </span>
               <span className="text-xs text-[#64748b]">Metodologia 8D</span>
             </div>
-            <h1 className="text-base sm:text-xl font-bold text-[#0f172a] mt-0.5">
-              {edicao ? `Ocorrência: ${form.field1 || `RNC #${form.id}`}` : 'Registro de Não Conformidade (8D)'}
+            <h1 className="text-base sm:text-2xl font-display font-bold text-[#0f172a] mt-0.5">
+              {edicao ? `Ocorrência: ${form.field1 || `RNC #${form.id}`}` : 'Registro de não conformidade (8D)'}
             </h1>
           </div>
         </div>
@@ -410,17 +410,17 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
           <button 
             type="button"
             onClick={() => onNavigate('lista-8d')}
-            className="btn-secondary h-9 px-3.5 text-xs"
+            className="btn-secondary h-9 px-3.5 text-xs font-semibold"
           >
             Cancelar
           </button>
           <button 
             type="button"
             onClick={handleSave}
-            className="btn-primary h-9 px-4 text-xs font-semibold"
+            className="btn-primary h-9 px-4 text-xs font-semibold shadow-sm hover:shadow"
           >
             <Save className="w-4 h-4" />
-            <span>Salvar RNC</span>
+            <span className="font-display">Salvar RNC</span>
           </button>
         </div>
       </div>
@@ -428,7 +428,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
       {/* 2. NAVEGAÇÃO DE ETAPAS (STEPPER RESPONSIVO) */}
       
       {/* Versão Desktop: Stepper Completo em Linha */}
-      <div className="hidden md:grid grid-cols-6 gap-2 p-1.5 bg-white border border-[#e2e8f0] rounded-xl shadow-2xs">
+      <div className="hidden md:grid grid-cols-6 gap-2 p-1.5 bg-white border border-[#e2e8f0] rounded-2xl shadow-xs">
         {STEPS.map((step, idx) => {
           const isActive = activeTab === step.id;
           const isCompleted = isStepComplete(step.id);
@@ -440,19 +440,19 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
               key={step.id}
               type="button"
               onClick={() => handleStepClick(step)}
-              className={`h-10 px-2.5 rounded-lg text-xs transition cursor-pointer flex items-center justify-center gap-2 select-none ${
+              className={`h-10.5 px-3 rounded-xl text-xs transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 select-none active:scale-[0.98] ${
                 isActive
-                  ? 'bg-blue-50 text-[#0f6cbd] font-bold border border-[#0f6cbd] shadow-2xs'
+                  ? 'bg-blue-50/90 text-[#0b5796] font-bold border border-[#0f6cbd]/40 shadow-xs'
                   : isCompleted
-                  ? 'bg-emerald-50/70 text-[#107c10] font-semibold border border-emerald-200 hover:bg-emerald-100/60'
+                  ? 'bg-emerald-50/70 text-[#107c10] font-semibold border border-emerald-200/70 hover:bg-emerald-100/60'
                   : hasError
-                  ? 'bg-rose-50/80 text-rose-700 font-semibold border border-rose-200 hover:bg-rose-100/70'
-                  : 'text-[#64748b] hover:bg-[#f8fafc] hover:text-[#0f172a] border border-transparent'
+                  ? 'bg-rose-50/80 text-rose-700 font-semibold border border-rose-200/70 hover:bg-rose-100/70'
+                  : 'text-[#64748b] hover:bg-slate-50 hover:text-[#0f172a] border border-transparent'
               }`}
             >
-              <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] shrink-0 font-bold ${
+              <div className={`w-5.5 h-5.5 rounded-full flex items-center justify-center text-[10px] shrink-0 font-bold font-mono transition-transform duration-200 ${
                 isActive 
-                  ? 'bg-[#0f6cbd] text-white' 
+                  ? 'bg-[#0f6cbd] text-white shadow-xs scale-105' 
                   : isCompleted 
                   ? 'bg-emerald-600 text-white' 
                   : hasError 
@@ -461,7 +461,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
               }`}>
                 {isCompleted ? '✓' : hasError ? '!' : step.stepNum}
               </div>
-              <span className="truncate">{step.label.split('. ')[1] || step.label}</span>
+              <span className="truncate font-display font-medium">{step.label.split('. ')[1] || step.label}</span>
             </button>
           );
         })}

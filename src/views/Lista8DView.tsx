@@ -192,19 +192,19 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
   };
 
   return (
-    <div className="w-full space-y-5 animate-in fade-in duration-150 pb-12">
+    <div className="w-full space-y-5 animate-in fade-in duration-200 pb-12">
       
       {/* 1. CABEÇALHO DA PÁGINA */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#e2e8f0]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 pb-4 border-b border-[#e2e8f0]">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-blue-50 text-[#0f6cbd] flex items-center justify-center border border-blue-100 shadow-2xs">
+          <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#0f6cbd] flex items-center justify-center border border-blue-100 shadow-xs">
             <LayoutGrid className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-lg sm:text-xl font-bold text-[#0f172a] tracking-tight">
-              Ocorrências Registradas (8D)
+            <h1 className="text-lg sm:text-2xl font-display font-bold text-[#0f172a] tracking-tight">
+              Ocorrências registradas (8D)
             </h1>
-            <p className="text-xs text-[#64748b]">
+            <p className="text-xs text-[#64748b] tabular-nums">
               {filteredRncs.length.toLocaleString('pt-BR')} registro(s) sincronizados com SharePoint Online
             </p>
           </div>
@@ -216,7 +216,7 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
             type="button"
             onClick={() => handleRefresh(true)}
             disabled={isSyncing}
-            className="btn-secondary h-9 px-3 text-xs"
+            className="btn-secondary h-9 px-3.5 text-xs font-semibold"
             title="Atualizar lista com o SharePoint"
           >
             <RotateCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
@@ -224,12 +224,12 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
           </button>
 
           {/* Alternador de Visualização (Tabela vs Cartões) */}
-          <div className="hidden sm:flex items-center border border-[#e2e8f0] rounded-lg bg-white p-0.5 shadow-2xs">
+          <div className="hidden sm:flex items-center border border-[#e2e8f0] rounded-xl bg-slate-100/70 p-1 shadow-2xs">
             <button
               type="button"
               onClick={() => setViewMode('list')}
-              className={`p-1.5 rounded-md text-xs transition cursor-pointer ${
-                viewMode === 'list' ? 'bg-[#f1f5f9] text-[#0f172a] font-bold shadow-2xs' : 'text-[#64748b] hover:text-[#0f172a]'
+              className={`p-1.5 rounded-lg text-xs transition-all cursor-pointer ${
+                viewMode === 'list' ? 'bg-white text-[#0f172a] font-bold shadow-xs' : 'text-[#64748b] hover:text-[#0f172a]'
               }`}
               title="Exibir como Tabela"
             >
@@ -238,8 +238,8 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
             <button
               type="button"
               onClick={() => setViewMode('grid')}
-              className={`p-1.5 rounded-md text-xs transition cursor-pointer ${
-                viewMode === 'grid' ? 'bg-[#f1f5f9] text-[#0f172a] font-bold shadow-2xs' : 'text-[#64748b] hover:text-[#0f172a]'
+              className={`p-1.5 rounded-lg text-xs transition-all cursor-pointer ${
+                viewMode === 'grid' ? 'bg-white text-[#0f172a] font-bold shadow-xs' : 'text-[#64748b] hover:text-[#0f172a]'
               }`}
               title="Exibir como Cartões"
             >
@@ -252,10 +252,10 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
             <button
               type="button"
               onClick={() => onNavigate('registro-8d', { edicao: false })}
-              className="btn-primary h-9 px-3.5 text-xs font-semibold"
+              className="btn-primary h-9 px-4 text-xs font-semibold shadow-sm hover:shadow"
             >
-              <Plus className="w-4 h-4" />
-              <span>Nova RNC</span>
+              <Plus className="w-4 h-4 stroke-[2.5]" />
+              <span className="font-display">Nova RNC</span>
             </button>
           )}
         </div>
@@ -329,10 +329,10 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
           <div className="hidden sm:block overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-[#e2e8f0] text-xs font-bold text-[#64748b] bg-[#f8fafc]">
-                  <th className="py-3 px-5 font-semibold">Identificação / Peça</th>
-                  <th className="py-3 px-5 font-semibold hidden md:table-cell">Cliente / Peça</th>
-                  <th className="py-3 px-5 font-semibold hidden sm:table-cell">Setor / Posto</th>
+                <tr className="border-b border-[#e2e8f0] text-xs font-display font-semibold text-[#64748b] bg-[#f8fafc]/90">
+                  <th className="py-3 px-5 font-semibold">Identificação / peça</th>
+                  <th className="py-3 px-5 font-semibold hidden md:table-cell">Cliente / peça</th>
+                  <th className="py-3 px-5 font-semibold hidden sm:table-cell">Setor / posto</th>
                   <th className="py-3 px-5 font-semibold">Status</th>
                   <th className="py-3 px-5 font-semibold hidden lg:table-cell">Data</th>
                   <th className="py-3 px-5 font-semibold text-right">Ação</th>
@@ -341,8 +341,31 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
               <tbody className="divide-y divide-[#f1f5f9] text-xs sm:text-sm">
                 {paginatedRncs.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-14 text-center text-[#64748b]">
-                      Nenhuma ocorrência encontrada para os filtros selecionados.
+                    <td colSpan={6} className="py-16 text-center">
+                      <div className="flex flex-col items-center justify-center max-w-sm mx-auto space-y-3">
+                        <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 border border-slate-200">
+                          <Search className="w-6 h-6" />
+                        </div>
+                        <h3 className="font-display font-bold text-sm text-[#0f172a]">
+                          Nenhuma ocorrência encontrada
+                        </h3>
+                        <p className="text-xs text-[#64748b] leading-relaxed">
+                          Tente ajustar a busca ou limpe os filtros de status e montadora para ver mais registros.
+                        </p>
+                        {(statusFilter !== 'Todas' || clienteFilter !== 'Todos' || searchInput) && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setStatusFilter('Todas');
+                              setClienteFilter('Todos');
+                              setSearchInput('');
+                            }}
+                            className="btn-subtle text-xs text-[#0f6cbd] font-semibold mt-1"
+                          >
+                            Limpar filtros aplicados
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ) : (
@@ -386,7 +409,7 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
                           {getStatusBadge(r.status, r.protcliente)}
                         </td>
 
-                        <td className="py-3.5 px-5 hidden lg:table-cell text-[#64748b] font-mono text-xs">
+                        <td className="py-3.5 px-5 hidden lg:table-cell text-[#64748b] font-mono text-xs tabular-nums">
                           {r.dataOcorrencia}
                         </td>
 
@@ -407,7 +430,10 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
           {/* Cards Mobile Automáticos quando em tela pequena */}
           <div className="sm:hidden divide-y divide-[#f1f5f9]">
             {paginatedRncs.length === 0 ? (
-              <div className="py-12 text-center text-xs text-[#64748b]">
+              <div className="py-14 text-center text-xs text-[#64748b]">
+                <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 mx-auto mb-2">
+                  <Search className="w-5 h-5" />
+                </div>
                 Nenhuma ocorrência encontrada.
               </div>
             ) : (
@@ -441,7 +467,7 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
                       {r.descricaoProblema || 'Não Conformidade registrada'}
                     </div>
 
-                    <div className="flex items-center justify-between pt-1 text-[11px] text-[#94a3b8] font-mono">
+                    <div className="flex items-center justify-between pt-1 text-[11px] text-[#94a3b8] font-mono tabular-nums">
                       <span>{r.cliente} • {r.dataOcorrencia}</span>
                       <span className="text-xs text-[#0f6cbd] font-bold flex items-center">
                         Ver <ChevronRight className="w-3.5 h-3.5 ml-0.5" />

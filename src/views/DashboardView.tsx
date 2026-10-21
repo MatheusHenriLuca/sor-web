@@ -5,7 +5,6 @@ import {
   Clock, 
   ShieldAlert, 
   AlertTriangle,
-  PlusCircle,
   Barcode,
   ArrowRight,
   TrendingUp,
@@ -59,25 +58,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, curren
             </p>
           </div>
 
-          {!isOperator && (
-            <div className="flex items-center gap-3 self-end md:self-auto flex-wrap">
-              <button 
-                onClick={() => onNavigate('registro-8d', { edicao: false })}
-                className="flex items-center gap-2 px-5 py-3 rounded-xl text-xs sm:text-sm font-black bg-white hover:bg-slate-100 text-[#092162] shadow-lg active:scale-95 transition cursor-pointer"
-              >
-                <PlusCircle size={18} className="text-[#092162]" />
-                <span>Nova RNC</span>
-              </button>
-              
-              <button 
-                onClick={() => onNavigate('registro-protcli')}
-                className="flex items-center gap-2 px-4 py-3 rounded-xl text-xs sm:text-sm font-bold bg-rose-600/90 hover:bg-rose-500 text-white border border-rose-400/40 shadow-lg active:scale-95 transition cursor-pointer"
-              >
-                <ShieldAlert size={18} />
-                <span>Proteção ao Cliente</span>
-              </button>
-            </div>
-          )}
+          {/* Botões removidos da direita para evitar duplicação com o menu lateral */}
         </div>
       </header>
 

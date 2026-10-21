@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   ArrowLeft, 
   Printer, 
@@ -31,6 +31,7 @@ import {
   Hash,
   Car,
   Bot,
+  MoreHorizontal,
   Image as ImageIcon
 } from 'lucide-react';
 import { RNCRecord, UsuarioQualidade, RegistroTreinamento } from '../types';
@@ -66,6 +67,23 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
   const [modalDeleteOpen, setModalDeleteOpen] = useState(false);
   const [modalAvaliacaoOpen, setModalAvaliacaoOpen] = useState(false);
   const [rncPopupVisualizar, setRncPopupVisualizar] = useState<RNCRecord | null>(null);
+
+  // Pop-up menu de ações
+  const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
+  const actionsMenuRef = useRef<HTMLDivElement>(null);
+
+  // Fechar menu ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (actionsMenuRef.current && !actionsMenuRef.current.contains(event.target as Node)) {
+        setActionsMenuOpen(false);
+      }
+    };
+    if (actionsMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [actionsMenuOpen]);
 
   // Estados dos formulários em modais
   const [alertaPostos, setAlertaPostos] = useState('');
@@ -271,10 +289,10 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
         </div>
       )}
 
-      {/* 1. CABEÇALHO UNIFICADO & COMPACTO DA OCORRÊNCIA (MELHOR APROVEITAMENTO DE ESPAÇO) */}
+      {/* 1. CABEÇALHO UNIFICADO & COMPACTO DA OCORRÊNCIA */}
       <div className="card-saas p-3.5 sm:p-4 flex flex-col gap-3 shadow-xs bg-white border-slate-200">
         
-        {/* Linha 1: Navegação + Identificador + Badges + Barra de Ações Rápidas */}
+        {/* Linha 1: Navegação + Identificador + Badges + Ações */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 flex-wrap">
             <button 
@@ -289,19 +307,17 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
 
             <div className="h-4 w-px bg-slate-200 hidden sm:block" />
 
-            {/* Identificador Principal: ID SharePoint + Código RNC */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="px-2.5 py-1 rounded-lg text-sm sm:text-base font-black bg-blue-100 text-[#0b5796] border border-blue-200 font-mono-numbers shrink-0 shadow-2xs">
-                RNC #{rnc.id}
+            {/* Identificador Único: RNC #{id} + Código (se diferente) */}
+            <span className="px-2.5 py-1 rounded-lg text-sm sm:text-base font-black bg-blue-100 text-[#0b5796] border border-blue-200 font-mono-numbers shrink-0 shadow-2xs">
+              RNC #{rnc.id}
+            </span>
+            {rnc.field1 && rnc.field1 !== `RNC #${rnc.id}` && (
+              <span className="text-sm sm:text-base font-bold text-slate-800 font-mono bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                {rnc.field1}
               </span>
-              {rnc.field1 && rnc.field1 !== `RNC #${rnc.id}` && (
-                <span className="text-sm sm:text-base font-bold text-slate-800 font-mono bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                  {rnc.field1}
-                </span>
-              )}
-            </div>
+            )}
 
-            {/* Status Principal com Semântica Suave */}
+            {/* Status */}
             <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border shrink-0 ${
               rnc.status === 'Concluído' 
                 ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
@@ -315,109 +331,126 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
               {rnc.status}
             </span>
 
-            {/* Tipo da Ocorrência */}
+            {/* Tipo */}
             <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200 shrink-0">
               {rnc.tipoRnc}
             </span>
           </div>
 
-          {/* Barra de Ações Rápidas (Compacta h-8) */}
+          {/* Ações Rápidas: Principais visíveis + Menu "⋯" para secundárias */}
           <div className="flex items-center gap-1.5 flex-wrap">
-            <button 
-              type="button"
-              onClick={() => onNavigate('impressao-8d', { rncId: rnc.id })}
-              className="btn-secondary h-8 px-2.5 text-xs font-medium gap-1.5"
-              title="Gerar Ficha A4 em PDF"
-            >
-              <Printer className="w-3.5 h-3.5 text-[#64748b]" />
-              <span className="hidden sm:inline">Imprimir A4</span>
-            </button>
-
-            <button 
-              type="button"
-              onClick={() => onNavigate('rastreabilidade', { rncId: rnc.id })}
-              className="btn-secondary h-8 px-2.5 text-xs font-semibold text-[#4338ca] hover:bg-indigo-50 hover:border-indigo-200 gap-1.5"
-              title="Ver lotes SAP e histórico de rastreabilidade desta ocorrência"
-            >
-              <Barcode className="w-3.5 h-3.5 text-[#4338ca]" />
-              <span className="hidden sm:inline">Rastrear SAP</span>
-            </button>
-
-            {isProtecaoAtiva && (
-              <button 
-                type="button"
-                onClick={() => setModalAvaliacaoOpen(true)}
-                className="btn-secondary h-8 px-2.5 text-xs font-bold gap-1.5 text-emerald-800 bg-emerald-50 border-emerald-300 hover:bg-emerald-100 transition shadow-2xs"
-                title="Avaliação da Qualidade para ocorrências do chão de fábrica"
-              >
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                <span className="hidden sm:inline">Avaliação Qualidade</span>
-              </button>
-            )}
-
-            {!isOperator && (
-              <>
-                <button 
-                  type="button"
-                  onClick={() => onNavigate('registro-8d', { edicao: true, rncId: rnc.id })}
-                  className="btn-secondary h-8 px-2.5 text-xs font-medium gap-1.5"
-                >
-                  <Edit3 className="w-3.5 h-3.5 text-[#64748b]" />
-                  <span>Editar</span>
-                </button>
-
-                <button 
-                  type="button"
-                  onClick={() => setModalAlertaOpen(true)}
-                  className="btn-secondary h-8 px-2.5 text-xs font-medium gap-1.5"
-                >
-                  <Bell className="w-3.5 h-3.5 text-amber-600" />
-                  <span>Alerta</span>
-                </button>
-
-                <button 
-                  type="button"
-                  onClick={() => setModalTreinOpen(true)}
-                  className="btn-secondary h-8 px-2.5 text-xs font-medium gap-1.5"
-                >
-                  <Users className="w-3.5 h-3.5 text-sky-600" />
-                  <span className="hidden sm:inline">Treinamento</span>
-                </button>
-              </>
-            )}
-
+            {/* Ações primárias sempre visíveis */}
             {isLiderOrAbove && rnc.status !== 'Concluído' && (
               <button 
                 type="button"
                 onClick={() => setModalConcluirOpen(true)}
-                className="btn-primary h-8 px-3 text-xs font-bold gap-1.5 ml-1"
+                className="btn-primary h-8 px-3 text-xs font-bold gap-1.5"
               >
                 <CheckCircle className="w-3.5 h-3.5" />
                 <span>Concluir RNC</span>
               </button>
             )}
 
-            {isAdminOrQual && (
+            {!isOperator && (
               <button 
                 type="button"
-                onClick={() => setModalDeleteOpen(true)}
-                className="btn-icon h-8 w-8 text-rose-600 hover:bg-rose-50 hover:border-rose-300 ml-0.5"
-                title="Excluir Ocorrência"
+                onClick={() => onNavigate('registro-8d', { edicao: true, rncId: rnc.id })}
+                className="btn-secondary h-8 px-2.5 text-xs font-medium gap-1.5"
               >
-                <Trash2 className="w-3.5 h-3.5" />
+                <Edit3 className="w-3.5 h-3.5 text-[#64748b]" />
+                <span>Editar</span>
               </button>
             )}
+
+            {/* Menu de ações secundárias (⋯) */}
+            <div className="relative" ref={actionsMenuRef}>
+              <button 
+                type="button"
+                onClick={() => setActionsMenuOpen(!actionsMenuOpen)}
+                className={`btn-secondary h-8 px-2.5 text-xs font-medium gap-1.5 ${
+                  actionsMenuOpen ? 'bg-slate-100 border-slate-300' : ''
+                }`}
+                title="Mais ações"
+              >
+                <MoreHorizontal className="w-4 h-4 text-slate-600" />
+                <span className="hidden sm:inline">Ações</span>
+              </button>
+
+              {/* Pop-up de ações */}
+              {actionsMenuOpen && (
+                <div className="absolute right-0 top-full mt-1.5 w-56 bg-white rounded-xl border border-slate-200 shadow-lg z-40 py-1.5 animate-in fade-in slide-in-from-top-2 duration-150">
+                  <button
+                    type="button"
+                    onClick={() => { onNavigate('impressao-8d', { rncId: rnc.id }); setActionsMenuOpen(false); }}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition text-left"
+                  >
+                    <Printer className="w-4 h-4 text-slate-500" />
+                    <span>Imprimir Ficha A4</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { onNavigate('rastreabilidade', { rncId: rnc.id }); setActionsMenuOpen(false); }}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-medium text-indigo-700 hover:bg-indigo-50 transition text-left"
+                  >
+                    <Barcode className="w-4 h-4 text-indigo-500" />
+                    <span>Rastrear SAP</span>
+                  </button>
+                  {!isOperator && (
+                    <>
+                      <div className="border-t border-slate-100 my-1" />
+                      <button
+                        type="button"
+                        onClick={() => { setModalAlertaOpen(true); setActionsMenuOpen(false); }}
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-medium text-amber-800 hover:bg-amber-50 transition text-left"
+                      >
+                        <Bell className="w-4 h-4 text-amber-600" />
+                        <span>Registrar Alerta de Qualidade</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setModalTreinOpen(true); setActionsMenuOpen(false); }}
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-medium text-sky-700 hover:bg-sky-50 transition text-left"
+                      >
+                        <Users className="w-4 h-4 text-sky-600" />
+                        <span>Registrar Treinamento</span>
+                      </button>
+                    </>
+                  )}
+                  {isProtecaoAtiva && (
+                    <>
+                      <div className="border-t border-slate-100 my-1" />
+                      <button
+                        type="button"
+                        onClick={() => { setModalAvaliacaoOpen(true); setActionsMenuOpen(false); }}
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-medium text-emerald-800 hover:bg-emerald-50 transition text-left"
+                      >
+                        <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                        <span>Avaliação da Qualidade</span>
+                      </button>
+                    </>
+                  )}
+                  {isAdminOrQual && (
+                    <>
+                      <div className="border-t border-slate-100 my-1" />
+                      <button
+                        type="button"
+                        onClick={() => { setModalDeleteOpen(true); setActionsMenuOpen(false); }}
+                        className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-medium text-rose-700 hover:bg-rose-50 transition text-left"
+                      >
+                        <Trash2 className="w-4 h-4 text-rose-500" />
+                        <span>Excluir Ocorrência</span>
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Linha 2: Metadados Secundários (Esquerda) + Segmented Tabs (Direita) */}
+        {/* Linha 2: Metadados + Segmented Tabs */}
         <div className="pt-2 border-t border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#64748b]">
-            <span className="flex items-center gap-1.5 font-mono">
-              <span className="text-[#94a3b8]">ID do Registro:</span>
-              <strong className="text-blue-700 font-bold">#{rnc.id}</strong>
-            </span>
-            <span className="text-slate-300 hidden sm:inline">•</span>
             <span className="flex items-center gap-1.5">
               <span className="text-[#94a3b8]">Montadora:</span>
               <strong className="text-[#0f172a] font-semibold">{rnc.cliente || 'Não informada'}</strong>
@@ -438,7 +471,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
             )}
           </div>
 
-          {/* Segmented Control Responsivo e Compacto (h-8) */}
+          {/* Segmented Control */}
           <div className="flex items-center p-0.5 bg-[#f1f5f9] border border-[#e2e8f0] rounded-lg gap-1 shrink-0">
             <button
               type="button"
@@ -478,7 +511,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
           </div>
         </div>
 
-        {/* Notificação Suave de Programa Produção / Cliente (Quando Ativo) */}
+        {/* Notificação Programa Produção / Cliente (Quando Ativo) */}
         {isProtecaoAtiva && (
           <div className="rounded-xl p-3 bg-emerald-50/90 border border-emerald-300 text-emerald-950 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mt-1">
             <div className="flex items-center gap-2.5">
@@ -582,23 +615,17 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
           {/* ========================================================================= */}
           {(activeBlockTab === 'todos' || activeBlockTab === 'cliente') && (
             <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden flex flex-col w-full">
-              {/* Header Escuro Estilo Power Apps */}
-              <div className="bg-[#0f2942] text-white px-4 sm:px-5 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-[#1b3d5e]">
-                <div className="flex items-center gap-2.5">
-                  <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-sky-500 text-white tracking-wider">
-                    BLOCO 1
-                  </span>
-                  <div className="w-7 h-7 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center shrink-0 border border-sky-400/30">
-                    <Car className="w-4 h-4" />
-                  </div>
-                  <h2 className="font-bold text-sm sm:text-base tracking-wide text-white">
-                    1. Informações do Cliente & Relato da Ocorrência
-                  </h2>
+              {/* Header do Bloco 1 */}
+              <div className="bg-[#0f2942] text-white px-4 sm:px-5 py-3.5 flex items-center gap-2.5 border-b border-[#1b3d5e]">
+                <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-sky-500 text-white tracking-wider">
+                  BLOCO 1
+                </span>
+                <div className="w-7 h-7 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center shrink-0 border border-sky-400/30">
+                  <Car className="w-4 h-4" />
                 </div>
-                <div className="flex items-center gap-2 font-mono font-black text-xs sm:text-sm bg-white/10 px-2.5 py-1 rounded-md border border-white/20 text-sky-200 self-start sm:self-auto shadow-2xs">
-                  <Hash className="w-3.5 h-3.5 text-sky-400" />
-                  <span>ID: #{rnc.id}</span>
-                </div>
+                <h2 className="font-bold text-sm sm:text-base tracking-wide text-white">
+                  Informações do Cliente & Relato da Ocorrência
+                </h2>
               </div>
 
               {/* Corpo do Bloco 1 */}
@@ -670,9 +697,9 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                   </div>
 
                   <div className="p-3 bg-white rounded-lg border border-slate-200">
-                    <span className="text-[11px] font-semibold text-slate-500 block mb-1">Classificação / Código:</span>
+                    <span className="text-[11px] font-semibold text-slate-500 block mb-1">Classificação / Tipo:</span>
                     <div className="text-xs font-semibold text-slate-800">
-                      {rnc.tipoRnc} - Cód: <span className="font-mono font-bold text-slate-900">{rnc.field1 || rnc.codOcorrenciaCliente || '-'}</span>
+                      {rnc.tipoRnc}{rnc.codOcorrenciaCliente ? ` - Cód. Cliente: ${rnc.codOcorrenciaCliente}` : ''}
                     </div>
                   </div>
 
@@ -773,22 +800,17 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
           {/* ========================================================================= */}
           {(activeBlockTab === 'todos' || activeBlockTab === 'contencao') && (
             <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden flex flex-col w-full">
-              {/* Header Escuro Estilo Power Apps */}
-              <div className="bg-[#0f2942] text-white px-4 sm:px-5 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-[#1b3d5e]">
-                <div className="flex items-center gap-2.5">
-                  <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-emerald-500 text-white tracking-wider">
-                    BLOCO 2
-                  </span>
-                  <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-400/30">
-                    <ShieldCheck className="w-4 h-4" />
-                  </div>
-                  <h2 className="font-bold text-sm sm:text-base tracking-wide text-white">
-                    2. Contenção Imediata & Diretrizes Operacionais (5W2H)
-                  </h2>
-                </div>
-                <span className="text-[11px] font-semibold text-emerald-300 bg-emerald-950/60 px-2.5 py-1 rounded border border-emerald-700/60 self-start sm:self-auto">
-                  Triagem, Bloqueio & Ações 5W2H
+              {/* Header do Bloco 2 */}
+              <div className="bg-[#0f2942] text-white px-4 sm:px-5 py-3.5 flex items-center gap-2.5 border-b border-[#1b3d5e]">
+                <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-emerald-500 text-white tracking-wider">
+                  BLOCO 2
                 </span>
+                <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-400/30">
+                  <ShieldCheck className="w-4 h-4" />
+                </div>
+                <h2 className="font-bold text-sm sm:text-base tracking-wide text-white">
+                  Contenção Imediata & Diretrizes Operacionais (5W2H)
+                </h2>
               </div>
 
               {/* Corpo do Bloco 2 */}
@@ -954,22 +976,17 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
           {/* ========================================================================= */}
           {(activeBlockTab === 'todos' || activeBlockTab === 'disposicao') && (
             <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden flex flex-col w-full">
-              {/* Header Escuro Estilo Power Apps */}
-              <div className="bg-[#0f2942] text-white px-4 sm:px-5 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-[#1b3d5e]">
-                <div className="flex items-center gap-2.5">
-                  <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-indigo-500 text-white tracking-wider">
-                    BLOCO 3
-                  </span>
-                  <div className="w-7 h-7 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0 border border-indigo-400/30">
-                    <Layers className="w-4 h-4" />
-                  </div>
-                  <h2 className="font-bold text-sm sm:text-base tracking-wide text-white">
-                    3. Disposição Interna, Evidências Fotográficas & Equipe
-                  </h2>
-                </div>
-                <span className="text-[11px] font-semibold text-indigo-200 self-start sm:self-auto">
-                  Parecer Técnico, Foto Auxiliar & Treinamentos
+              {/* Header do Bloco 3 */}
+              <div className="bg-[#0f2942] text-white px-4 sm:px-5 py-3.5 flex items-center gap-2.5 border-b border-[#1b3d5e]">
+                <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-indigo-500 text-white tracking-wider">
+                  BLOCO 3
                 </span>
+                <div className="w-7 h-7 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0 border border-indigo-400/30">
+                  <Layers className="w-4 h-4" />
+                </div>
+                <h2 className="font-bold text-sm sm:text-base tracking-wide text-white">
+                  Disposição Interna, Evidências Fotográficas & Equipe
+                </h2>
               </div>
 
               {/* Corpo do Bloco 3 */}
@@ -1266,19 +1283,9 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
                       Informações do Produto & Identificação
                     </span>
-                    <div className="flex items-center gap-2 flex-wrap mt-0.5">
-                      <span className="px-2 py-0.5 rounded text-xs font-black bg-blue-100 text-[#0b5796] border border-blue-200 font-mono-numbers">
-                        RNC #{rnc.id}
-                      </span>
-                      {rnc.field1 && rnc.field1 !== `RNC #${rnc.id}` && (
-                        <span className="text-xs font-mono font-bold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
-                          {rnc.field1}
-                        </span>
-                      )}
-                      <h3 className="text-sm sm:text-base font-extrabold text-slate-900 tracking-tight font-mono-numbers">
-                        {rnc.produto || rnc.componente || 'Produto Não Especificado'}
-                      </h3>
-                    </div>
+                    <h3 className="text-sm sm:text-base font-extrabold text-slate-900 tracking-tight font-mono-numbers mt-0.5">
+                      {rnc.produto || rnc.componente || 'Produto Não Especificado'}
+                    </h3>
                   </div>
                 </div>
 
@@ -1293,26 +1300,10 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                 </div>
               </div>
 
-              {/* GRID 5 COLUNAS: ID DA RNC, LINHA, POSTO, DEFEITO E QUANTIDADE */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 pt-1">
-                
-                {/* 1. ID DA OCORRÊNCIA / RNC */}
-                <div className="p-2.5 bg-blue-50/70 rounded-xl border border-blue-200 flex flex-col gap-0.5">
-                  <span className="text-[10px] font-bold text-[#0b5796] uppercase flex items-center gap-1">
-                    <Hash className="w-3.5 h-3.5 text-[#0f6cbd]" />
-                    ID da RNC:
-                  </span>
-                  <span className="text-xs sm:text-sm font-black text-[#0b5796] font-mono-numbers">
-                    #{rnc.id}
-                  </span>
-                  {rnc.field1 && rnc.field1 !== `RNC #${rnc.id}` && (
-                    <span className="text-[10px] font-mono text-slate-500 truncate" title={rnc.field1}>
-                      {rnc.field1}
-                    </span>
-                  )}
-                </div>
+              {/* GRID 4 COLUNAS: LINHA, POSTO, DEFEITO E QUANTIDADE */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
 
-                {/* 2. LINHA / ÁREA FABRIL */}
+                {/* 1. LINHA / ÁREA FABRIL */}
                 <div className="p-2.5 bg-slate-50/80 rounded-xl border border-slate-200 flex flex-col gap-0.5">
                   <span className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1">
                     <Layers className="w-3.5 h-3.5 text-indigo-600" />
@@ -1323,7 +1314,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                   </span>
                 </div>
 
-                {/* 3. POSTO DE TRABALHO */}
+                {/* 2. POSTO DE TRABALHO */}
                 <div className="p-2.5 bg-slate-50/80 rounded-xl border border-slate-200 flex flex-col gap-0.5">
                   <span className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1">
                     <MapPin className="w-3.5 h-3.5 text-[#0b5796]" />
@@ -1334,8 +1325,8 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                   </span>
                 </div>
 
-                {/* 4. DEFEITO IDENTIFICADO */}
-                <div className="p-2.5 bg-rose-50/70 rounded-xl border border-rose-200 flex flex-col gap-0.5 sm:col-span-2 lg:col-span-1">
+                {/* 3. DEFEITO IDENTIFICADO */}
+                <div className="p-2.5 bg-rose-50/70 rounded-xl border border-rose-200 flex flex-col gap-0.5">
                   <span className="text-[10px] font-bold text-rose-700 uppercase flex items-center gap-1">
                     <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
                     Defeito Identificado:
@@ -1345,7 +1336,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                   </span>
                 </div>
 
-                {/* 5. QUANTIDADE DE PEÇAS */}
+                {/* 4. QUANTIDADE DE PEÇAS */}
                 <div className="p-2.5 bg-amber-50/60 rounded-xl border border-amber-200 flex flex-col gap-0.5">
                   <span className="text-[10px] font-bold text-amber-800 uppercase flex items-center gap-1">
                     <Barcode className="w-3.5 h-3.5 text-amber-700" />

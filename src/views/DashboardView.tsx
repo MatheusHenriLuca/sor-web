@@ -18,6 +18,7 @@ import {
 import { RNCRecord, UsuarioQualidade } from '../types';
 import { spStore } from '../services/sharepointService';
 import { formatDateBR } from '../utils/date';
+import { useTenant } from '../context/TenantContext';
 
 interface DashboardViewProps {
   onNavigate: (screen: any, params?: any) => void;
@@ -25,6 +26,7 @@ interface DashboardViewProps {
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, currentUser }) => {
+  const { activeTenant } = useTenant();
   const rncs = spStore.getRNCs();
   const alertas = spStore.getAlertas();
 
@@ -47,7 +49,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, curren
             <div className="flex items-center gap-2 mb-1.5">
               <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                SOR Engine
+                {activeTenant?.customizacao?.nomeExibicao || activeTenant?.nome || 'SOR SaaS Engine'}
               </span>
             </div>
             

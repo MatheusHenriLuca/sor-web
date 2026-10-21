@@ -10,13 +10,16 @@ import { RegistroProtCliView } from './views/RegistroProtCliView';
 import { RastreabilidadeView } from './views/RastreabilidadeView';
 import { FalhaEntregaView } from './views/FalhaEntregaView';
 import { CadastroUsuariosView } from './views/CadastroUsuariosView';
+import { SuperAdminView } from './views/SuperAdminView';
+import { TenantSettingsView } from './views/TenantSettingsView';
+import { TenantProvider } from './context/TenantContext';
 import { SharePointSyncModal } from './components/SharePointSyncModal';
 import { AppHeader } from './components/AppHeader';
 import { AppSidebar } from './components/AppSidebar';
 import { spStore } from './services/sharepointService';
 import { UsuarioQualidade, ActiveScreen } from './types';
 
-export function App() {
+function AppInner() {
   const queryParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
   const initialScreenParam = queryParams?.get('screen') as ActiveScreen | null;
   const initialRncId = queryParams?.get('rncId') ? Number(queryParams.get('rncId')) : undefined;
@@ -173,6 +176,18 @@ export function App() {
               />
             )}
 
+            {currentScreen === 'super-admin' && (
+              <SuperAdminView 
+                onNavigate={handleNavigate}
+              />
+            )}
+
+            {currentScreen === 'tenant-settings' && (
+              <TenantSettingsView 
+                onNavigate={handleNavigate}
+              />
+            )}
+
             {currentScreen === 'cadastro-usuarios' && (
               <CadastroUsuariosView 
                 onNavigate={handleNavigate}
@@ -193,6 +208,14 @@ export function App() {
       )}
 
     </div>
+  );
+}
+
+export function App() {
+  return (
+    <TenantProvider>
+      <AppInner />
+    </TenantProvider>
   );
 }
 

@@ -29,7 +29,11 @@ export type ActiveScreen =
   | 'rastreabilidade'
   | 'falha-entrega'
   | 'pagamento-protcli'
-  | 'cadastro-usuarios';
+  | 'cadastro-usuarios'
+  | 'super-admin'
+  | 'tenant-settings';
+
+export * from './saas';
 
 export interface UsuarioQualidade {
   id: number;
@@ -81,6 +85,7 @@ export interface SharePointConfig {
 
 export interface RNCRecord {
   id: number;
+  tenantId?: string; // UUID da Empresa (SaaS Multi-tenant)
   title: string; // Sequencial
   field1?: string; // Código Ocorrência (ex: RNC-2026-0042)
   tipoRnc: TipoRNC;

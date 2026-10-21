@@ -7,10 +7,14 @@ import {
   LogOut, 
   Menu,
   X,
-  Plus
+  Plus,
+  ShieldCheck,
+  Sliders,
+  Building2
 } from 'lucide-react';
 import { UsuarioQualidade, ActiveScreen } from '../types';
 import { spStore } from '../services/sharepointService';
+import { useTenant } from '../context/TenantContext';
 
 interface AppHeaderProps {
   currentScreen: ActiveScreen;
@@ -35,6 +39,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   onToggleMobileMenu,
   isMobileMenuOpen = false
 }) => {
+  const { activeTenant, isImpersonating, stopImpersonating } = useTenant();
   const [usersDropdownOpen, setUsersDropdownOpen] = useState(false);
   const [usersList, setUsersList] = useState<UsuarioQualidade[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -56,6 +61,10 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
   const getScreenTitle = (screen: ActiveScreen): string => {
     switch (screen) {
+      case 'super-admin':
+        return 'Console do Super Administrador • Gestão da Plataforma SaaS';
+      case 'tenant-settings':
+        return 'Personalização da Empresa • Cadastros Mestres & Visual';
       case 'menu-2':
         return 'Painel de Gerenciamento de Não Conformidades';
       case 'lista-8d':
@@ -92,7 +101,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   return (
     <header className="h-14 glass-nav px-3 sm:px-6 flex items-center justify-between select-none sticky top-0 z-40 border-b border-slate-200/80">
       
-      {/* Esquerda: Menu Hamburguer Mobile + Marca SOR */}
+      {/* Esquerda: Menu Hamburguer Mobile + Marca do Tenant Ativo */}
       <div className="flex items-center gap-2 sm:gap-3">
         {/* Botão de Menu Hamburguer para Mobile / Tablet */}
         <button
@@ -114,21 +123,24 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           <Grip className="w-4 h-4" />
         </button>
 
-        {/* Logotipo e Nome do Sistema */}
+        {/* Logotipo e Nome do Sistema Dinâmico do Tenant */}
         <div 
           onClick={() => onNavigate('menu-2')}
           className="flex items-center gap-2.5 cursor-pointer pl-0.5 group"
         >
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#0e67b0] via-[#0b5796] to-[#073660] text-white flex items-center justify-center font-bold text-xs shadow-xs ring-1 ring-white/25 group-hover:scale-105 transition-transform">
-            G
+          <div 
+            className="w-8 h-8 rounded-xl text-white flex items-center justify-center font-bold text-xs shadow-xs ring-1 ring-white/25 group-hover:scale-105 transition-transform"
+            style={{ backgroundColor: activeTenant.customizacao?.corPrimaria || '#0e67b0' }}
+          >
+            {activeTenant.nome.substring(0, 1).toUpperCase()}
           </div>
           <div className="flex flex-col">
             <div className="flex items-baseline gap-1.5">
               <span className="font-bold text-sm sm:text-base font-display text-slate-900 tracking-tight">
-                SOR
+                {activeTenant.customizacao?.nomeExibicao?.split('-')[0]?.trim() || activeTenant.nome.split(' ')[0]}
               </span>
               <span className="hidden sm:inline text-xs font-semibold text-slate-400">
-                • Gestão de RNC
+                • {activeTenant.slug}
               </span>
             </div>
           </div>
@@ -144,6 +156,23 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
       {/* Direita: Ações Rápidas, Telemetria & Perfil */}
       <div className="flex items-center gap-1.5 sm:gap-2">
+
+        {/* Banner de Simulação de Empresa (quando Super Admin acessa como cliente) */}
+        {isImpersonating && (
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold shrink-0 animate-pulse">
+            <Building2 className="w-3.5 h-3.5 text-amber-700" />
+            <span className="hidden sm:inline">Simulando:</span>
+            <span className="truncate max-w-[120px]">{activeTenant.nome}</span>
+            <button 
+              type="button" 
+              onClick={stopImpersonating} 
+              className="underline ml-1 hover:text-black cursor-pointer text-[11px] font-extrabold"
+              title="Voltar ao Console Super Admin"
+            >
+              Encerrar
+            </button>
+          </div>
+        )}
 
         {/* Status SharePoint Online */}
         <button
@@ -196,7 +225,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
           </button>
 
-          {/* Menu Dropdown de Troca de Operador */}
+          {/* Menu Dropdown de Troca de Operador & Gestão SaaS */}
           {usersDropdownOpen && (
             <div className="absolute right-0 mt-1.5 w-76 bg-white/95 backdrop-blur-xl rounded-2xl border border-slate-200/90 shadow-2xl py-1.5 z-50 animate-in fade-in slide-in-from-top-1">
               <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/70 rounded-t-2xl">
@@ -232,9 +261,33 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                   type="button"
                   onClick={() => {
                     setUsersDropdownOpen(false);
+                    onNavigate('tenant-settings');
+                  }}
+                  className="w-full text-left px-4 py-2 text-xs text-blue-700 hover:bg-blue-50 flex items-center gap-2 cursor-pointer font-semibold transition"
+                >
+                  <Sliders className="w-3.5 h-3.5 text-[#0f6cbd]" />
+                  <span>Personalização da Empresa</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUsersDropdownOpen(false);
+                    onNavigate('super-admin');
+                  }}
+                  className="w-full text-left px-4 py-2 text-xs text-indigo-700 hover:bg-indigo-50 flex items-center gap-2 cursor-pointer font-semibold transition"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>Console Super Admin (SaaS)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUsersDropdownOpen(false);
                     onNavigate('verif-user');
                   }}
-                  className="w-full text-left px-4 py-2.5 text-xs text-rose-600 hover:bg-rose-50 flex items-center gap-2 cursor-pointer font-semibold transition"
+                  className="w-full text-left px-4 py-2 text-xs text-rose-600 hover:bg-rose-50 flex items-center gap-2 cursor-pointer font-semibold transition"
                 >
                   <LogOut className="w-3.5 h-3.5" />
                   <span>Sair do Terminal</span>

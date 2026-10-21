@@ -11,9 +11,13 @@ import {
   Factory,
   ShieldPlus,
   List,
-  X
+  X,
+  Sliders,
+  ShieldCheck,
+  Palette
 } from 'lucide-react';
 import { ActiveScreen, UsuarioQualidade } from '../types';
+import { useTenant } from '../context/TenantContext';
 
 interface AppSidebarProps {
   currentScreen: ActiveScreen;
@@ -32,6 +36,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
   isMobileOpen = false,
   onCloseMobile
 }) => {
+  const { activeTenant, isImpersonating, stopImpersonating } = useTenant();
   const isOperator = currentUser.perfil === 'User';
   const role = currentUser.perfil;
 
@@ -309,6 +314,30 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
               <div className="flex flex-col !gap-1 !mt-1.5">
                 <button
                   type="button"
+                  onClick={() => handleItemClick('tenant-settings')}
+                  className={getLinkClasses(currentScreen === 'tenant-settings')}
+                >
+                  {currentScreen === 'tenant-settings' && (
+                    <span className="absolute left-0 top-2 bottom-2 w-1.25 bg-[#0f6cbd] rounded-r-full shadow-[0_0_8px_rgba(15,108,189,0.5)]" />
+                  )}
+                  <Sliders className={getIconClasses(currentScreen === 'tenant-settings')} />
+                  <span className="truncate">Personalizar Empresa</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleItemClick('super-admin')}
+                  className={getLinkClasses(currentScreen === 'super-admin')}
+                >
+                  {currentScreen === 'super-admin' && (
+                    <span className="absolute left-0 top-2 bottom-2 w-1.25 bg-[#0f6cbd] rounded-r-full shadow-[0_0_8px_rgba(15,108,189,0.5)]" />
+                  )}
+                  <ShieldCheck className={getIconClasses(currentScreen === 'super-admin')} />
+                  <span className="truncate">Console Super Admin</span>
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => handleItemClick('cadastro-usuarios')}
                   className={getLinkClasses(currentScreen === 'cadastro-usuarios')}
                 >
@@ -337,13 +366,32 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
 
       </div>
 
-      {/* Rodapé Corporativo Discreto */}
+      {/* Rodapé Corporativo com Branding Dinâmico do Tenant */}
       <div className="!p-4 border-t border-[#e2e8f0] text-xs text-[#64748b] bg-[#f8fafc]/80 backdrop-blur-xs">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.6)]" />
-          <span className="font-display font-bold text-[#0f172a]">Gestamp Sorocaba</span>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span 
+              className="w-2.5 h-2.5 rounded-full shadow-2xs"
+              style={{ backgroundColor: activeTenant.customizacao?.corPrimaria || '#0f6cbd' }} 
+            />
+            <span className="font-display font-bold text-[#0f172a] truncate max-w-[170px]">
+              {activeTenant.customizacao?.nomeExibicao?.split('-')[0]?.trim() || activeTenant.nome}
+            </span>
+          </div>
         </div>
-        <div className="text-[11px] text-[#64748b] mt-0.5 pl-4">Planta Sorocaba • Qualidade</div>
+        <div className="text-[11px] text-[#64748b] mt-0.5 pl-4.5 flex items-center justify-between">
+          <span className="font-mono">/{activeTenant.slug}</span>
+          {isImpersonating && (
+            <button
+              type="button"
+              onClick={stopImpersonating}
+              className="text-amber-700 font-bold hover:underline cursor-pointer"
+              title="Voltar ao Super Admin"
+            >
+              Sair
+            </button>
+          )}
+        </div>
       </div>
 
     </div>

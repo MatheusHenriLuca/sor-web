@@ -39,6 +39,8 @@ import { MODOS_FALHA_LIST, IMPACTOS_CLIENTE_LIST, GRAVIDADE_LIST, ACOES_CONTENCA
 import { SearchableSelect } from '../components/SearchableSelect';
 import { RncDetalhesModal } from '../components/RncDetalhesModal';
 import { formatDateBR } from '../utils/date';
+import { useTenant } from '../context/TenantContext';
+import { compressImage } from '../utils/imageCompressor';
 
 interface Registro8DViewProps {
   onNavigate: (screen: any, params?: any) => void;
@@ -70,6 +72,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
   rncId,
   edicao = false
 }) => {
+  const { activeTenant, masterData } = useTenant();
   const [pecasCatalogo, setPecasCatalogo] = useState<PecaCatalogo[]>([]);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -331,17 +334,31 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
     }
   }, [form.modoFalha, form.produto, form.componente, rncId]);
 
-  const postosDisponiveis = useMemo(() => spStore.getDistinctPostos(), []);
-  const fmdsDisponiveis = useMemo(() => spStore.getDistinctFMDS(), []);
+  const postosDisponiveis = useMemo(() => {
+    if (masterData?.postosTrabalho && masterData.postosTrabalho.length > 0) {
+      return masterData.postosTrabalho;
+    }
+    return spStore.getDistinctPostos();
+  }, [masterData]);
+
+  const fmdsDisponiveis = useMemo(() => {
+    if (masterData?.linhasFabris && masterData.linhasFabris.length > 0) {
+      return masterData.linhasFabris;
+    }
+    return spStore.getDistinctFMDS();
+  }, [masterData]);
 
   // Opções para SearchableSelect de Clientes (Montadoras)
   const optionsClientes = useMemo(() => {
-    return CLIENTES_LIST.map(cli => ({
+    const list = (masterData?.montadoras && masterData.montadoras.length > 0)
+      ? masterData.montadoras
+      : CLIENTES_LIST;
+    return list.map(cli => ({
       value: cli,
       label: cli,
       badge: getClientBadgeInfo(cli).code
     }));
-  }, []);
+  }, [masterData]);
 
   // Opções para SearchableSelect de Produto / Conjunto (Catálogo de Peças)
   const optionsProduto = useMemo(() => {
@@ -427,7 +444,10 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
 
   // Opções para SearchableSelect de Modos de Falha Padronizados (SharePoint field_12)
   const optionsModosFalha = useMemo(() => {
-    const opts: Array<{ value: string; label: string }> = MODOS_FALHA_LIST.map(m => ({
+    const list = (masterData?.modosFalha && masterData.modosFalha.length > 0)
+      ? masterData.modosFalha
+      : MODOS_FALHA_LIST;
+    const opts: Array<{ value: string; label: string }> = list.map(m => ({
       value: m,
       label: m
     }));
@@ -438,7 +458,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
       });
     }
     return opts;
-  }, [form.modoFalha]);
+  }, [form.modoFalha, masterData]);
 
   // Opções para SearchableSelect de Equipe Responsável pelo 8D (Foto 4)
   const optionsEquipe8D = useMemo(() => {
@@ -660,23 +680,30 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
     }));
   };
 
-  // Upload de Evidências Fotográficas
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'fotoPecaNg' | 'fotoPecaOk' | 'fotoAuxiliar') => {
+  // Upload de Evidências Fotográficas com compressão WebP (1920x1080 max, 82% qualidade)
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'fotoPecaNg' | 'fotoPecaOk' | 'fotoAuxiliar') => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 10 * 1024 * 1024) {
-      setNotification({ type: 'error', message: 'A imagem deve ter no máximo 10MB.' });
+    if (file.size > 20 * 1024 * 1024) {
+      setNotification({ type: 'error', message: 'A imagem deve ter no máximo 20MB.' });
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64 = event.target?.result as string;
-      setForm(prev => ({ ...prev, [field]: base64 }));
-      setNotification({ type: 'success', message: 'Evidência fotográfica anexada com sucesso!' });
-    };
-    reader.readAsDataURL(file);
+    try {
+      const res = await compressImage(file, { maxWidth: 1920, maxHeight: 1080, quality: 0.82 });
+      setForm(prev => ({ ...prev, [field]: res.dataUrl }));
+      setNotification({ type: 'success', message: `Evidência fotográfica anexada e otimizada (WebP de ${res.originalSizeKb}KB para ${res.compressedSizeKb}KB) com sucesso!` });
+    } catch (err) {
+      console.warn('Compressão WebP falhou, aplicando fallback Base64 direto:', err);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64 = event.target?.result as string;
+        setForm(prev => ({ ...prev, [field]: base64 }));
+        setNotification({ type: 'success', message: 'Evidência fotográfica anexada com sucesso!' });
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleRemoveFoto = (field: 'fotoPecaNg' | 'fotoPecaOk' | 'fotoAuxiliar') => {

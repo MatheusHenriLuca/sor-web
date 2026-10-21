@@ -28,6 +28,7 @@ import { spStore } from '../services/sharepointService';
 import { CLIENTES_LIST, getClientBadgeInfo } from '../constants/clientes';
 import { formatDateBR } from '../utils/date';
 import { handleSafeClick } from '../utils/selection';
+import { useTenant } from '../context/TenantContext';
 
 interface Lista8DViewProps {
   onNavigate: (screen: string, params?: any) => void;
@@ -44,7 +45,12 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
   initialStatus = 'Todas',
   initialSearch = ''
 }) => {
+  const { activeTenant } = useTenant();
   const [rncs, setRncs] = useState<RNCRecord[]>(spStore.getRNCs());
+
+  useEffect(() => {
+    setRncs(spStore.getRNCs());
+  }, [activeTenant]);
   const [tipoFilter, setTipoFilter] = useState<string>(initialTipo || 'Tudo');
   const [searchInput, setSearchInput] = useState(initialSearch);
   const [debouncedSearch, setDebouncedSearch] = useState(initialSearch);

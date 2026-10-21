@@ -16,6 +16,8 @@ import {
 } from '../types';
 import { spDirect } from './sharepointDirectService';
 import { DEFAULT_CLIENTE } from '../constants/clientes';
+import { tenantStore } from './tenantStore';
+import { GPM_TENANT_ID } from '../constants/gpmPilotRncs';
 
 // ============================================================================
 // CONFIGURAÇÃO DO SHAREPOINT ONLINE
@@ -1283,15 +1285,108 @@ class SharePointDataStore {
   // OPERAÇÕES RNC ('Resumo dos Incidentes de qualidade')
   // ============================================================================
   public getRNCs(): RNCRecord[] {
+    const activeTenant = tenantStore.getActiveTenant();
+    if (activeTenant) {
+      if (activeTenant.slug === 'gestamp-brasil') {
+        const stored = tenantStore.getTenantRncs(activeTenant.id);
+        if (stored && stored.length > 0) return stored;
+        return this.rncs;
+      }
+      return tenantStore.getTenantRncs(activeTenant.id);
+    }
     return this.rncs;
   }
 
   public getRNCById(id: number | string): RNCRecord | undefined {
+    const all = this.getRNCs();
     const numId = Number(id);
-    return this.rncMap.get(numId) || this.rncs.find(r => r.id === numId || String(r.id) === String(id));
+    return all.find(r => r.id === numId || String(r.id) === String(id));
   }
 
   public saveRNC(rnc: Partial<RNCRecord>): RNCRecord & { success: boolean; message: string } {
+    const activeTenant = tenantStore.getActiveTenant();
+    const isLegacyGestamp = !activeTenant || activeTenant.slug === 'gestamp-brasil';
+    const tenantId = activeTenant?.id || GPM_TENANT_ID;
+
+    if (!isLegacyGestamp) {
+      const tenantRncs = tenantStore.getTenantRncs(tenantId);
+      if (rnc.id) {
+        // Edição em Tenant SaaS
+        const idx = tenantRncs.findIndex(r => r.id === rnc.id);
+        if (idx >= 0) {
+          tenantRncs[idx] = { ...tenantRncs[idx], ...rnc, tenantId } as RNCRecord;
+          tenantStore.saveTenantRncs(tenantId, tenantRncs);
+          return { ...tenantRncs[idx], success: true, message: "Ocorrência atualizada com sucesso!" };
+        }
+      }
+
+      // Criação em Tenant SaaS
+      const maxExistingId = tenantRncs.reduce((max, r) => r.id > max ? r.id : max, 100);
+      const nextId = maxExistingId + 1;
+      const year = new Date().getFullYear();
+      const newRecord: RNCRecord = {
+        id: nextId,
+        title: String(nextId),
+        field1: `RNC-${year}-${String(nextId).padStart(4, '0')}`,
+        tenantId,
+        tipoRnc: rnc.tipoRnc || "Formal",
+        status: rnc.status || "Relatório Inicial",
+        cliente: rnc.cliente || (activeTenant?.nome || DEFAULT_CLIENTE),
+        dataOcorrencia: rnc.dataOcorrencia || new Date().toISOString().split('T')[0],
+        dataOficializacao: rnc.dataOficializacao || new Date().toISOString().split('T')[0],
+        codOcorrenciaCliente: rnc.codOcorrenciaCliente || "",
+        impactoCliente: rnc.impactoCliente || "",
+        detalhamentoOcorrencia: rnc.detalhamentoOcorrencia || "",
+        classificacaoSetor: rnc.classificacaoSetor || "SOLDA 2 - CEL. TOYOTA",
+        setorDeteccao: rnc.setorDeteccao || "Linha de Montagem",
+        turno: rnc.turno || "1º Turno",
+        produto: rnc.produto || "",
+        componente: rnc.componente || "",
+        finalComponente: rnc.finalComponente || "Peça Final",
+        quantidadeAfetada: rnc.quantidadeAfetada || 1,
+        modoFalha: rnc.modoFalha || "",
+        descricaoProblema: rnc.descricaoProblema || "",
+        descricaoCompleta: rnc.descricaoCompleta || "",
+        fotoPecaNg: rnc.fotoPecaNg || "",
+        fotoPecaOk: rnc.fotoPecaOk || "",
+        caracteristicaSeguranca: rnc.caracteristicaSeguranca || "Não",
+        coProduto: rnc.coProduto || "Não",
+        carryOver: rnc.carryOver || "Não",
+        reincidente: rnc.reincidente || "NÃO",
+        gravidade: rnc.gravidade || "Média",
+        possivelDetectar: rnc.possivelDetectar || "Sim",
+        posto: rnc.posto || "POSTO 01",
+        fmds: rnc.fmds || "SOLDA GERAL",
+        acoesContencao: rnc.acoesContencao || "",
+        dataContencao: rnc.dataContencao || "",
+        descricaoProblemaInterno: rnc.descricaoProblemaInterno || "",
+        recomendacoesProvidencias: rnc.recomendacoesProvidencias || "",
+        fotoAuxiliar: rnc.fotoAuxiliar || "",
+        oQueFazer: rnc.oQueFazer || "",
+        comoFazer: rnc.comoFazer || "",
+        porQueFazer: rnc.porQueFazer || "",
+        quemFara: rnc.quemFara || "",
+        quandoFara: rnc.quandoFara || "",
+        ondeFara: rnc.ondeFara || "",
+        qtdInspecionada: rnc.qtdInspecionada || 0,
+        qtdSuspeita: rnc.qtdSuspeita || 0,
+        qtdBloqueada: rnc.qtdBloqueada || 0,
+        documentoRastreabilidade: rnc.documentoRastreabilidade || "Não Informado",
+        codigoRastreabilidade: rnc.codigoRastreabilidade || "",
+        dataInicioRastreabilidade: rnc.dataInicioRastreabilidade || "",
+        dataFimRastreabilidade: rnc.dataFimRastreabilidade || "",
+        participantesAtendimento: rnc.participantesAtendimento || this.currentUser.nome,
+        protcliente: rnc.protcliente || (rnc.codigoRastreabilidade ? "Sim" : "Não"),
+        abrir8D: rnc.abrir8D || "Sim",
+        detector: this.currentUser.nome,
+        reDetector: this.currentUser.reAcesso
+      };
+
+      tenantRncs.unshift(newRecord);
+      tenantStore.saveTenantRncs(tenantId, tenantRncs);
+      return { ...newRecord, success: true, message: "Nova ocorrência registrada com sucesso!" };
+    }
+
     if (rnc.id) {
       // Edição
       const idx = this.rncs.findIndex(r => r.id === rnc.id);
@@ -1420,7 +1515,7 @@ class SharePointDataStore {
     const prodPrefix = (produtoOuCodCli || '').trim().substring(0, 9).toUpperCase();
     const compPrefix = (componente || '').trim().substring(0, 9).toUpperCase();
 
-    return this.rncs.filter(r => {
+    return this.getRNCs().filter(r => {
       if (rncAtualId && r.id === rncAtualId) return false;
 
       // 1. O defeito DEVE coincidir exatamente com a classificação selecionada
@@ -1453,6 +1548,19 @@ class SharePointDataStore {
 
   // Double Closure Guard do Power Apps: BtnCocluirrnc
   public concluirRNC(id: number, responsavel: string, obs?: string): { success: boolean; message: string } {
+    const activeTenant = tenantStore.getActiveTenant();
+    if (activeTenant && activeTenant.slug !== 'gestamp-brasil') {
+      const tenantRncs = tenantStore.getTenantRncs(activeTenant.id);
+      const idx = tenantRncs.findIndex(r => r.id === id);
+      if (idx === -1) return { success: false, message: "Ocorrência não encontrada." };
+      tenantRncs[idx].status = "Concluído";
+      tenantRncs[idx].responsavelConclusao = responsavel;
+      tenantRncs[idx].dataConclusao = new Date().toISOString().split('T')[0];
+      tenantRncs[idx].observacoesConclusao = obs || "";
+      tenantStore.saveTenantRncs(activeTenant.id, tenantRncs);
+      return { success: true, message: `RNC ${tenantRncs[idx].field1 || id} concluída com sucesso!` };
+    }
+
     const idx = this.rncs.findIndex(r => r.id === id);
     if (idx === -1) return { success: false, message: "Ocorrência não encontrada." };
     this.rncs[idx].status = "Concluído";
@@ -1477,6 +1585,13 @@ class SharePointDataStore {
 
   // Exclusão em cascata: Button2_2
   public deleteRNCCascade(id: number): boolean {
+    const activeTenant = tenantStore.getActiveTenant();
+    if (activeTenant && activeTenant.slug !== 'gestamp-brasil') {
+      const tenantRncs = tenantStore.getTenantRncs(activeTenant.id).filter(r => r.id !== id);
+      tenantStore.saveTenantRncs(activeTenant.id, tenantRncs);
+      return true;
+    }
+
     this.rncs = this.rncs.filter(r => r.id !== id);
     this.rastreabilidades = this.rastreabilidades.filter(r => r.idRnc !== id);
     this.treinamentos = this.treinamentos.filter(t => t.idRnc !== id);

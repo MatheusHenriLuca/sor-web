@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   ArrowLeft, 
   Printer, 
@@ -22,11 +22,16 @@ import {
   Check, 
   ExternalLink,
   ShieldCheck,
-  FileText
+  FileText,
+  AlertCircle,
+  History,
+  Eye,
+  Calendar
 } from 'lucide-react';
 import { RNCRecord, UsuarioQualidade, RegistroTreinamento } from '../types';
 import { spStore } from '../services/sharepointService';
 import { ImageWithFallback } from '../components/ImageWithFallback';
+import { RncDetalhesModal } from '../components/RncDetalhesModal';
 
 interface Detalhes8DViewProps {
   rncId: number;
@@ -52,6 +57,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
   const [modalConcluirOpen, setModalConcluirOpen] = useState(false);
   const [modalDeleteOpen, setModalDeleteOpen] = useState(false);
   const [modalAvaliacaoOpen, setModalAvaliacaoOpen] = useState(false);
+  const [rncPopupVisualizar, setRncPopupVisualizar] = useState<RNCRecord | null>(null);
 
   // Estados dos formulários em modais
   const [alertaPostos, setAlertaPostos] = useState('');
@@ -83,6 +89,24 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
   useEffect(() => {
     reloadData();
   }, [rncId]);
+
+  // Histórico de reincidências para a mesma peça e modo de falha desta RNC (ordenado da mais recente para mais antiga)
+  const historicoReincidencias = useMemo(() => {
+    if (!rnc) return [];
+    const defeito = rnc.modoFalha || rnc.descricaoProblema;
+    if (!defeito || (!rnc.produto && !rnc.componente)) return [];
+    return spStore.getHistoricoReincidencias(
+      rnc.produto, 
+      defeito, 
+      rnc.id, 
+      rnc.componente
+    ).sort((a, b) => {
+      const dateA = a.dataOcorrencia || '';
+      const dateB = b.dataOcorrencia || '';
+      if (dateB !== dateA) return dateB.localeCompare(dateA);
+      return (b.id || 0) - (a.id || 0);
+    });
+  }, [rnc]);
 
   if (!rnc) {
     return (
@@ -239,105 +263,79 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
         </div>
       )}
 
-      {/* 1. CABEÇALHO UNIFICADO DO REGISTRO (ÁREAS A, B, C, D COM HIERARQUIA E RESPIRO) */}
-      <div className="card-saas p-5 sm:p-6 flex flex-col gap-4">
+      {/* 1. CABEÇALHO UNIFICADO & COMPACTO DA OCORRÊNCIA (MELHOR APROVEITAMENTO DE ESPAÇO) */}
+      <div className="card-saas p-3.5 sm:p-4 flex flex-col gap-3 shadow-xs bg-white border-slate-200">
         
-        {/* Bloco A — Identificação da Ocorrência (Número, Status, Tipo e Metadados com Amplo Respiro) */}
-        <div className="flex flex-col gap-3 pb-4 border-b border-[#f1f5f9]">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+        {/* Linha 1: Navegação + Identificador + Badges + Barra de Ações Rápidas */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 flex-wrap">
             <button 
               type="button"
               onClick={() => onNavigate('lista-8d')}
-              className="btn-secondary h-9 px-3 text-xs font-semibold shrink-0 gap-1.5"
+              className="btn-secondary h-8 px-2.5 text-xs font-semibold shrink-0 gap-1.5"
               title="Voltar para a Lista de Ocorrências"
             >
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowLeft className="w-3.5 h-3.5" />
               <span>Voltar</span>
             </button>
 
-            <div className="flex flex-wrap items-center gap-2">
-              {/* Status Principal com Semântica Suave WCAG 2.2 */}
-              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border shrink-0 ${
-                rnc.status === 'Concluído' 
-                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
-                  : rnc.status === 'Em Andamento' 
-                  ? 'bg-amber-50 text-amber-900 border-amber-200' 
-                  : 'bg-sky-50 text-sky-800 border-sky-200'
-              }`}>
-                <span className={`w-2 h-2 rounded-full ${
-                  rnc.status === 'Concluído' ? 'bg-emerald-500' : rnc.status === 'Em Andamento' ? 'bg-amber-500' : 'bg-sky-500'
-                }`} />
-                {rnc.status}
-              </span>
+            <div className="h-4 w-px bg-slate-200 hidden sm:block" />
 
-              {/* Tipo da Ocorrência */}
-              <span className="px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200 shrink-0">
-                {rnc.tipoRnc}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-[#0f172a] tracking-tight font-mono-numbers">
+            <h1 className="text-xl sm:text-2xl font-black text-[#0f172a] tracking-tight font-mono-numbers">
               {rnc.field1 || `RNC #${rnc.id}`}
             </h1>
 
-            {/* Metadados Secundários: Montadora, Peça, Setor */}
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#64748b]">
-              <span className="flex items-center gap-1.5">
-                <span className="text-[#94a3b8]">Montadora:</span>
-                <strong className="text-[#0f172a] font-semibold">{rnc.cliente || 'Não informada'}</strong>
-              </span>
-              <span className="text-slate-300 hidden sm:inline">•</span>
-              <span className="flex items-center gap-1.5">
-                <span className="text-[#94a3b8]">Peça:</span>
-                <strong className="text-[#0f172a] font-semibold">{rnc.produto || rnc.componente}</strong>
-              </span>
-              {rnc.classificacaoSetor && (
-                <>
-                  <span className="text-slate-300 hidden sm:inline">•</span>
-                  <span className="flex items-center gap-1.5">
-                    <span className="text-[#94a3b8]">Setor:</span>
-                    <strong className="text-[#0f172a] font-semibold">{rnc.classificacaoSetor}</strong>
-                  </span>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
+            {/* Status Principal com Semântica Suave */}
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border shrink-0 ${
+              rnc.status === 'Concluído' 
+                ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
+                : rnc.status === 'Em Andamento' 
+                ? 'bg-amber-50 text-amber-900 border-amber-200' 
+                : 'bg-sky-50 text-sky-800 border-sky-200'
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${
+                rnc.status === 'Concluído' ? 'bg-emerald-500' : rnc.status === 'Em Andamento' ? 'bg-amber-500' : 'bg-sky-500'
+              }`} />
+              {rnc.status}
+            </span>
 
-        {/* Bloco B — Barra de Ações da Ocorrência (Grupo Visual Próprio com Espaçamento Uniforme) */}
-        <div className="bg-[#f8fafc] border border-[#e2e8f0] rounded-xl p-3 sm:p-3.5 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Tipo da Ocorrência */}
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200 shrink-0">
+              {rnc.tipoRnc}
+            </span>
+          </div>
+
+          {/* Barra de Ações Rápidas (Compacta h-8) */}
+          <div className="flex items-center gap-1.5 flex-wrap">
             <button 
               type="button"
               onClick={() => onNavigate('impressao-8d', { rncId: rnc.id })}
-              className="btn-secondary h-9 px-3.5 text-xs font-medium gap-2"
+              className="btn-secondary h-8 px-2.5 text-xs font-medium gap-1.5"
               title="Gerar Ficha A4 em PDF"
             >
-              <Printer className="w-4 h-4 text-[#64748b]" />
-              <span>Imprimir A4</span>
+              <Printer className="w-3.5 h-3.5 text-[#64748b]" />
+              <span className="hidden sm:inline">Imprimir A4</span>
             </button>
 
             <button 
               type="button"
               onClick={() => onNavigate('rastreabilidade', { rncId: rnc.id })}
-              className="btn-secondary h-9 px-3.5 text-xs font-semibold text-[#4338ca] hover:bg-indigo-50 hover:border-indigo-200 gap-2"
+              className="btn-secondary h-8 px-2.5 text-xs font-semibold text-[#4338ca] hover:bg-indigo-50 hover:border-indigo-200 gap-1.5"
               title="Ver lotes SAP e histórico de rastreabilidade desta ocorrência"
             >
-              <Barcode className="w-4 h-4 text-[#4338ca]" />
-              <span>Rastrear SAP</span>
+              <Barcode className="w-3.5 h-3.5 text-[#4338ca]" />
+              <span className="hidden sm:inline">Rastrear SAP</span>
             </button>
 
             {isProtecaoAtiva && (
               <button 
                 type="button"
                 onClick={() => setModalAvaliacaoOpen(true)}
-                className="btn-secondary h-9 px-3.5 text-xs font-bold gap-2 text-emerald-800 bg-emerald-50 border-emerald-300 hover:bg-emerald-100 transition shadow-2xs"
+                className="btn-secondary h-8 px-2.5 text-xs font-bold gap-1.5 text-emerald-800 bg-emerald-50 border-emerald-300 hover:bg-emerald-100 transition shadow-2xs"
                 title="Avaliação da Qualidade para ocorrências do chão de fábrica"
               >
-                <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                <span>Avaliação Qualidade</span>
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                <span className="hidden sm:inline">Avaliação Qualidade</span>
               </button>
             )}
 
@@ -346,41 +344,39 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                 <button 
                   type="button"
                   onClick={() => onNavigate('registro-8d', { edicao: true, rncId: rnc.id })}
-                  className="btn-secondary h-9 px-3.5 text-xs font-medium gap-2"
+                  className="btn-secondary h-8 px-2.5 text-xs font-medium gap-1.5"
                 >
-                  <Edit3 className="w-4 h-4 text-[#64748b]" />
+                  <Edit3 className="w-3.5 h-3.5 text-[#64748b]" />
                   <span>Editar</span>
                 </button>
 
                 <button 
                   type="button"
                   onClick={() => setModalAlertaOpen(true)}
-                  className="btn-secondary h-9 px-3.5 text-xs font-medium gap-2"
+                  className="btn-secondary h-8 px-2.5 text-xs font-medium gap-1.5"
                 >
-                  <Bell className="w-4 h-4 text-amber-600" />
+                  <Bell className="w-3.5 h-3.5 text-amber-600" />
                   <span>Alerta</span>
                 </button>
 
                 <button 
                   type="button"
                   onClick={() => setModalTreinOpen(true)}
-                  className="btn-secondary h-9 px-3.5 text-xs font-medium gap-2"
+                  className="btn-secondary h-8 px-2.5 text-xs font-medium gap-1.5"
                 >
-                  <Users className="w-4 h-4 text-sky-600" />
-                  <span>Treinamento</span>
+                  <Users className="w-3.5 h-3.5 text-sky-600" />
+                  <span className="hidden sm:inline">Treinamento</span>
                 </button>
               </>
             )}
-          </div>
 
-          <div className="flex items-center gap-2.5">
             {isLiderOrAbove && rnc.status !== 'Concluído' && (
               <button 
                 type="button"
                 onClick={() => setModalConcluirOpen(true)}
-                className="btn-primary h-9 px-4 text-xs font-bold gap-2"
+                className="btn-primary h-8 px-3 text-xs font-bold gap-1.5 ml-1"
               >
-                <CheckCircle className="w-4 h-4" />
+                <CheckCircle className="w-3.5 h-3.5" />
                 <span>Concluir RNC</span>
               </button>
             )}
@@ -389,116 +385,98 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
               <button 
                 type="button"
                 onClick={() => setModalDeleteOpen(true)}
-                className="btn-icon h-9 w-9 text-rose-600 hover:bg-rose-50 hover:border-rose-300"
+                className="btn-icon h-8 w-8 text-rose-600 hover:bg-rose-50 hover:border-rose-300 ml-0.5"
                 title="Excluir Ocorrência"
               >
-                <Trash2 className="w-4 h-4" />
+                <Trash2 className="w-3.5 h-3.5" />
               </button>
             )}
           </div>
         </div>
 
-        {/* Bloco C — Alerta de Produção / Cliente (VERDE, Permanente até o Final) */}
-        {isProtecaoAtiva && (
-          <div className="rounded-2xl p-4 sm:p-5 bg-emerald-50/90 border border-emerald-300 shadow-2xs text-emerald-950 flex flex-col gap-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex items-start gap-3.5">
-                <div className="w-10 h-10 rounded-xl bg-emerald-100 border border-emerald-300 text-emerald-800 flex items-center justify-center shrink-0 shadow-2xs">
-                  <ShieldCheck className="w-5 h-5 text-emerald-700" />
-                </div>
-                <div className="flex flex-col gap-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs sm:text-sm font-bold text-emerald-950">
-                      Programa Produção / Cliente
-                    </span>
-                    <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border tracking-wider uppercase shrink-0 ${
-                      rnc.protcliente === 'Sim' 
-                        ? 'bg-amber-100 text-amber-900 border-amber-300' 
-                        : rnc.protcliente === 'Reprovado' 
-                        ? 'bg-rose-100 text-rose-900 border-rose-300' 
-                        : 'bg-emerald-600 text-white border-emerald-700'
-                    }`}>
-                      {rnc.protcliente === 'Sim' ? 'Aguardando Avaliação' : rnc.protcliente}
-                    </span>
-                  </div>
-                  <div className="text-xs text-emerald-900 leading-relaxed">
-                    Etiqueta SAP vinculada: <code className="font-mono font-bold bg-white px-2 py-0.5 rounded border border-emerald-300 text-emerald-950">{rnc.codigoRastreabilidade || 'Não informada'}</code>. Detecção originada no chão de fábrica.
-                  </div>
-                </div>
-              </div>
-
-              {/* Botão de Avaliação da Qualidade */}
-              {isLiderOrAbove && (
-                <button
-                  type="button"
-                  onClick={() => setModalAvaliacaoOpen(true)}
-                  className={`btn-primary h-9 px-4 text-xs font-bold shrink-0 shadow-sm ${
-                    rnc.protcliente === 'Sim'
-                      ? 'bg-emerald-700 hover:bg-emerald-800 text-white animate-pulse'
-                      : 'bg-white text-emerald-900 border border-emerald-300 hover:bg-emerald-100'
-                  }`}
-                >
-                  <ShieldCheck className="w-4 h-4 mr-1.5 inline" />
-                  {rnc.protcliente === 'Sim' ? 'Avaliar Ocorrência' : 'Revisar Avaliação'}
-                </button>
-              )}
-            </div>
-
-            {/* Resumo da Avaliação Técnica da Qualidade */}
-            {(rnc.protcliente === 'Aprovado' || rnc.protcliente === 'Registro Pago' || rnc.protcliente === 'Reprovado') && (
-              <div className="pt-3 border-t border-emerald-200/80 flex flex-wrap items-center justify-between gap-3 text-xs text-emerald-900">
-                <div className="flex flex-wrap items-center gap-4">
-                  {rnc.criticidade && (
-                    <span><strong>Criticidade:</strong> Classe {rnc.criticidade}</span>
-                  )}
-                  {rnc.abrirRnc && (
-                    <span><strong>Decisão:</strong> {rnc.abrirRnc}</span>
-                  )}
-                  {rnc.comentarioGestor && (
-                    <span className="italic bg-white/70 px-2.5 py-1 rounded border border-emerald-200 text-emerald-950">
-                      <strong>Parecer:</strong> "{rnc.comentarioGestor}"
-                    </span>
-                  )}
-                </div>
-                <span className="text-[11px] font-semibold text-emerald-700 flex items-center gap-1">
-                  <Check className="w-3.5 h-3.5" />
-                  Avaliação da Qualidade Registrada
+        {/* Linha 2: Metadados Secundários (Esquerda) + Segmented Tabs (Direita) */}
+        <div className="pt-2 border-t border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#64748b]">
+            <span className="flex items-center gap-1.5">
+              <span className="text-[#94a3b8]">Montadora:</span>
+              <strong className="text-[#0f172a] font-semibold">{rnc.cliente || 'Não informada'}</strong>
+            </span>
+            <span className="text-slate-300 hidden sm:inline">•</span>
+            <span className="flex items-center gap-1.5">
+              <span className="text-[#94a3b8]">Peça:</span>
+              <strong className="text-[#0f172a] font-semibold">{rnc.produto || rnc.componente}</strong>
+            </span>
+            {rnc.classificacaoSetor && (
+              <>
+                <span className="text-slate-300 hidden sm:inline">•</span>
+                <span className="flex items-center gap-1.5">
+                  <span className="text-[#94a3b8]">Setor:</span>
+                  <strong className="text-[#0f172a] font-semibold">{rnc.classificacaoSetor}</strong>
                 </span>
-              </div>
+              </>
             )}
           </div>
-        )}
 
-        {/* Bloco D — Navegação Interna da Ocorrência (Segmented Control Responsivo com Padding Confortável) */}
-        <div className="pt-1 flex items-center w-full sm:w-auto">
-          <div className="w-full sm:w-auto flex flex-col sm:flex-row items-stretch sm:items-center p-1 bg-[#f1f5f9] border border-[#e2e8f0] rounded-xl shadow-2xs gap-1.5">
+          {/* Segmented Control Responsivo e Compacto (h-8) */}
+          <div className="flex items-center p-0.5 bg-[#f1f5f9] border border-[#e2e8f0] rounded-lg gap-1 shrink-0">
             <button
               type="button"
               onClick={() => setActiveViewMode('detalhes')}
-              className={`h-10 px-4 sm:px-5 rounded-lg text-xs sm:text-sm font-semibold flex items-center justify-center gap-2.5 transition cursor-pointer select-none ${
+              className={`h-7 px-3 rounded-md text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer select-none ${
                 activeViewMode === 'detalhes'
-                  ? 'bg-white text-[#0f6cbd] shadow-xs border border-[#e2e8f0]'
+                  ? 'bg-white text-[#0f6cbd] shadow-2xs border border-[#e2e8f0]'
                   : 'text-[#64748b] hover:text-[#0f172a]'
               }`}
             >
-              <List className="w-4 h-4" />
-              <span>Detalhado (Lista Completa)</span>
+              <List className="w-3.5 h-3.5" />
+              <span>Detalhado</span>
             </button>
 
             <button
               type="button"
               onClick={() => setActiveViewMode('alerta')}
-              className={`h-10 px-4 sm:px-5 rounded-lg text-xs sm:text-sm font-semibold flex items-center justify-center gap-2.5 transition cursor-pointer select-none ${
+              className={`h-7 px-3 rounded-md text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer select-none ${
                 activeViewMode === 'alerta'
-                  ? 'bg-white text-rose-700 shadow-xs border border-[#e2e8f0]'
+                  ? 'bg-white text-rose-700 shadow-2xs border border-[#e2e8f0]'
                   : 'text-[#64748b] hover:text-[#0f172a]'
               }`}
             >
-              <AlertTriangle className="w-4 h-4 text-amber-600" />
-              <span>Alerta da Qualidade & Contenção</span>
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+              <span>Alerta Qualidade / Disposição</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onNavigate('rastreabilidade', { rncId: rnc.id })}
+              className="h-7 px-3 rounded-md text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer select-none text-[#64748b] hover:text-[#0f172a]"
+              title="Abrir tela de Rastreabilidade desta ocorrência"
+            >
+              <Barcode className="w-3.5 h-3.5 text-indigo-600" />
+              <span>Rastrear</span>
             </button>
           </div>
         </div>
+
+        {/* Notificação Suave de Programa Produção / Cliente (Quando Ativo) */}
+        {isProtecaoAtiva && (
+          <div className="rounded-xl p-3 bg-emerald-50/90 border border-emerald-300 text-emerald-950 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mt-1">
+            <div className="flex items-center gap-2.5">
+              <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0" />
+              <div className="text-xs text-emerald-900 leading-snug">
+                <strong>Programa Produção / Cliente:</strong> Etiqueta SAP <code className="font-mono font-bold bg-white px-1.5 py-0.5 rounded border border-emerald-300 text-emerald-950">{rnc.codigoRastreabilidade || 'Não informada'}</code>. Detecção no chão de fábrica.
+              </div>
+            </div>
+            {isLiderOrAbove && (
+              <button
+                type="button"
+                onClick={() => setModalAvaliacaoOpen(true)}
+                className="btn-primary h-7 px-3 text-xs font-bold shrink-0 bg-emerald-700 hover:bg-emerald-800 text-white"
+              >
+                {rnc.protcliente === 'Sim' ? 'Avaliar Ocorrência' : 'Revisar Avaliação'}
+              </button>
+            )}
+          </div>
+        )}
 
       </div>
 
@@ -524,23 +502,118 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
 
             <div className="flex flex-col gap-3.5 pt-1">
               <div className="info-tile">
-                <span className="info-tile-label">
-                  Descrição resumida da não conformidade
+                <span className="info-tile-label flex items-center justify-between">
+                  <span>Modo de Falha (Defeito)</span>
+                  <span className="text-[10px] font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+                    Defeito Selecionado
+                  </span>
                 </span>
-                <div className="info-tile-value text-sm font-semibold text-[#0f172a] mt-1">
-                  {rnc.descricaoProblema || 'Não Conformidade registrada na linha'}
+                <div className="info-tile-value text-sm font-bold text-[#0f172a] mt-1 flex items-center gap-1.5">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>{rnc.modoFalha || rnc.descricaoProblema || 'Não especificado'}</span>
                 </div>
               </div>
 
               <div className="info-tile">
-                <span className="info-tile-label">
-                  Detalhamento do ocorrido (chão de fábrica / cliente)
+                <span className="info-tile-label flex items-center justify-between">
+                  <span>Detalhamento Técnico da Não Conformidade</span>
+                  <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
+                    Descrição Complementar
+                  </span>
                 </span>
-                <div className="text-xs sm:text-sm text-[#334155] leading-relaxed font-normal mt-1">
-                  {rnc.descricaoCompleta || rnc.descricaoProblema || 'Nenhum detalhamento complementar informado.'}
+                <div className="text-xs sm:text-sm text-[#334155] leading-relaxed font-medium mt-1">
+                  {rnc.descricaoProblema || rnc.descricaoCompleta || 'Nenhum detalhamento livre informado.'}
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* SEÇÃO HISTÓRICO DE REINCIDÊNCIAS (MESMA PEÇA / MODO DE FALHA) */}
+          <div className="card-saas p-6 flex flex-col gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#f1f5f9]">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center shrink-0">
+                  <History className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm sm:text-base font-bold text-[#0f172a] flex items-center gap-2">
+                    <span>Histórico de Reincidências Registradas</span>
+                    <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
+                      {historicoReincidencias.length} registro(s)
+                    </span>
+                  </h3>
+                  <p className="text-xs text-[#64748b]">
+                    Ocorrências da mesma peça com o defeito <strong>"{rnc.modoFalha || rnc.descricaoProblema}"</strong> ordenadas da mais recente para a mais antiga.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {historicoReincidencias.length === 0 ? (
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-center flex items-center justify-center gap-2 text-xs text-slate-500">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                <span>Nenhuma outra ocorrência anterior foi encontrada no histórico para esta peça com este defeito. (Primeira Ocorrência / Não Reincidente).</span>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2 max-h-80 overflow-y-auto pr-1">
+                {historicoReincidencias.map((item, idx) => (
+                  <div 
+                    key={item.id || idx}
+                    className="p-3 bg-white rounded-xl border border-slate-200 hover:border-amber-400 hover:shadow-xs transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 min-w-0 flex-1">
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-xs font-bold text-slate-900 font-mono bg-slate-100 px-2.5 py-1 rounded border border-slate-200">
+                          {item.field1 || `RNC #${item.id}`}
+                        </span>
+                        <span className="text-[11px] font-semibold text-slate-700 bg-slate-50 px-2 py-0.5 rounded border border-slate-200 flex items-center gap-1">
+                          <Calendar className="w-3 h-3 text-slate-400" />
+                          <span>{item.dataOcorrencia}</span>
+                        </span>
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-slate-900 truncate">
+                            {item.modoFalha || item.descricaoProblema || 'Defeito registrado'}
+                          </span>
+                          {item.classificacaoSetor && (
+                            <span className="text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.2 rounded hidden md:inline">
+                              {item.classificacaoSetor}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                          {item.cliente} • {item.produto || item.componente} {item.posto ? `• Posto: ${item.posto}` : ''} • Qtd: {item.quantidadeAfetada || 1}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                        item.status === 'Concluído' 
+                          ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
+                          : item.status === 'Em Andamento' 
+                          ? 'bg-amber-50 text-amber-900 border-amber-200' 
+                          : 'bg-blue-50 text-blue-800 border-blue-200'
+                      }`}>
+                        {item.status || 'Em Andamento'}
+                      </span>
+
+                      <button
+                        type="button"
+                        onClick={() => setRncPopupVisualizar(item)}
+                        className="btn-secondary h-8 px-3 text-xs font-bold text-[#0b5796] hover:bg-blue-50 border-blue-200 flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                        title="Visualizar detalhes em pop-up rápido"
+                      >
+                        <Eye className="w-3.5 h-3.5 text-[#0b5796]" />
+                        <span>Ver RNC</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* SEÇÃO 2: DADOS DO PRODUTO & ORIGEM FABRIL (GRID 2 COLUNAS BENTO) */}
@@ -569,6 +642,11 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                 <div className="info-tile">
                   <span className="info-tile-label">Veículo / Código SAP</span>
                   <span className="info-tile-value font-mono">{rnc.codigoRastreabilidade || 'N/A'}</span>
+                </div>
+
+                <div className="info-tile">
+                  <span className="info-tile-label">Tipo de Peça Rastreada</span>
+                  <span className="info-tile-value font-medium">{rnc.finalComponente || 'Produto Final'}</span>
                 </div>
 
                 <div className="sm:col-span-2 info-tile">
@@ -656,10 +734,43 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                   <span className="info-tile-value">{rnc.detector || 'N/A'}</span>
                 </div>
 
-                <div className="info-tile">
-                  <span className="info-tile-label">Etiqueta SAP vinculada</span>
+                {rnc.setorDeteccao && (
+                  <div className="info-tile">
+                    <span className="info-tile-label">Setor de Detecção (Chão de Fábrica)</span>
+                    <span className="info-tile-value font-semibold text-amber-800">{rnc.setorDeteccao}</span>
+                  </div>
+                )}
+
+                {rnc.participantesAtendimento && (
+                  <div className="sm:col-span-2 info-tile">
+                    <span className="info-tile-label">Participantes do Atendimento</span>
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {rnc.participantesAtendimento.split(';').map((p, idx) => (
+                        <span key={idx} className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-indigo-50 text-indigo-800 border border-indigo-200">
+                          {p.trim()}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="info-tile sm:col-span-2">
+                  <span className="info-tile-label">Documento para Rastreabilidade</span>
                   <div className="flex items-center justify-between gap-2 mt-1">
-                    <span className="font-mono font-bold text-sm text-[#0f172a]">{rnc.codigoRastreabilidade || 'N/A'}</span>
+                    <div className="flex flex-col">
+                      <span className="text-xs font-semibold text-slate-800">
+                        {rnc.documentoRastreabilidade || 'Etiqueta SAP'}
+                      </span>
+                      {rnc.documentoRastreabilidade === 'Não Informado' ? (
+                        <span className="text-[11px] font-mono text-slate-600 mt-0.5">
+                          Período de Lote: {rnc.dataInicioRastreabilidade || 'N/A'} até {rnc.dataFimRastreabilidade || 'N/A'}
+                        </span>
+                      ) : (
+                        <span className="text-xs font-mono font-bold text-[#0f172a] mt-0.5">
+                          Código: {rnc.codigoRastreabilidade || 'N/A'}
+                        </span>
+                      )}
+                    </div>
                     {rnc.codigoRastreabilidade && (
                       <button
                         type="button"
@@ -812,8 +923,8 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                 </div>
 
                 <div className="text-xs text-[#334155] bg-white p-3 rounded-lg border border-rose-200">
-                  <span className="text-[10px] font-bold text-rose-800 uppercase block">Modo de Falha:</span>
-                  <div className="font-bold text-[#0f172a] mt-0.5">{rnc.descricaoProblema || 'Deformação'}</div>
+                  <span className="text-[10px] font-bold text-rose-800 uppercase block">Modo de Falha / Defeito:</span>
+                  <div className="font-bold text-[#0f172a] mt-0.5">{rnc.modoFalha || rnc.descricaoProblema || 'Não especificado'}</div>
                 </div>
               </div>
 
@@ -905,107 +1016,439 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
       )}
 
       {/* ========================================================================= */}
-      {/* MODO 2: ALERTA DA QUALIDADE & CONTENÇÃO (FOCO EM IMAGENS GRANDES E CHÃO) */}
+      {/* ========================================================================= */}
+      {/* MODO 2: ALERTA DA QUALIDADE & DISPOSIÇÃO (REFERÊNCIA TELAS POWER APPS)   */}
       {/* ========================================================================= */}
       {activeViewMode === 'alerta' && (
-        <div className="flex flex-col gap-6 animate-in fade-in">
+        <div className="flex flex-col gap-5 animate-in fade-in">
           
-          {/* Banner Chamativo de Alerta */}
-          <div className="bg-gradient-to-r from-rose-50 via-amber-50 to-white border-l-4 border-l-rose-600 border border-rose-200 rounded-2xl p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3.5">
-              <div className="w-12 h-12 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center shrink-0 border border-rose-200">
-                <AlertTriangle className="w-6 h-6 animate-pulse" />
+          {/* Faixa Compacta de Status da Contenção e Ações do Alerta */}
+          <div className="bg-gradient-to-r from-rose-50 via-amber-50/40 to-white border border-rose-200/90 rounded-xl px-4 py-2.5 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-rose-100 text-rose-700 flex items-center justify-center shrink-0 border border-rose-200">
+                <AlertTriangle className="w-4 h-4 text-rose-600 animate-pulse" />
               </div>
-              <div>
-                <span className="text-xs font-bold text-rose-700 uppercase tracking-wider block">
-                  Alerta da Qualidade & Disposição Imediata
+              <div className="flex items-center gap-2 flex-wrap text-xs">
+                <span className="font-bold text-rose-800 uppercase tracking-wide">
+                  Instrução de Contenção Ativa
                 </span>
-                <div className="text-base sm:text-lg font-extrabold text-[#0f172a] mt-0.5">
-                  {rnc.componente} • {rnc.produto}
-                </div>
-                <p className="text-xs text-[#475569] mt-0.5">
-                  Divulgação mandatória nos postos da montadora <strong>{rnc.cliente}</strong> ({rnc.classificacaoSetor})
-                </p>
+                <span className="text-slate-300 hidden sm:inline">•</span>
+                <span className="font-semibold text-slate-800">
+                  {rnc.modoFalha || rnc.descricaoProblema || 'Não conformidade'}
+                </span>
+                <span className="text-slate-300 hidden sm:inline">•</span>
+                <span className="text-slate-500">
+                  Posto: <strong className="text-slate-700">{rnc.posto || 'Geral'}</strong>
+                </span>
               </div>
             </div>
 
-            {!isOperator && (
+            <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+              {!isOperator && (
+                <button
+                  type="button"
+                  onClick={() => setModalAlertaOpen(true)}
+                  className="btn-primary bg-rose-700 hover:bg-rose-800 border-rose-700 text-xs h-7 px-2.5 gap-1.5"
+                >
+                  <Bell className="w-3.5 h-3.5" />
+                  <span>Registrar Divulgação</span>
+                </button>
+              )}
               <button
                 type="button"
-                onClick={() => setModalAlertaOpen(true)}
-                className="btn-primary bg-rose-700 hover:bg-rose-800 border-rose-700 text-xs shrink-0"
+                onClick={() => onNavigate('impressao-8d', { rncId: rnc.id })}
+                className="btn-secondary text-xs h-7 px-2.5 gap-1.5"
+                title="Imprimir Alerta de Qualidade"
               >
-                <Bell className="w-4 h-4" />
-                <span>Registrar Divulgação</span>
+                <Printer className="w-3.5 h-3.5 text-slate-600" />
+                <span>Imprimir Alerta</span>
               </button>
-            )}
+            </div>
           </div>
 
-          {/* EVIDÊNCIAS FOTOGRÁFICAS EM TAMANHO GRANDE */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            
-            {/* Peça NG */}
-            <div className="card-saas p-6 border-2 border-rose-300 bg-rose-50/20 flex flex-col gap-4">
-              <div className="flex items-center justify-between pb-3 border-b border-rose-200">
-                <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-1 rounded-md text-xs font-extrabold uppercase bg-rose-700 text-white">
-                    Defeito (NG)
-                  </span>
-                  <span className="font-bold text-sm text-rose-950">Peça Não Conforme</span>
+          {/* =========================================================================
+              PAINEL UNIFICADO DO ALERTA DE QUALIDADE (CONTAINER ÚNICO)
+              1. Topo: Informações do Produto (Linha, Posto, Defeito, Quantidade e Peça)
+              2. Centro: 3 Fotos Alinhadas na Mesma Linha (Foto OK, Foto NG, Foto Auxiliar)
+              3. Base: Toda a Contenção, Disposição Interna e Plano 5W2H (O que fazer)
+              ========================================================================= */}
+          <div className="card-saas p-4 sm:p-5 border-slate-200 flex flex-col gap-5 shadow-xs bg-white">
+
+            {/* 1. TOPO: INFORMAÇÕES DO PRODUTO & OCORRÊNCIA */}
+            <div className="flex flex-col gap-3 pb-4 border-b border-slate-100">
+              
+              {/* Cabeçalho do Bloco com Produto e Badge de Volume */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-sky-100 text-sky-800 flex items-center justify-center font-bold shrink-0">
+                    <Info className="w-4 h-4 text-[#0b5796]" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                      Informações do Produto & Identificação
+                    </span>
+                    <h3 className="text-sm sm:text-base font-extrabold text-slate-900 tracking-tight font-mono-numbers">
+                      {rnc.produto || rnc.componente || 'Produto Não Especificado'}
+                    </h3>
+                  </div>
                 </div>
-                <span className="text-xs text-rose-700 font-bold">Amostra Rejeitada</span>
+
+                {/* Quantidade em Destaque */}
+                <div className="flex items-center gap-2 self-start sm:self-auto">
+                  <div className="px-3 py-1.5 bg-amber-50 rounded-xl border border-amber-200 text-right flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-amber-700 uppercase">Quantidade Afetada:</span>
+                    <span className="text-sm font-extrabold text-amber-950 font-mono-numbers">
+                      {rnc.quantidadeAfetada || 1} Peça(s)
+                    </span>
+                  </div>
+                </div>
               </div>
 
-              <div className="h-80 rounded-xl bg-white border border-rose-200 overflow-hidden flex items-center justify-center p-2 shadow-xs">
-                <ImageWithFallback
-                  src={rnc.fotoPecaNg}
-                  alt={`Peça NG: ${rnc.descricaoProblema}`}
-                  variant="ng"
-                  className="w-full h-full object-contain"
-                  emptyLabel="Sem foto do defeito cadastrada"
-                  allowZoom={true}
-                  itemId={rnc.id}
-                />
+              {/* GRID 4 COLUNAS: LINHA, POSTO, DEFEITO E QUANTIDADE */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
+                
+                {/* 1. LINHA / ÁREA FABRIL */}
+                <div className="p-2.5 bg-slate-50/80 rounded-xl border border-slate-200 flex flex-col gap-0.5">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1">
+                    <Layers className="w-3.5 h-3.5 text-indigo-600" />
+                    Linha / Área:
+                  </span>
+                  <span className="text-xs sm:text-sm font-bold text-slate-900 truncate" title={rnc.fmds || rnc.classificacaoSetor || 'Não especificada'}>
+                    {rnc.fmds || rnc.classificacaoSetor || 'Área Fabril'}
+                  </span>
+                </div>
+
+                {/* 2. POSTO DE TRABALHO */}
+                <div className="p-2.5 bg-slate-50/80 rounded-xl border border-slate-200 flex flex-col gap-0.5">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1">
+                    <MapPin className="w-3.5 h-3.5 text-[#0b5796]" />
+                    Posto:
+                  </span>
+                  <span className="text-xs sm:text-sm font-bold text-slate-900 truncate" title={rnc.posto || 'Geral'}>
+                    {rnc.posto || 'Não especificado'}
+                  </span>
+                </div>
+
+                {/* 3. DEFEITO IDENTIFICADO */}
+                <div className="p-2.5 bg-rose-50/70 rounded-xl border border-rose-200 flex flex-col gap-0.5 sm:col-span-2 lg:col-span-1">
+                  <span className="text-[10px] font-bold text-rose-700 uppercase flex items-center gap-1">
+                    <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
+                    Defeito Identificado:
+                  </span>
+                  <span className="text-xs sm:text-sm font-bold text-rose-950 truncate" title={rnc.modoFalha || rnc.descricaoProblema || 'Não especificado'}>
+                    {rnc.modoFalha || rnc.descricaoProblema || 'Não especificado'}
+                  </span>
+                </div>
+
+                {/* 4. QUANTIDADE DE PEÇAS */}
+                <div className="p-2.5 bg-amber-50/60 rounded-xl border border-amber-200 flex flex-col gap-0.5">
+                  <span className="text-[10px] font-bold text-amber-800 uppercase flex items-center gap-1">
+                    <Barcode className="w-3.5 h-3.5 text-amber-700" />
+                    Quantidade de Peças:
+                  </span>
+                  <span className="text-xs sm:text-sm font-bold text-amber-950 font-mono-numbers">
+                    {rnc.quantidadeAfetada || 1} Peça(s)
+                  </span>
+                </div>
+
               </div>
 
-              <div className="p-3.5 bg-white rounded-xl border border-rose-200 text-xs flex flex-col gap-1">
-                <span className="font-bold text-rose-800 uppercase text-[11px] block">Defeito Identificado:</span>
-                <div className="text-sm font-bold text-[#0f172a]">{rnc.descricaoProblema}</div>
-                <div className="text-[#64748b]">Posto de Origem: <strong>{rnc.posto || 'Não especificado'}</strong></div>
+            </div>
+
+            {/* 2. CENTRO: AS TRÊS FOTOS NA MESMA LINHA */}
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-700 uppercase tracking-wide flex items-center gap-1.5">
+                  <Eye className="w-4 h-4 text-[#0b5796]" />
+                  Padrões Visuais & Registros Fotográficos
+                </span>
+                <span className="text-[10px] text-slate-400">
+                  Clique nas fotos para ampliar
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+                
+                {/* FOTO 1: PEÇA OK (PADRÃO CONFORME) */}
+                <div className="rounded-2xl border-2 border-emerald-400 bg-emerald-50/30 overflow-hidden shadow-xs flex flex-col">
+                  <div className="bg-emerald-600 px-3 py-1.5 text-white flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 font-bold text-xs uppercase tracking-wide">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                      <span>Foto da peça OK:</span>
+                    </div>
+                    <span className="text-[10px] bg-emerald-700/80 px-1.5 py-0.5 rounded font-semibold text-emerald-100">
+                      Padrão
+                    </span>
+                  </div>
+                  <div className="h-56 sm:h-64 bg-white flex items-center justify-center p-2 relative group overflow-hidden">
+                    <ImageWithFallback
+                      src={rnc.fotoPecaOk}
+                      alt="Peça OK Padrão"
+                      variant="ok"
+                      className="w-full h-full object-contain"
+                      emptyLabel="Sem foto do padrão OK"
+                      allowZoom={true}
+                      itemId={rnc.id}
+                    />
+                  </div>
+                  <div className="p-2 bg-emerald-50/80 border-t border-emerald-200 text-center">
+                    <span className="text-[11px] font-bold text-emerald-800">
+                      Peça Conforme (Critério de Liberação)
+                    </span>
+                  </div>
+                </div>
+
+                {/* FOTO 2: PEÇA NG (DEFEITO REJEITADO) */}
+                <div className="rounded-2xl border-2 border-rose-500 bg-rose-50/30 overflow-hidden shadow-xs flex flex-col">
+                  <div className="bg-rose-600 px-3 py-1.5 text-white flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 font-bold text-xs uppercase tracking-wide">
+                      <AlertTriangle className="w-3.5 h-3.5 text-white" />
+                      <span>Foto da peça NG:</span>
+                    </div>
+                    <span className="text-[10px] bg-rose-700/80 px-1.5 py-0.5 rounded font-semibold text-rose-100">
+                      Defeito
+                    </span>
+                  </div>
+                  <div className="h-56 sm:h-64 bg-white flex items-center justify-center p-2 relative group overflow-hidden">
+                    <ImageWithFallback
+                      src={rnc.fotoPecaNg}
+                      alt="Peça NG Não Conforme"
+                      variant="ng"
+                      className="w-full h-full object-contain"
+                      emptyLabel="Sem foto da peça NG"
+                      allowZoom={true}
+                      itemId={rnc.id}
+                    />
+                  </div>
+                  <div className="p-2 bg-rose-50/80 border-t border-rose-200 text-center">
+                    <span className="text-[11px] font-bold text-rose-800">
+                      Amostra Rejeitada / Não Conforme
+                    </span>
+                  </div>
+                </div>
+
+                {/* FOTO 3: FOTO AUXILIAR (RETRABALHO / SELEÇÃO) */}
+                <div className="rounded-2xl border-2 border-sky-400 bg-sky-50/30 overflow-hidden shadow-xs flex flex-col">
+                  <div className="bg-[#0b5796] px-3 py-1.5 text-white flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 font-bold text-xs uppercase tracking-wide">
+                      <Eye className="w-3.5 h-3.5 text-white" />
+                      <span>Foto Auxiliar:</span>
+                    </div>
+                    <span className="text-[10px] bg-sky-800/80 px-1.5 py-0.5 rounded font-semibold text-sky-100">
+                      Retrabalho / Seleção
+                    </span>
+                  </div>
+                  <div className="h-56 sm:h-64 bg-white flex items-center justify-center p-2 relative group overflow-hidden">
+                    <ImageWithFallback
+                      src={rnc.fotoAuxiliar}
+                      alt="Foto auxiliar de retrabalho / seleção"
+                      className="w-full h-full object-contain"
+                      emptyLabel="Sem foto auxiliar"
+                      allowZoom={true}
+                      itemId={rnc.id}
+                    />
+                  </div>
+                  <div className="p-2 bg-sky-50/80 border-t border-sky-200 text-center">
+                    <span className="text-[11px] font-bold text-sky-900">
+                      Instrução Operacional / Seleção
+                    </span>
+                  </div>
+                </div>
+
               </div>
             </div>
 
-            {/* Peça OK */}
-            <div className="card-saas p-6 border-2 border-emerald-300 bg-emerald-50/20 flex flex-col gap-4">
-              <div className="flex items-center justify-between pb-3 border-b border-emerald-200">
-                <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-1 rounded-md text-xs font-extrabold uppercase bg-emerald-700 text-white">
-                    Padrão (OK)
-                  </span>
-                  <span className="font-bold text-sm text-emerald-950">Peça Conforme</span>
+            {/* 3. BASE: CONTENÇÃO, DISPOSIÇÃO & PLANO DE AÇÃO (O QUE FAZER) */}
+            <div className="flex flex-col gap-4 pt-4 border-t border-slate-100">
+              
+              {/* Grid de 2 Colunas para Disposição e Plano 5W2H */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4.5 items-stretch">
+                
+                {/* COLUNA ESQUERDA: DISPOSIÇÃO INTERNA & AÇÕES DE CONTENÇÃO */}
+                <div className="p-4 rounded-2xl bg-slate-50/60 border border-slate-200 flex flex-col gap-3.5">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-200/80">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-800 flex items-center justify-center font-bold">
+                        <Wrench className="w-4 h-4" />
+                      </div>
+                      <h4 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wide">
+                        Disposição Interna & Ações Imediatas
+                      </h4>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-3">
+                    {/* Contenção */}
+                    <div className="p-3 bg-blue-50/80 rounded-xl border border-blue-200/80 flex flex-col gap-1">
+                      <span className="text-[10px] font-bold text-[#0b5796] uppercase flex items-center gap-1">
+                        <ShieldCheck className="w-3.5 h-3.5 text-[#0b5796]" />
+                        Contenção:
+                      </span>
+                      <div className="text-xs sm:text-sm font-bold text-slate-900 leading-snug">
+                        {rnc.acoesContencao || 'Nenhuma ação de contenção registrada.'}
+                      </div>
+                    </div>
+
+                    {/* Recomendações / Providências */}
+                    <div className="p-3 bg-amber-50/50 rounded-xl border border-amber-200/80 flex flex-col gap-1">
+                      <span className="text-[10px] font-bold text-amber-800 uppercase flex items-center gap-1">
+                        <Info className="w-3.5 h-3.5 text-amber-700" />
+                        Recomendações / Providências:
+                      </span>
+                      <div className="text-xs text-slate-800 leading-relaxed font-medium whitespace-pre-wrap">
+                        {rnc.recomendacoesProvidencias || 'Nenhuma recomendação técnica informada.'}
+                      </div>
+                    </div>
+
+                    {/* Descrição do Problema */}
+                    <div className="p-3 bg-white rounded-xl border border-slate-200 flex flex-col gap-1">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1">
+                        <FileText className="w-3.5 h-3.5 text-slate-500" />
+                        Descrição do problema:
+                      </span>
+                      <div className="text-xs text-slate-800 font-medium leading-relaxed">
+                        {rnc.descricaoProblemaInterno || rnc.descricaoProblema || 'Não especificada.'}
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <span className="text-xs text-emerald-700 font-bold">Critério Aceito</span>
+
+                {/* COLUNA DIREITA: PLANO 5W2H (O QUE FAZER, COMO FAZER, PORQUE FAZER, ETC.) */}
+                <div className="p-4 rounded-2xl bg-slate-50/60 border border-slate-200 flex flex-col gap-3.5">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-200/80">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-sky-100 text-sky-800 flex items-center justify-center font-bold">
+                        <ShieldAlert className="w-4 h-4 text-[#0b5796]" />
+                      </div>
+                      <h4 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wide">
+                        Plano 5W2H da Contenção
+                      </h4>
+                    </div>
+                    <span className="text-[10px] font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
+                      Instrução Operacional
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col gap-3">
+                    {/* O que fazer? */}
+                    <div className="p-3 rounded-xl bg-white border border-slate-200 flex flex-col gap-1">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase">
+                        O que fazer?
+                      </span>
+                      <div className="text-xs sm:text-sm font-bold text-slate-900 leading-relaxed whitespace-pre-wrap">
+                        {rnc.oQueFazer || 'Não informado'}
+                      </div>
+                    </div>
+
+                    {/* Como fazer? */}
+                    <div className="p-3 rounded-xl bg-white border border-slate-200 flex flex-col gap-1">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase">
+                        Como fazer?
+                      </span>
+                      <div className="text-xs text-slate-800 leading-relaxed font-medium whitespace-pre-wrap">
+                        {rnc.comoFazer || 'Não informado'}
+                      </div>
+                    </div>
+
+                    {/* Porque fazer? */}
+                    <div className="p-3 rounded-xl bg-white border border-slate-200 flex flex-col gap-1">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase">
+                        Porque fazer?
+                      </span>
+                      <div className="text-xs text-slate-800 leading-relaxed font-medium whitespace-pre-wrap">
+                        {rnc.porQueFazer || 'Não informado'}
+                      </div>
+                    </div>
+
+                    {/* Quando, Onde e Responsável */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-0.5">
+                      <div className="p-2.5 rounded-lg bg-white border border-slate-200 flex flex-col gap-0.5">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1">
+                          <Calendar className="w-3 h-3 text-indigo-600" />
+                          Quando fazer?
+                        </span>
+                        <span className="text-xs font-bold text-slate-900">
+                          {rnc.quandoFara || rnc.dataContencao || 'Imediato'}
+                        </span>
+                      </div>
+
+                      <div className="p-2.5 rounded-lg bg-white border border-slate-200 flex flex-col gap-0.5">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1">
+                          <MapPin className="w-3 h-3 text-indigo-600" />
+                          Onde fazer?
+                        </span>
+                        <span className="text-xs font-bold text-slate-900">
+                          {rnc.ondeFara || 'Posto de Trabalho'}
+                        </span>
+                      </div>
+
+                      <div className="p-2.5 rounded-lg bg-white border border-slate-200 flex flex-col gap-0.5">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1">
+                          <Users className="w-3 h-3 text-indigo-600" />
+                          Equipe responsável:
+                        </span>
+                        <span className="text-xs font-bold text-slate-900 truncate" title={rnc.quemFara || rnc.participantesAtendimento}>
+                          {rnc.quemFara || rnc.participantesAtendimento || 'Qualidade / Produção'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
               </div>
 
-              <div className="h-80 rounded-xl bg-white border border-emerald-200 overflow-hidden flex items-center justify-center p-2 shadow-xs">
-                <ImageWithFallback
-                  src={rnc.fotoPecaOk}
-                  alt={`Peça OK: ${rnc.componente}`}
-                  variant="ok"
-                  className="w-full h-full object-contain"
-                  emptyLabel="Sem foto padrão cadastrada"
-                  allowZoom={true}
-                  itemId={rnc.id}
-                />
-              </div>
-
-              <div className="p-3.5 bg-white rounded-xl border border-emerald-200 text-xs flex flex-col gap-1">
-                <span className="font-bold text-emerald-800 uppercase text-[11px] block">Critério de Liberação:</span>
-                <div className="text-sm font-bold text-[#0f172a]">Livre de trincas, solda 100% contínua e conformidade dimensional.</div>
-                <div className="text-[#64748b]">Inspeção visual e dimensional aprovada.</div>
-              </div>
             </div>
 
+          </div>
+
+          {/* SEÇÃO INFERIOR: OPERADORES TREINADOS NESTA CONTENÇÃO */}
+          <div className="card-saas p-0 overflow-hidden">
+            <div className="p-4 sm:p-5 border-b border-[#e2e8f0] flex items-center justify-between bg-white">
+              <div className="flex items-center gap-2.5">
+                <Users className="w-5 h-5 text-[#0f6cbd]" />
+                <h3 className="text-sm sm:text-base font-bold text-[#0f172a]">
+                  Registro de Treinamento da Equipe na Contenção ({treinamentos.length})
+                </h3>
+              </div>
+              {!isOperator && (
+                <button
+                  type="button"
+                  onClick={() => setModalTreinOpen(true)}
+                  className="btn-secondary h-8 px-3 text-xs"
+                >
+                  <span>+ Novo Treinamento</span>
+                </button>
+              )}
+            </div>
+
+            {treinamentos.length === 0 ? (
+              <div className="p-6 text-center text-xs text-[#64748b]">
+                Nenhum operador registrado no treinamento desta contenção até o momento.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-[#e2e8f0] bg-[#f8fafc] text-[#64748b] font-semibold">
+                      <th className="py-3 px-5">Operador</th>
+                      <th className="py-3 px-5">RE</th>
+                      <th className="py-3 px-5">Data</th>
+                      <th className="py-3 px-5">Instrutor</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#f1f5f9]">
+                    {treinamentos.map(t => (
+                      <tr key={t.id} className="hover:bg-[#f8fafc] transition-colors">
+                        <td className="py-3 px-5 font-bold text-[#0f172a]">{t.nomeColaborador || (t as any).nomeOperador}</td>
+                        <td className="py-3 px-5 font-mono text-[#64748b]">{t.re}</td>
+                        <td className="py-3 px-5 font-mono text-[#64748b]">{t.dataTreinamento}</td>
+                        <td className="py-3 px-5 text-[#334155]">{t.responsavel || (t as any).instrutor}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
 
         </div>
@@ -1442,6 +1885,18 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* MODAL POP-UP DE VISUALIZAÇÃO RÁPIDA DE RNC DO HISTÓRICO */}
+      {rncPopupVisualizar && (
+        <RncDetalhesModal
+          rnc={rncPopupVisualizar}
+          onClose={() => setRncPopupVisualizar(null)}
+          onOpenFullPage={id => {
+            setRncPopupVisualizar(null);
+            onNavigate('detalhes-8d', { rncId: id });
+          }}
+        />
       )}
 
     </div>

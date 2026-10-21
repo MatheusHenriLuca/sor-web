@@ -72,7 +72,7 @@ export const ImageWithFallback: React.FC<ImageWithFallbackProps> = ({
 
         if (fileName) {
           const id = itemId || '';
-          const attachmentUrl = `https://gitservices.sharepoint.com/sites/QualityGate/Lists/Resumo%20dos%20Incidentes%20de%20qualidade/Attachments/${id}/${encodeURIComponent(fileName)}`;
+          const attachmentUrl = `https://gitservices.sharepoint.com/sites/QualityGate/Lists/Resumo%20dos%20Incidentes%20de%20qualidade/Attachments/${id}/${fileName}`;
           return { url: attachmentUrl, fileName, isSharePoint: true };
         }
       } catch {

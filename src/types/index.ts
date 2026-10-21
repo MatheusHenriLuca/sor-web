@@ -28,6 +28,7 @@ export type ActiveScreen =
   | 'registro-protcli'
   | 'rastreabilidade'
   | 'falha-entrega'
+  | 'pagamento-protcli'
   | 'cadastro-usuarios';
 
 export interface UsuarioQualidade {
@@ -117,16 +118,18 @@ export interface RNCRecord {
   possivelDetectar?: string;
   tipoDeteccao?: string;
   
-  // Contenção e Triagem
+  // Contenção e Triagem (Foto 4 do Power Apps)
   posto?: string;
   fmds?: string;
-  acoesContencao?: string;
-  dataContencao?: string;
+  descricaoProblemaInterno?: string; // Card 36: field_17 (Descrição do problema interno)
+  acoesContencao?: string; // Card 37: Ações de contenção (Chips / Escolha)
+  recomendacoesProvidencias?: string; // Card 38: Recomendações / Providências
+  dataContencao?: string; // Card 50: Data Final de Contenção
   qtdInspecionada?: number;
   qtdSuspeita?: number;
   qtdBloqueada?: number;
   
-  // Disposição e 5W2H
+  // Disposição e 5W2H (Cards 40 a 45 - Foto 4)
   oQueFazer?: string;
   comoFazer?: string;
   porQueFazer?: string;
@@ -134,9 +137,14 @@ export interface RNCRecord {
   quandoFara?: string;
   ondeFara?: string;
   
+  // Participantes do Atendimento (Lista BASE_ATIVOS concatenada com ';')
+  participantesAtendimento?: string;
+  
   // Rastreabilidade e Proteção ao Cliente
-  documentoRastreabilidade?: 'Etiqueta SAP' | 'Não Informado' | 'Lote Fornecedor';
+  documentoRastreabilidade?: 'Não Informado' | 'Etiqueta SAP' | 'Order Cliente' | 'NF' | string;
   codigoRastreabilidade?: string;
+  dataInicioRastreabilidade?: string;
+  dataFimRastreabilidade?: string;
   protcliente?: StatusProtecaoCliente;
   dataPagamento?: string;
   abrir8D?: 'Sim' | 'Não';

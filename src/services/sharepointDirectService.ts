@@ -19,9 +19,18 @@ export function extractSharePointImageUrl(rawJsonOrUrl: string | undefined, item
   if (trimmed.startsWith('{')) {
     try {
       const parsed = JSON.parse(trimmed);
+      if (parsed.serverRelativeUrl) {
+        return parsed.serverRelativeUrl.startsWith('http')
+          ? parsed.serverRelativeUrl
+          : `https://gitservices.sharepoint.com${parsed.serverRelativeUrl}`;
+      }
+      if (parsed.serverUrl && parsed.serverRelativeUrl) {
+        return `${parsed.serverUrl}${parsed.serverRelativeUrl}`;
+      }
       if (parsed.fileName) {
-        // Constrói a URL direta de anexo da lista do SharePoint Online
-        return `https://gitservices.sharepoint.com/sites/QualityGate/Lists/Resumo%20dos%20Incidentes%20de%20qualidade/Attachments/${itemId}/${encodeURIComponent(parsed.fileName)}`;
+        // Constrói a URL direta de anexo da lista do SharePoint Online.
+        // O SharePoint armazena o anexo com o nome exato (com colchetes preservados).
+        return `https://gitservices.sharepoint.com/sites/QualityGate/Lists/Resumo%20dos%20Incidentes%20de%20qualidade/Attachments/${itemId}/${parsed.fileName}`;
       }
     } catch {
       // JSON inválido
@@ -83,9 +92,10 @@ export class SharePointDirectService {
         turno: f.field_11 || '1º Turno',
         produto: f.Produto1 || '',
         componente: f.Componente || '',
-        finalComponente: f.final_componente || 'Peça Final',
+        finalComponente: (f.final_componente === 'Produto Final' ? 'Peça Final' : f.final_componente) || 'Peça Final',
         quantidadeAfetada: Number(f.field_10) || 1,
-        descricaoProblema: f.field_17 || f.field_16 || f.field_12 || '',
+        modoFalha: f.field_12 || '',
+        descricaoProblema: f.field_17 || f.DETALHAMENTO_x0020_DA_x0020_OCOR || '',
         descricaoCompleta: f.DETALHAMENTO_x0020_DA_x0020_OCOR || f.field_17 || '',
         fotoPecaNg: extractSharePointImageUrl(f.Foto_x0020_da_x0020_pe_x00e7_a_x, idNum),
         fotoPecaOk: extractSharePointImageUrl(f.Foto_x0020_pe_x00e7_a_x0020_OK, idNum),
@@ -99,12 +109,15 @@ export class SharePointDirectService {
         qtdSuspeita: Number(f.Conten_x00e7__x00e3_o_x0020_de_x0) || 0,
         abrir8D: f.Abrir_x0020_8D_x003f_ || 'Não',
         protcliente: f.protcliente || 'Não',
-        detector: f.Participantes_x0020_do_x0020_ate || f.detector || '',
+        detector: f.detector || (f.Participantes_x0020_do_x0020_ate ? f.Participantes_x0020_do_x0020_ate.split(';')[0] : ''),
+        participantesAtendimento: f.Participantes_x0020_do_x0020_ate || '',
         responsavelConclusao: f.responsavel_concluir || '',
         gravidade: f.gravidade || 'Média',
         posto: f.Posto1 || f.posto || '',
         fmds: f.fmds || '',
+        descricaoProblemaInterno: f.field_17 || '',
         acoesContencao: Array.isArray(f.A_x00e7__x00f5_es_x0020_de_x0020) ? f.A_x00e7__x00f5_es_x0020_de_x0020.join('; ') : (f.A_x00e7__x00f5_es_x0020_de_x0020 || ''),
+        recomendacoesProvidencias: f.Recomenda_x00e7__x00f5_es_x0020_ || '',
         dataContencao: f.data_contencao ? f.data_contencao.split('T')[0] : '',
         oQueFazer: f.O_x0020_que_x0020_fazer_x003f_ || '',
         comoFazer: f.Como_x0020_fazer_x003f_ || '',
@@ -112,8 +125,10 @@ export class SharePointDirectService {
         quandoFara: f.Quando_x0020_fazer_x003f_ ? f.Quando_x0020_fazer_x003f_.split('T')[0] : '',
         ondeFara: f.Onde_x0020_fazer_x003f_ || '',
         quemFara: f.Quem_x0020_vai_x0020_fazer_x003f || '',
-        documentoRastreabilidade: f.Tipo_x0020_de_x0020_documento_x0 || 'Etiqueta SAP',
+        documentoRastreabilidade: f.Tipo_x0020_de_x0020_documento_x0 || 'Não Informado',
         codigoRastreabilidade: f.Rastreabilidade_x0020_da_x0020_e || '',
+        dataInicioRastreabilidade: f.data_inicio_rastreabilidade || '',
+        dataFimRastreabilidade: f.data_fim_rastreabilidade || '',
         criticidade: (f.criticidade && typeof f.criticidade === 'object' ? f.criticidade.Value : f.criticidade) || '',
         abrirRnc: (f.abrirrnc && typeof f.abrirrnc === 'object' ? f.abrirrnc.Value : f.abrirrnc) || '',
         comentarioGestor: f.comentario_gestor || ''
@@ -136,6 +151,7 @@ export class SharePointDirectService {
       Componente: rnc.componente || '',
       final_componente: rnc.finalComponente || 'Peça Final',
       field_10: rnc.quantidadeAfetada || 1,
+      field_12: rnc.modoFalha || '',
       field_17: rnc.descricaoProblema || '',
       DETALHAMENTO_x0020_DA_x0020_OCOR: rnc.descricaoCompleta || rnc.descricaoProblema || '',
       field_13: rnc.caracteristicaSeguranca || 'Não',
@@ -144,12 +160,16 @@ export class SharePointDirectService {
       field_8: rnc.reincidente || 'NÃO',
       Abrir_x0020_8D_x003f_: rnc.abrir8D || 'Não',
       protcliente: rnc.protcliente || 'Não',
-      Participantes_x0020_do_x0020_ate: rnc.detector || '',
+      Participantes_x0020_do_x0020_ate: rnc.participantesAtendimento || rnc.detector || '',
       gravidade: rnc.gravidade || 'Média',
       Posto1: rnc.posto || '',
       fmds: rnc.fmds || '',
-      Tipo_x0020_de_x0020_documento_x0: rnc.documentoRastreabilidade || 'Etiqueta SAP',
+      Tipo_x0020_de_x0020_documento_x0: rnc.documentoRastreabilidade || 'Não Informado',
       Rastreabilidade_x0020_da_x0020_e: rnc.codigoRastreabilidade || '',
+      A_x00e7__x00f5_es_x0020_de_x0020: rnc.acoesContencao || '',
+      Recomenda_x00e7__x00f5_es_x0020_: rnc.recomendacoesProvidencias || '',
+      data_contencao: rnc.dataContencao ? `${rnc.dataContencao}T00:00:00Z` : undefined,
+      Foto_x0020_auxiliar_x0020__x0028: rnc.fotoAuxiliar || '',
       O_x0020_que_x0020_fazer_x003f_: rnc.oQueFazer || '',
       Como_x0020_fazer_x003f_: rnc.comoFazer || '',
       Porque_x0020_fazer_x003f_: rnc.porQueFazer || '',
@@ -190,20 +210,33 @@ export class SharePointDirectService {
     if (fields.status) fieldsPayload.Status = fields.status;
     if (fields.tipoRnc) fieldsPayload.Tipo_x0020_de_x0020_RNC = fields.tipoRnc;
     if (fields.cliente) fieldsPayload.field_6 = fields.cliente;
-    if (fields.descricaoProblema) fieldsPayload.field_17 = fields.descricaoProblema;
-    if (fields.descricaoCompleta) fieldsPayload.DETALHAMENTO_x0020_DA_x0020_OCOR = fields.descricaoCompleta;
+    if (fields.produto !== undefined) fieldsPayload.Produto1 = fields.produto;
+    if (fields.componente !== undefined) fieldsPayload.Componente = fields.componente;
+    if (fields.modoFalha !== undefined) fieldsPayload.field_12 = fields.modoFalha;
+    if (fields.finalComponente !== undefined) fieldsPayload.final_componente = fields.finalComponente;
+    if (fields.descricaoProblemaInterno !== undefined) {
+      fieldsPayload.field_17 = fields.descricaoProblemaInterno;
+    } else if (fields.descricaoProblema !== undefined) {
+      fieldsPayload.field_17 = fields.descricaoProblema;
+    }
+    if (fields.descricaoCompleta !== undefined) fieldsPayload.DETALHAMENTO_x0020_DA_x0020_OCOR = fields.descricaoCompleta;
     if (fields.quantidadeAfetada !== undefined) fieldsPayload.field_10 = fields.quantidadeAfetada;
     if (fields.responsavelConclusao) fieldsPayload.responsavel_concluir = fields.responsavelConclusao;
     if (fields.protcliente) fieldsPayload.protcliente = fields.protcliente;
+    if (fields.participantesAtendimento !== undefined) fieldsPayload.Participantes_x0020_do_x0020_ate = fields.participantesAtendimento;
     if (fields.qtdInspecionada !== undefined) fieldsPayload.Conten_x00e7__x00e3_o_x0020_de_x = fields.qtdInspecionada;
     if (fields.qtdSuspeita !== undefined) fieldsPayload.Conten_x00e7__x00e3_o_x0020_de_x0 = fields.qtdSuspeita;
-    if (fields.oQueFazer) fieldsPayload.O_x0020_que_x0020_fazer_x003f_ = fields.oQueFazer;
-    if (fields.comoFazer) fieldsPayload.Como_x0020_fazer_x003f_ = fields.comoFazer;
-    if (fields.porQueFazer) fieldsPayload.Porque_x0020_fazer_x003f_ = fields.porQueFazer;
-    if (fields.quandoFara) fieldsPayload.Quando_x0020_fazer_x003f_ = `${fields.quandoFara}T00:00:00Z`;
-    if (fields.ondeFara) fieldsPayload.Onde_x0020_fazer_x003f_ = fields.ondeFara;
-    if (fields.quemFara) fieldsPayload.Quem_x0020_vai_x0020_fazer_x003f = fields.quemFara;
-    if (fields.abrir8D) fieldsPayload.Abrir_x0020_8D_x003f_ = fields.abrir8D;
+    if (fields.acoesContencao !== undefined) fieldsPayload.A_x00e7__x00f5_es_x0020_de_x0020 = fields.acoesContencao;
+    if (fields.recomendacoesProvidencias !== undefined) fieldsPayload.Recomenda_x00e7__x00f5_es_x0020_ = fields.recomendacoesProvidencias;
+    if (fields.dataContencao !== undefined) fieldsPayload.data_contencao = fields.dataContencao ? `${fields.dataContencao}T00:00:00Z` : undefined;
+    if (fields.oQueFazer !== undefined) fieldsPayload.O_x0020_que_x0020_fazer_x003f_ = fields.oQueFazer;
+    if (fields.comoFazer !== undefined) fieldsPayload.Como_x0020_fazer_x003f_ = fields.comoFazer;
+    if (fields.porQueFazer !== undefined) fieldsPayload.Porque_x0020_fazer_x003f_ = fields.porQueFazer;
+    if (fields.quandoFara !== undefined) fieldsPayload.Quando_x0020_fazer_x003f_ = fields.quandoFara ? `${fields.quandoFara}T00:00:00Z` : undefined;
+    if (fields.ondeFara !== undefined) fieldsPayload.Onde_x0020_fazer_x003f_ = fields.ondeFara;
+    if (fields.quemFara !== undefined) fieldsPayload.Quem_x0020_vai_x0020_fazer_x003f = fields.quemFara;
+    if (fields.fotoAuxiliar !== undefined) fieldsPayload.Foto_x0020_auxiliar_x0020__x0028 = fields.fotoAuxiliar;
+    if (fields.abrir8D !== undefined) fieldsPayload.Abrir_x0020_8D_x003f_ = fields.abrir8D;
     if (fields.criticidade) fieldsPayload.criticidade = fields.criticidade;
     if (fields.abrirRnc) fieldsPayload.abrirrnc = fields.abrirRnc;
     if (fields.comentarioGestor) fieldsPayload.comentario_gestor = fields.comentarioGestor;

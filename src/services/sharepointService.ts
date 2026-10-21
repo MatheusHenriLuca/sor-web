@@ -51,6 +51,7 @@ const INITIAL_USERS: UsuarioQualidade[] = [
 // ============================================================================
 const INITIAL_BASE_ATIVOS: ColaboradorBaseAtivos[] = [
   { numPessoal: 104235, nome: "Matheus Henrique de Luca", unidadeOrg: "Qualidade Corporativa", posicao: "Gerente da Qualidade" },
+  { numPessoal: 98112, nome: "FERNANDO TIAGO MACIEL DE JESUS", unidadeOrg: "Qualidade Assegurada", posicao: "Analista da Qualidade" },
   { numPessoal: 89452, nome: "Carlos Eduardo Ferreira", unidadeOrg: "Qualidade Assegurada", posicao: "Engenheiro da Qualidade Sênior" },
   { numPessoal: 76512, nome: "Mariana Souza Lima", unidadeOrg: "Qualidade Linhas", posicao: "Líder de Inspeção da Qualidade" },
   { numPessoal: 64129, nome: "Roberto Mendes Silva", unidadeOrg: "Inspeção Estamparia", posicao: "Inspetor da Qualidade Solda" },
@@ -460,6 +461,7 @@ const INITIAL_RNCS: RNCRecord[] = [
     componente: "53201-0D122 - SUPORTE FIXAÇÃO TRAVA CAPÔ C/ PORCA M8",
     finalComponente: "Peça Final",
     quantidadeAfetada: 18,
+    modoFalha: "Falta / excesso de solda",
     descricaoProblema: "Porca M8 de fixação solta / falta de fusão na projeção da solda (Posto 04).",
     descricaoCompleta: "Identificado pelo operador da montadora no momento do encaixe do chicote e fixação do suporte.",
     fotoPecaNg: "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=500&auto=format&fit=crop&q=80",
@@ -508,6 +510,7 @@ const INITIAL_RNCS: RNCRecord[] = [
     componente: "2G0.803.101.01 - FLANGE DE LIGAÇÃO SUSPENSÃO LH",
     finalComponente: "Componente",
     quantidadeAfetada: 45,
+    modoFalha: "Rebarba / Canto Vivo",
     descricaoProblema: "Rebarba excessiva na borda estampada por desgaste prematuro da punção de corte.",
     descricaoCompleta: "Verificado no início do lote pelo operador da prensa na troca de turno.",
     caracteristicaSeguranca: "Não",
@@ -537,8 +540,9 @@ const INITIAL_RNCS: RNCRecord[] = [
     turno: "3º Turno",
     produto: "71101-T9A-M00",
     componente: "71101-T9A-M01 - SUPORTE CENTRAL DA BUZINA HONDA",
-    finalComponente: "Peça Final",
+    finalComponente: "Peça Final + Componente",
     quantidadeAfetada: 6,
+    modoFalha: "Respingo de Solda",
     descricaoProblema: "Respingo de solda no orifício roscado M6 impedindo roscamento do parafuso.",
     caracteristicaSeguranca: "Não",
     coProduto: "Não",
@@ -558,6 +562,128 @@ const INITIAL_RNCS: RNCRecord[] = [
     responsavelConclusao: "Carlos Eduardo Ferreira (RE: 89452)",
     dataConclusao: "2026-10-05",
     observacoesConclusao: "Ações D1 a D8 finalizadas e validadas pela engenharia Honda."
+  },
+  {
+    id: 5970,
+    title: "5970",
+    field1: "RNC-5970",
+    tipoRnc: "Formal",
+    status: "Em Andamento",
+    cliente: "TDB - SOROCABA",
+    dataOcorrencia: "2026-10-05",
+    dataOficializacao: "2026-10-05",
+    classificacaoSetor: "SOLDA 2 - CEL. TOYOTA",
+    setorDeteccao: "Linha de Solda Toyota",
+    turno: "1º Turno",
+    produto: "L362000B6",
+    componente: "L362000B6 - SUPORTE FIXAÇÃO ESTRUTURAL",
+    finalComponente: "Peça Final",
+    quantidadeAfetada: 1,
+    modoFalha: "Dimensional fora do especificado",
+    descricaoProblema: "Gap entre chapas detectado no posto com calibrador de folga.",
+    fotoPecaNg: "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=500&auto=format&fit=crop&q=80",
+    caracteristicaSeguranca: "Sim",
+    coProduto: "Não",
+    carryOver: "Não",
+    reincidente: "NÃO",
+    posto: "B643048 - ROBÔ 48",
+    fmds: "SOLDA 2 - CEL. TOYOTA",
+    documentoRastreabilidade: "Não Informado",
+    abrir8D: "Sim",
+    detector: "Jeferson Abner Garcia Neres",
+    reDetector: 48912
+  },
+  {
+    id: 5507,
+    title: "5507",
+    field1: "RNC-5507",
+    tipoRnc: "Formal",
+    status: "Em Andamento",
+    cliente: "TDB - SOROCABA",
+    dataOcorrencia: "2026-08-14",
+    dataOficializacao: "2026-08-14",
+    classificacaoSetor: "ESTAMPARIA TANDEM",
+    setorDeteccao: "Linha Prensa Tandem",
+    turno: "2º Turno",
+    produto: "L309000B6",
+    componente: "L309000B6 - REFORÇO LATERAL ESTAMPADO",
+    finalComponente: "Peça Final",
+    quantidadeAfetada: 12,
+    modoFalha: "Trinca (Produto)",
+    descricaoProblema: "Trinca longitudinal no raio de repuxo da prensa 116.",
+    fotoPecaNg: "https://images.unsplash.com/photo-1581092335397-9583fe92d232?w=500&auto=format&fit=crop&q=80",
+    caracteristicaSeguranca: "Não",
+    coProduto: "Não",
+    carryOver: "Sim",
+    reincidente: "NÃO",
+    posto: "B625116 - PRENSA 116",
+    fmds: "ESTAMPARIA TANDEM",
+    documentoRastreabilidade: "Etiqueta SAP",
+    codigoRastreabilidade: "SAP-883921",
+    abrir8D: "Sim",
+    detector: "Carlos Eduardo Ferreira",
+    reDetector: 89452
+  },
+  {
+    id: 5470,
+    title: "5470",
+    field1: "RNC-5470",
+    tipoRnc: "Formal",
+    status: "RNC Emitida",
+    cliente: "HONDA",
+    dataOcorrencia: "2026-08-03",
+    dataOficializacao: "2026-08-03",
+    classificacaoSetor: "SOLDA 3 - CEL. HONDA/HYUNDAI",
+    setorDeteccao: "Inspeção de Saída de Racks",
+    turno: "1º Turno",
+    produto: "H018000B6",
+    componente: "H018000B6 - TRAVESSA INFERIOR HONDA",
+    finalComponente: "Peça Final",
+    quantidadeAfetada: 4,
+    modoFalha: "Peças a mais",
+    descricaoProblema: "Divergência de contagem de peças no rack de expedição.",
+    fotoPecaNg: "https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=500&auto=format&fit=crop&q=80",
+    caracteristicaSeguranca: "Não",
+    coProduto: "Não",
+    carryOver: "Não",
+    reincidente: "NÃO",
+    posto: "B643040 - ROBÔ 40",
+    fmds: "SOLDA 3 - CEL. HONDA/HYUNDAI",
+    documentoRastreabilidade: "Etiqueta SAP",
+    codigoRastreabilidade: "SAP-441290",
+    abrir8D: "Sim",
+    detector: "Mariana Souza Lima",
+    reDetector: 76512
+  },
+  {
+    id: 5400,
+    title: "5400",
+    field1: "RNC-5400",
+    tipoRnc: "Formal",
+    status: "Em Andamento",
+    cliente: "BOSHOKU",
+    dataOcorrencia: "2026-07-30",
+    dataOficializacao: "2026-07-30",
+    classificacaoSetor: "ESTAMPARIA PROGRESSIVAS",
+    setorDeteccao: "Estamparia Linha 82",
+    turno: "3º Turno",
+    produto: "B010000B6",
+    componente: "B01000AB6",
+    finalComponente: "Peça Final + Componente",
+    quantidadeAfetada: 2,
+    modoFalha: "Gancho deformado",
+    descricaoProblema: "Deformação do gancho de ancoragem no estampo progressivo.",
+    fotoPecaNg: "https://images.unsplash.com/photo-1581092335397-9583fe92d232?w=500&auto=format&fit=crop&q=80",
+    caracteristicaSeguranca: "Não",
+    coProduto: "Sim",
+    carryOver: "Não",
+    reincidente: "NÃO",
+    posto: "B624082 - PRENSA 82",
+    fmds: "ESTAMPARIA PROGRESSIVAS",
+    documentoRastreabilidade: "Não Informado",
+    abrir8D: "Sim",
+    detector: "Roberto Mendes Silva",
+    reDetector: 64129
   }
 ];
 
@@ -685,7 +811,7 @@ class SharePointDataStore {
     for (let i = 0; i < this.rncs.length; i++) {
       const r = this.rncs[i];
       this.rncMap.set(r.id, r);
-      (r as any)._searchStr = `${r.field1 || ''} ${r.cliente || ''} ${r.produto || ''} ${r.componente || ''} ${r.codigoRastreabilidade || ''} ${r.descricaoProblema || ''}`.toLowerCase();
+      (r as any)._searchStr = `${r.field1 || ''} ${r.cliente || ''} ${r.produto || ''} ${r.componente || ''} ${r.codigoRastreabilidade || ''} ${r.descricaoProblema || ''} ${r.participantesAtendimento || ''} ${r.setorDeteccao || ''}`.toLowerCase();
     }
   }
 
@@ -715,7 +841,11 @@ class SharePointDataStore {
       this.users = storedUsers ? JSON.parse(storedUsers) : INITIAL_USERS;
 
       const storedAtivos = localStorage.getItem('gestamp_sor_ativos');
-      this.baseAtivos = storedAtivos ? JSON.parse(storedAtivos) : INITIAL_BASE_ATIVOS;
+      const loadedAtivos: ColaboradorBaseAtivos[] = storedAtivos ? JSON.parse(storedAtivos) : [];
+      const mapAtivos = new Map<number, ColaboradorBaseAtivos>();
+      INITIAL_BASE_ATIVOS.forEach(a => mapAtivos.set(a.numPessoal, a));
+      loadedAtivos.forEach(a => mapAtivos.set(a.numPessoal, a));
+      this.baseAtivos = Array.from(mapAtivos.values());
 
       const storedRast = localStorage.getItem('gestamp_sor_rast');
       this.rastreabilidades = storedRast ? JSON.parse(storedRast) : INITIAL_RASTREABILIDADES;
@@ -1156,8 +1286,9 @@ class SharePointDataStore {
     return this.rncs;
   }
 
-  public getRNCById(id: number): RNCRecord | undefined {
-    return this.rncMap.get(id) || this.rncs.find(r => r.id === id);
+  public getRNCById(id: number | string): RNCRecord | undefined {
+    const numId = Number(id);
+    return this.rncMap.get(numId) || this.rncs.find(r => r.id === numId || String(r.id) === String(id));
   }
 
   public saveRNC(rnc: Partial<RNCRecord>): RNCRecord & { success: boolean; message: string } {
@@ -1214,11 +1345,23 @@ class SharePointDataStore {
       fmds: rnc.fmds || "SOLDA GERAL",
       acoesContencao: rnc.acoesContencao || "",
       dataContencao: rnc.dataContencao || "",
+      descricaoProblemaInterno: rnc.descricaoProblemaInterno || "",
+      recomendacoesProvidencias: rnc.recomendacoesProvidencias || "",
+      fotoAuxiliar: rnc.fotoAuxiliar || "",
+      oQueFazer: rnc.oQueFazer || "",
+      comoFazer: rnc.comoFazer || "",
+      porQueFazer: rnc.porQueFazer || "",
+      quemFara: rnc.quemFara || "",
+      quandoFara: rnc.quandoFara || "",
+      ondeFara: rnc.ondeFara || "",
       qtdInspecionada: rnc.qtdInspecionada || 0,
       qtdSuspeita: rnc.qtdSuspeita || 0,
       qtdBloqueada: rnc.qtdBloqueada || 0,
-      documentoRastreabilidade: rnc.documentoRastreabilidade || "Etiqueta SAP",
+      documentoRastreabilidade: rnc.documentoRastreabilidade || "Não Informado",
       codigoRastreabilidade: rnc.codigoRastreabilidade || "",
+      dataInicioRastreabilidade: rnc.dataInicioRastreabilidade || "",
+      dataFimRastreabilidade: rnc.dataFimRastreabilidade || "",
+      participantesAtendimento: rnc.participantesAtendimento || this.currentUser.nome,
       protcliente: rnc.protcliente || (rnc.codigoRastreabilidade ? "Sim" : "Não"),
       abrir8D: rnc.abrir8D || "Sim",
       detector: this.currentUser.nome,
@@ -1256,29 +1399,56 @@ class SharePointDataStore {
 
   /**
    * Consulta histórico de reincidências para a peça/componente selecionado,
-   * espelhando a fórmula do Power Apps:
-   * Filter(varReincidente, ID <> ThisItem.ID && (Left(produto,9) = Material || Left(componente,9) = Componente))
+   * espelhando a fórmula exata do Power Apps (Registro de 8D linhas 2450 e 2636):
+   * Filter(varReincidente, 
+   *    classificacao_ocorrencia.Value = DataCardValue20.Selected.Value,
+   *    ID <> ThisItem.ID,
+   *    Left(produto,9) = cxproduto_1.Selected.Material || Left(componente,9) = cxcomp_1.Selected.Componente
+   * )
    */
-  public getHistoricoReincidencias(produtoOuCodCli?: string, modoFalha?: string, rncAtualId?: number): RNCRecord[] {
-    if (!produtoOuCodCli) return [];
-    const termo = produtoOuCodCli.trim().toUpperCase();
-    const modoTermo = (modoFalha || '').trim().toUpperCase();
+  public getHistoricoReincidencias(
+    produtoOuCodCli?: string, 
+    modoFalha?: string, 
+    rncAtualId?: number,
+    componente?: string
+  ): RNCRecord[] {
+    // Se o modo de falha / defeito não estiver selecionado ainda, não há como apurar reincidência
+    if (!modoFalha || !modoFalha.trim()) return [];
+    if (!produtoOuCodCli && !componente) return [];
+
+    const defectTerm = modoFalha.trim().toUpperCase();
+    const prodPrefix = (produtoOuCodCli || '').trim().substring(0, 9).toUpperCase();
+    const compPrefix = (componente || '').trim().substring(0, 9).toUpperCase();
 
     return this.rncs.filter(r => {
       if (rncAtualId && r.id === rncAtualId) return false;
-      const rProd = (r.produto || '').toUpperCase();
-      const rComp = (r.componente || '').toUpperCase();
-      const matchPeca = rProd.includes(termo) || termo.includes(rProd) || rComp.includes(termo) || termo.includes(rComp);
-      return matchPeca;
-    }).sort((a, b) => {
-      // Se coincidir também o modo de falha, ordena no topo
-      if (modoTermo) {
-        const aMatchModo = ((a.modoFalha || a.descricaoProblema || '').toUpperCase().includes(modoTermo)) ? 1 : 0;
-        const bMatchModo = ((b.modoFalha || b.descricaoProblema || '').toUpperCase().includes(modoTermo)) ? 1 : 0;
-        if (aMatchModo !== bMatchModo) return bMatchModo - aMatchModo;
+
+      // 1. O defeito DEVE coincidir exatamente com a classificação selecionada
+      const rDefect = (r.modoFalha || r.descricaoProblema || '').trim().toUpperCase();
+      const rClassif = (r.classificacaoSetor || '').trim().toUpperCase();
+      const matchesDefect = rDefect === defectTerm || rDefect.includes(defectTerm) || defectTerm.includes(rDefect) || rClassif === defectTerm;
+      if (!matchesDefect) return false;
+
+      // 2. A peça ou componente deve coincidir pelo prefixo de 9 caracteres
+      const rProd = (r.produto || '').trim().toUpperCase();
+      const rComp = (r.componente || '').trim().toUpperCase();
+      const rProdPrefix = rProd.substring(0, 9);
+      const rCompPrefix = rComp.substring(0, 9);
+
+      let matchesPeca = false;
+      if (prodPrefix && prodPrefix.length >= 3) {
+        if (rProdPrefix === prodPrefix || rCompPrefix === prodPrefix || rProd.includes(prodPrefix) || rComp.includes(prodPrefix)) {
+          matchesPeca = true;
+        }
       }
-      return b.id - a.id;
-    });
+      if (!matchesPeca && compPrefix && compPrefix.length >= 3) {
+        if (rProdPrefix === compPrefix || rCompPrefix === compPrefix || rProd.includes(compPrefix) || rComp.includes(compPrefix)) {
+          matchesPeca = true;
+        }
+      }
+
+      return matchesPeca;
+    }).sort((a, b) => b.id - a.id);
   }
 
   // Double Closure Guard do Power Apps: BtnCocluirrnc

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   ShieldAlert, 
   ShieldCheck,
@@ -13,6 +13,7 @@ import {
 import { UsuarioQualidade } from '../types';
 import { spStore } from '../services/sharepointService';
 import { CLIENTES_LIST, DEFAULT_CLIENTE } from '../constants/clientes';
+import { SearchableSelect, SearchableOption } from '../components/SearchableSelect';
 
 interface RegistroProtCliViewProps {
   onNavigate: (screen: any, params?: any) => void;
@@ -75,6 +76,33 @@ export const RegistroProtCliView: React.FC<RegistroProtCliViewProps> = ({ onNavi
 
   const produtosDoCliente = spStore.getProdutosPorCliente(cliente);
   const componentesDoProduto = spStore.getComponentesPorProduto(produto);
+
+  const optionsClientes: SearchableOption[] = useMemo(() => {
+    return CLIENTES_LIST.map(c => ({
+      value: c,
+      label: c,
+      badge: 'Montadora'
+    }));
+  }, []);
+
+  const optionsProdutos: SearchableOption[] = useMemo(() => {
+    return produtosDoCliente.map(p => ({
+      value: p.codCliText || p.material,
+      label: `${p.codCliText ? `${p.codCliText} • ` : ''}${p.descricao || p.componente}`,
+      sublabel: `SAP: ${p.material || 'N/D'} | Posto: ${p.posto || 'N/D'} | FMDS: ${p.fmds || 'N/D'}`,
+      badge: p.cliente || undefined
+    }));
+  }, [produtosDoCliente]);
+
+  const optionsComponentes: SearchableOption[] = useMemo(() => {
+    return componentesDoProduto.map(c => ({
+      value: c.componente || c.descricao || c.codCliText || c.material,
+      label: `${c.codCliText ? `${c.codCliText} • ` : ''}${c.componente || c.descricao}`,
+      sublabel: `SAP: ${c.material || 'N/D'} | Nível: ${c.nestingLevel ?? 0}`,
+      badge: c.carryOver === 'Sim' ? 'Carry-Over' : undefined,
+      badgeColor: 'bg-amber-100 text-amber-800 border-amber-200'
+    }));
+  }, [componentesDoProduto]);
 
   const handleClienteChange = (novoCliente: string) => {
     setCliente(novoCliente);
@@ -204,15 +232,13 @@ export const RegistroProtCliView: React.FC<RegistroProtCliViewProps> = ({ onNavi
             <label className="block text-xs font-semibold text-slate-700 mb-1.5">
               Cliente (Montadora) <span className="text-rose-500">*</span>
             </label>
-            <select 
-              className="form-input text-xs"
-              value={cliente} 
-              onChange={e => handleClienteChange(e.target.value)}
-            >
-              {CLIENTES_LIST.map(c => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
+            <SearchableSelect
+              value={cliente}
+              onChange={val => handleClienteChange(val)}
+              placeholder="Selecione a montadora..."
+              searchPlaceholder="Pesquisar cliente/montadora..."
+              options={optionsClientes}
+            />
           </div>
 
           <div>
@@ -230,44 +256,45 @@ export const RegistroProtCliView: React.FC<RegistroProtCliViewProps> = ({ onNavi
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-            Produto / Conjunto (colpecasgerais_AA3) <span className="text-rose-500">*</span>
+          <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center justify-between">
+            <span>Produto / Conjunto (colpecasgerais_AA3) <span className="text-rose-500">*</span></span>
+            <span className="text-[10px] text-slate-400 font-normal">
+              {produtosDoCliente.length} itens disponíveis
+            </span>
           </label>
-          <select 
-            className="form-input font-mono text-xs"
-            value={produto} 
-            onChange={e => handleProdutoChange(e.target.value)}
-          >
-            {produtosDoCliente.map(p => (
-              <option key={p.identificacao} value={p.codCliText}>
-                {p.codCliText} • {p.descricao} (SAP: {p.material})
-              </option>
-            ))}
-          </select>
+          <SearchableSelect
+            value={produto}
+            onChange={val => handleProdutoChange(val)}
+            placeholder="Selecione o produto / conjunto..."
+            searchPlaceholder="Pesquisar por código, descrição ou SAP..."
+            options={optionsProdutos}
+          />
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-            Componente Afetado
+          <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center justify-between">
+            <span>Componente Afetado</span>
+            {componentesDoProduto.length > 0 && (
+              <span className="text-[10px] text-slate-400 font-normal">
+                {componentesDoProduto.length} subcomponentes vinculados
+              </span>
+            )}
           </label>
           {componentesDoProduto.length > 0 ? (
-            <select 
-              className="form-input text-xs"
+            <SearchableSelect
               value={componente}
-              onChange={e => setComponente(e.target.value)}
-            >
-              {componentesDoProduto.map(c => (
-                <option key={c.identificacao} value={c.componente || c.descricao}>
-                  {c.componente || c.descricao} {c.carryOver === 'Sim' ? '★ [Carry-Over]' : ''}
-                </option>
-              ))}
-            </select>
+              onChange={val => setComponente(val)}
+              placeholder="Selecione o componente afetado..."
+              searchPlaceholder="Pesquisar subcomponente..."
+              options={optionsComponentes}
+            />
           ) : (
             <input 
               type="text"
               className="form-input text-xs"
               value={componente}
               onChange={e => setComponente(e.target.value)}
+              placeholder="Digite o componente afetado..."
             />
           )}
         </div>

@@ -138,7 +138,7 @@ export function App() {
 
             {currentScreen === 'detalhes-8d' && (
               <Detalhes8DView 
-                rncId={screenParams.rncId || 101}
+                rncId={Number(screenParams?.rncId || screenParams?.id || 101)}
                 onNavigate={handleNavigate}
                 currentUser={currentUser}
               />
@@ -146,7 +146,7 @@ export function App() {
 
             {currentScreen === 'impressao-8d' && (
               <DetalhesImpressaoView 
-                rncId={screenParams.rncId || 101}
+                rncId={Number(screenParams?.rncId || screenParams?.id || 101)}
                 onNavigate={handleNavigate}
               />
             )}

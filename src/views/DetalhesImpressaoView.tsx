@@ -112,14 +112,20 @@ export const DetalhesImpressaoView: React.FC<DetalhesImpressaoViewProps> = ({ rn
           </div>
           <div className="text-right">
             <div className="text-base font-black text-rose-600 font-mono">
-              {rnc.field1 || `RNC #${rnc.id}`}
+              RNC #{rnc.id}
             </div>
+            {rnc.field1 && rnc.field1 !== `RNC #${rnc.id}` && (
+              <div className="text-xs font-mono font-bold text-slate-700">
+                Código: {rnc.field1}
+              </div>
+            )}
             <div className="text-[10px] text-slate-500 font-medium">Data: {formatDateBR(rnc.dataOcorrencia)}</div>
           </div>
         </div>
 
         {/* Informações Gerais */}
         <div className="grid grid-cols-4 gap-2 bg-slate-50 p-2.5 border border-slate-200 mb-3 rounded text-xs">
+          <div><strong className="text-slate-500">ID da RNC:</strong> <span className="font-bold text-blue-700 font-mono">#{rnc.id}</span></div>
           <div><strong className="text-slate-500">Cliente:</strong> <span className="font-bold">{rnc.cliente}</span></div>
           <div><strong className="text-slate-500">Veículo / Projeto:</strong> <span className="font-bold">{rnc.produto}</span></div>
           <div><strong className="text-slate-500">Componente:</strong> <span className="font-bold">{rnc.componente}</span></div>

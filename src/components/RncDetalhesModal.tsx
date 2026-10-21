@@ -13,7 +13,8 @@ import {
   CheckCircle2, 
   ExternalLink,
   Camera,
-  Maximize2
+  Maximize2,
+  Hash
 } from 'lucide-react';
 import { RNCRecord } from '../types';
 import { ImageWithFallback } from './ImageWithFallback';
@@ -62,9 +63,14 @@ export const RncDetalhesModal: React.FC<RncDetalhesModalProps> = ({
             </div>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-base sm:text-lg font-bold text-slate-900 truncate font-mono">
-                  {rnc.field1 || `RNC #${rnc.id}`}
-                </h2>
+                <span className="px-2.5 py-0.5 rounded-lg text-xs font-black bg-blue-100 text-[#0b5796] border border-blue-200 font-mono-numbers shrink-0">
+                  RNC #{rnc.id}
+                </span>
+                {rnc.field1 && rnc.field1 !== `RNC #${rnc.id}` && (
+                  <h2 className="text-base sm:text-lg font-bold text-slate-900 truncate font-mono">
+                    {rnc.field1}
+                  </h2>
+                )}
                 <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${
                   rnc.status === 'Concluído' 
                     ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
@@ -110,8 +116,21 @@ export const RncDetalhesModal: React.FC<RncDetalhesModalProps> = ({
         {/* CORPO DO POPUP COM SCROLL */}
         <div className="p-5 overflow-y-auto space-y-4 text-xs sm:text-sm">
           
-          {/* CARDS DE RESUMO RÁPIDO */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          {/* CARDS DE RESUMO RÁPIDO: 5 COLUNAS */}
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+            <div className="p-3 bg-blue-50/60 rounded-xl border border-blue-200/80 flex flex-col gap-1">
+              <span className="text-[11px] text-[#0b5796] font-medium flex items-center gap-1">
+                <Hash className="w-3 h-3 text-[#0f6cbd]" />
+                ID do Registro
+              </span>
+              <span className="font-black text-[#0b5796] text-sm font-mono-numbers">
+                #{rnc.id}
+              </span>
+              <span className="text-[10px] text-slate-400 font-mono truncate">
+                {rnc.field1 || 'SharePoint'}
+              </span>
+            </div>
+
             <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 flex flex-col gap-1">
               <span className="text-[11px] text-slate-500 font-medium">Data Ocorrência</span>
               <span className="font-bold text-slate-900 flex items-center gap-1.5">

@@ -27,7 +27,8 @@ import {
   History,
   Eye,
   Calendar,
-  Sparkles
+  Sparkles,
+  Hash
 } from 'lucide-react';
 import { RNCRecord, UsuarioQualidade, RegistroTreinamento } from '../types';
 import { spStore } from '../services/sharepointService';
@@ -285,9 +286,17 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
 
             <div className="h-4 w-px bg-slate-200 hidden sm:block" />
 
-            <h1 className="text-xl sm:text-2xl font-black text-[#0f172a] tracking-tight font-mono-numbers">
-              {rnc.field1 || `RNC #${rnc.id}`}
-            </h1>
+            {/* Identificador Principal: ID SharePoint + Código RNC */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="px-2.5 py-1 rounded-lg text-sm sm:text-base font-black bg-blue-100 text-[#0b5796] border border-blue-200 font-mono-numbers shrink-0 shadow-2xs">
+                RNC #{rnc.id}
+              </span>
+              {rnc.field1 && rnc.field1 !== `RNC #${rnc.id}` && (
+                <span className="text-sm sm:text-base font-bold text-slate-800 font-mono bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                  {rnc.field1}
+                </span>
+              )}
+            </div>
 
             {/* Status Principal com Semântica Suave */}
             <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border shrink-0 ${
@@ -401,6 +410,11 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
         {/* Linha 2: Metadados Secundários (Esquerda) + Segmented Tabs (Direita) */}
         <div className="pt-2 border-t border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#64748b]">
+            <span className="flex items-center gap-1.5 font-mono">
+              <span className="text-[#94a3b8]">ID do Registro:</span>
+              <strong className="text-blue-700 font-bold">#{rnc.id}</strong>
+            </span>
+            <span className="text-slate-300 hidden sm:inline">•</span>
             <span className="flex items-center gap-1.5">
               <span className="text-[#94a3b8]">Montadora:</span>
               <strong className="text-[#0f172a] font-semibold">{rnc.cliente || 'Não informada'}</strong>
@@ -578,7 +592,11 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 text-xs font-mono text-[#64748b] bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200 self-start sm:self-auto">
+                <div className="flex items-center gap-2 text-xs font-mono text-[#64748b] bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200 self-start sm:self-auto flex-wrap">
+                  <span className="font-bold text-[#0b5796] bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                    ID #{rnc.id}
+                  </span>
+                  <span>•</span>
                   <span>Data: <strong>{formatDateBR(rnc.dataOcorrencia)}</strong></span>
                   <span>•</span>
                   <span>Turno: <strong>{rnc.turno || '1º Turno'}</strong></span>
@@ -630,6 +648,29 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    {/* Identificador Principal do Registro / RNC */}
+                    <div className="sm:col-span-2 info-tile bg-blue-50/50 border-blue-200">
+                      <span className="info-tile-label flex items-center justify-between">
+                        <span className="text-blue-900 font-semibold flex items-center gap-1.5">
+                          <Hash className="w-3.5 h-3.5 text-[#0f6cbd]" />
+                          <span>Identificador do Registro / RNC</span>
+                        </span>
+                        <span className="text-[10px] font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded border border-blue-200">
+                          ID SharePoint
+                        </span>
+                      </span>
+                      <div className="flex items-center gap-2 flex-wrap mt-1">
+                        <span className="text-base font-black text-[#0b5796] font-mono-numbers">
+                          RNC #{rnc.id}
+                        </span>
+                        {rnc.field1 && rnc.field1 !== `RNC #${rnc.id}` && (
+                          <span className="text-xs font-mono font-bold text-slate-700 bg-white px-2 py-0.5 rounded border border-slate-300">
+                            Código: {rnc.field1}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
                     <div className="info-tile bg-white">
                       <span className="info-tile-label">Montadora</span>
                       <span className="info-tile-value">{rnc.cliente || 'Não informada'}</span>
@@ -1163,6 +1204,9 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
           {/* Faixa Compacta de Status da Contenção e Ações do Alerta */}
           <div className="bg-gradient-to-r from-rose-50 via-amber-50/40 to-white border border-rose-200/90 rounded-xl px-4 py-2.5 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
+              <span className="px-2.5 py-1 rounded-lg text-xs font-black bg-rose-700 text-white font-mono-numbers shrink-0 shadow-2xs">
+                RNC #{rnc.id}
+              </span>
               <div className="w-8 h-8 rounded-lg bg-rose-100 text-rose-700 flex items-center justify-center shrink-0 border border-rose-200">
                 <AlertTriangle className="w-4 h-4 text-rose-600 animate-pulse" />
               </div>
@@ -1225,9 +1269,19 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
                       Informações do Produto & Identificação
                     </span>
-                    <h3 className="text-sm sm:text-base font-extrabold text-slate-900 tracking-tight font-mono-numbers">
-                      {rnc.produto || rnc.componente || 'Produto Não Especificado'}
-                    </h3>
+                    <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                      <span className="px-2 py-0.5 rounded text-xs font-black bg-blue-100 text-[#0b5796] border border-blue-200 font-mono-numbers">
+                        RNC #{rnc.id}
+                      </span>
+                      {rnc.field1 && rnc.field1 !== `RNC #${rnc.id}` && (
+                        <span className="text-xs font-mono font-bold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                          {rnc.field1}
+                        </span>
+                      )}
+                      <h3 className="text-sm sm:text-base font-extrabold text-slate-900 tracking-tight font-mono-numbers">
+                        {rnc.produto || rnc.componente || 'Produto Não Especificado'}
+                      </h3>
+                    </div>
                   </div>
                 </div>
 
@@ -1242,10 +1296,26 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                 </div>
               </div>
 
-              {/* GRID 4 COLUNAS: LINHA, POSTO, DEFEITO E QUANTIDADE */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
+              {/* GRID 5 COLUNAS: ID DA RNC, LINHA, POSTO, DEFEITO E QUANTIDADE */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 pt-1">
                 
-                {/* 1. LINHA / ÁREA FABRIL */}
+                {/* 1. ID DA OCORRÊNCIA / RNC */}
+                <div className="p-2.5 bg-blue-50/70 rounded-xl border border-blue-200 flex flex-col gap-0.5">
+                  <span className="text-[10px] font-bold text-[#0b5796] uppercase flex items-center gap-1">
+                    <Hash className="w-3.5 h-3.5 text-[#0f6cbd]" />
+                    ID da RNC:
+                  </span>
+                  <span className="text-xs sm:text-sm font-black text-[#0b5796] font-mono-numbers">
+                    #{rnc.id}
+                  </span>
+                  {rnc.field1 && rnc.field1 !== `RNC #${rnc.id}` && (
+                    <span className="text-[10px] font-mono text-slate-500 truncate" title={rnc.field1}>
+                      {rnc.field1}
+                    </span>
+                  )}
+                </div>
+
+                {/* 2. LINHA / ÁREA FABRIL */}
                 <div className="p-2.5 bg-slate-50/80 rounded-xl border border-slate-200 flex flex-col gap-0.5">
                   <span className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1">
                     <Layers className="w-3.5 h-3.5 text-indigo-600" />
@@ -1256,7 +1326,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                   </span>
                 </div>
 
-                {/* 2. POSTO DE TRABALHO */}
+                {/* 3. POSTO DE TRABALHO */}
                 <div className="p-2.5 bg-slate-50/80 rounded-xl border border-slate-200 flex flex-col gap-0.5">
                   <span className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1">
                     <MapPin className="w-3.5 h-3.5 text-[#0b5796]" />
@@ -1267,7 +1337,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                   </span>
                 </div>
 
-                {/* 3. DEFEITO IDENTIFICADO */}
+                {/* 4. DEFEITO IDENTIFICADO */}
                 <div className="p-2.5 bg-rose-50/70 rounded-xl border border-rose-200 flex flex-col gap-0.5 sm:col-span-2 lg:col-span-1">
                   <span className="text-[10px] font-bold text-rose-700 uppercase flex items-center gap-1">
                     <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
@@ -1278,7 +1348,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                   </span>
                 </div>
 
-                {/* 4. QUANTIDADE DE PEÇAS */}
+                {/* 5. QUANTIDADE DE PEÇAS */}
                 <div className="p-2.5 bg-amber-50/60 rounded-xl border border-amber-200 flex flex-col gap-0.5">
                   <span className="text-[10px] font-bold text-amber-800 uppercase flex items-center gap-1">
                     <Barcode className="w-3.5 h-3.5 text-amber-700" />

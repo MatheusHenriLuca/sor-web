@@ -574,681 +574,617 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
           </div>
 
           {/* ========================================================================= */}
-          {/* VISUALIZAÇÃO EM 2 COLUNAS PARALELAS RESPONSIVAS (FOTOS 3, 4 E 5 POWER APPS) */}
+          {/* VISUALIZAÇÃO EM COLUNA ÚNICA DOS 3 BLOCOS (CONFORME SOLICITADO)           */}
           {/* ========================================================================= */}
 
-          {/* PARALELO 1: FOTO 3 DO POWER APPS (Informações do Cliente + Contenção) */}
-          {(activeBlockTab === 'todos' || activeBlockTab === 'cliente' || activeBlockTab === 'contencao') && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-
-              {/* COLUNA ESQUERDA: Informações do Cliente & Ocorrência (Foto 3) */}
-              {(activeBlockTab === 'todos' || activeBlockTab === 'cliente') && (
-                <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden flex flex-col">
-                  {/* Header Escuro Estilo Power Apps */}
-                  <div className="bg-[#0f2942] text-white px-4 py-3 flex items-center justify-between border-b border-[#1b3d5e]">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center shrink-0 border border-sky-400/30">
-                        <Car className="w-4 h-4" />
-                      </div>
-                      <h2 className="font-bold text-sm sm:text-base tracking-wide text-white">
-                        Informações do cliente:
-                      </h2>
-                    </div>
-                    <div className="flex items-center gap-2 font-mono font-black text-xs sm:text-sm bg-white/10 px-2.5 py-1 rounded-md border border-white/20 text-sky-200 shadow-2xs">
-                      <Hash className="w-3.5 h-3.5 text-sky-400" />
-                      <span>ID: {rnc.id}</span>
-                    </div>
+          {/* ========================================================================= */}
+          {/* BLOCO 1: INFORMAÇÕES DO CLIENTE & RELATO DA OCORRÊNCIA (FOTO 3)          */}
+          {/* ========================================================================= */}
+          {(activeBlockTab === 'todos' || activeBlockTab === 'cliente') && (
+            <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden flex flex-col w-full">
+              {/* Header Escuro Estilo Power Apps */}
+              <div className="bg-[#0f2942] text-white px-4 sm:px-5 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-[#1b3d5e]">
+                <div className="flex items-center gap-2.5">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-sky-500 text-white tracking-wider">
+                    BLOCO 1
+                  </span>
+                  <div className="w-7 h-7 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center shrink-0 border border-sky-400/30">
+                    <Car className="w-4 h-4" />
                   </div>
-
-                  {/* Corpo do Formulário do Cliente */}
-                  <div className="p-4 sm:p-5 flex flex-col gap-3.5 divide-y divide-slate-100 text-xs text-slate-700">
-                    
-                    {/* Linha 1: Status & 8D */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pb-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-slate-500">Status:</span>
-                        <span className={`px-2.5 py-0.5 rounded-full font-bold text-xs border ${
-                          rnc.status === 'Concluído'
-                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                            : rnc.status === 'Em Andamento'
-                            ? 'bg-amber-50 text-amber-900 border-amber-200'
-                            : rnc.status === 'Reprovado'
-                            ? 'bg-rose-50 text-rose-800 border-rose-200'
-                            : 'bg-blue-50 text-blue-800 border-blue-200'
-                        }`}>
-                          {rnc.status}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-slate-500">8D:</span>
-                        <span className={`px-2.5 py-0.5 rounded-full font-bold text-xs border ${
-                          rnc.abrir8D === 'Sim'
-                            ? 'bg-blue-50 text-blue-800 border-blue-200'
-                            : 'bg-slate-100 text-slate-700 border-slate-200'
-                        }`}>
-                          8D - {rnc.abrir8D === 'Sim' ? 'Sim' : 'Não'}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Linha 2: Abertura & Data Final de Contenção */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
-                        <div>
-                          <span className="text-slate-500 font-medium">Abertura: </span>
-                          <strong className="text-slate-900 font-mono">{formatDateBR(rnc.dataOcorrencia)} - {rnc.turno || '1º Turno'}</strong>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
-                        <div>
-                          <span className="text-slate-500 font-medium">Data Final de Contenção: </span>
-                          <strong className="text-slate-900 font-mono">{formatDateBR(rnc.dataContencao || rnc.dataOcorrencia)}</strong>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Linha 3: Produto / Componente */}
-                    <div className="flex items-center gap-2 pt-3">
-                      <Bot className="w-4 h-4 text-slate-400 shrink-0" />
-                      <div>
-                        <span className="text-slate-500 font-medium">Produto: </span>
-                        <strong className="text-slate-900 font-mono">{rnc.produto || '-'}</strong>
-                        <span className="text-slate-400 mx-1.5">/</span>
-                        <span className="text-slate-500 font-medium">Componente: </span>
-                        <strong className="text-slate-900">{rnc.componente || '-'}</strong>
-                      </div>
-                    </div>
-
-                    {/* Linha 4: Tipo, Código & Cliente */}
-                    <div className="flex items-center gap-2 pt-3">
-                      <FileText className="w-4 h-4 text-slate-400 shrink-0" />
-                      <div>
-                        <span className="font-semibold text-slate-800">{rnc.tipoRnc}</span>
-                        <span className="text-slate-400 mx-1.5">-</span>
-                        <span className="text-slate-500 font-medium">Cod: </span>
-                        <strong className="font-mono text-slate-800">{rnc.field1 || rnc.codOcorrenciaCliente || '-'}</strong>
-                        <span className="text-slate-400 mx-1.5">-</span>
-                        <strong className="text-slate-900">{rnc.cliente}</strong>
-                      </div>
-                    </div>
-
-                    {/* Linha 5: Quantidade & Modo de Falha */}
-                    <div className="flex items-center gap-2 pt-3">
-                      <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
-                      <div>
-                        <span className="text-slate-500 font-medium">Qtd: </span>
-                        <strong className="font-mono text-rose-700 font-bold">{rnc.quantidadeAfetada || 1}</strong>
-                        <span className="text-slate-400 mx-1.5">-</span>
-                        <strong className="text-slate-900">({rnc.modoFalha || rnc.descricaoProblema || 'Deformação'})</strong>
-                      </div>
-                    </div>
-
-                    {/* Linha 6: Detectado & Impacto */}
-                    <div className="flex items-start gap-2 pt-3">
-                      <Eye className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
-                      <div className="leading-snug">
-                        <span className="text-slate-500 font-medium">Detectado: </span>
-                        <strong className="text-slate-900">{rnc.setorDeteccao || 'montagem'}</strong>
-                        <span className="text-slate-400 mx-2">|</span>
-                        <span className="text-slate-500 font-medium">Impacto: </span>
-                        <strong className="text-slate-900">{rnc.impactoCliente || 'peça amassada, gerando montagem incorreta'}</strong>
-                      </div>
-                    </div>
-
-                    {/* Linha 7: Participantes do Atendimento */}
-                    <div className="flex items-start gap-2 pt-3">
-                      <Users className="w-4 h-4 text-indigo-500 shrink-0 mt-0.5" />
-                      <div className="flex-1">
-                        <span className="text-slate-500 font-medium block mb-1">Participantes:</span>
-                        <div className="flex flex-wrap gap-1.5">
-                          {(rnc.participantesAtendimento || rnc.detector || 'LEANDRO SERAFIM DE LIMA;PAULO HENRIQUE VICENTE;LUIS HENRIQUE CAMARGO FELICIO').split(';').map((p, idx) => (
-                            <span key={idx} className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-indigo-50 text-indigo-900 border border-indigo-200">
-                              {p.trim()}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Linha 8: Detalhamento Técnico da Ocorrência */}
-                    <div className="flex items-start gap-2 pt-3">
-                      <FileText className="w-4 h-4 text-slate-400 shrink-0 mt-1" />
-                      <div className="flex-1">
-                        <span className="text-slate-500 font-medium block mb-1">Detalhamento da Ocorrência:</span>
-                        <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-slate-900 font-semibold leading-relaxed">
-                          {rnc.descricaoProblema || rnc.descricaoCompleta || 'Ponto de SOLDA Pegou fora Devido a PEÇA AMASSADA'}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Base do Card: Fotos Comparativas OK x NG (Foto 3) */}
-                    <div className="pt-4">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {/* Foto OK */}
-                        <div className="flex flex-col rounded-lg overflow-hidden border border-emerald-300 bg-white shadow-2xs">
-                          <div className="bg-emerald-600 text-white font-bold text-xs py-1.5 px-3 flex items-center justify-between">
-                            <span>Foto da peça OK:</span>
-                            <Check className="w-3.5 h-3.5" />
-                          </div>
-                          <div className="h-44 sm:h-52 bg-slate-50 p-2 flex items-center justify-center overflow-hidden">
-                            <ImageWithFallback
-                              src={rnc.fotoPecaOk}
-                              alt={`Peça OK: ${rnc.componente}`}
-                              variant="ok"
-                              className="w-full h-full object-contain"
-                              emptyLabel="Sem foto do padrão OK"
-                              showExternalLink={true}
-                              allowZoom={true}
-                              itemId={rnc.id}
-                            />
-                          </div>
-                        </div>
-
-                        {/* Foto NG */}
-                        <div className="flex flex-col rounded-lg overflow-hidden border border-rose-300 bg-white shadow-2xs">
-                          <div className="bg-rose-600 text-white font-bold text-xs py-1.5 px-3 flex items-center justify-between">
-                            <span>Foto da peça NG:</span>
-                            <X className="w-3.5 h-3.5" />
-                          </div>
-                          <div className="h-44 sm:h-52 bg-slate-50 p-2 flex items-center justify-center overflow-hidden">
-                            <ImageWithFallback
-                              src={rnc.fotoPecaNg}
-                              alt={`Peça NG: ${rnc.descricaoProblema || rnc.componente}`}
-                              variant="ng"
-                              className="w-full h-full object-contain"
-                              emptyLabel="Sem foto do defeito NG"
-                              showExternalLink={true}
-                              allowZoom={true}
-                              itemId={rnc.id}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                  </div>
+                  <h2 className="font-bold text-sm sm:text-base tracking-wide text-white">
+                    1. Informações do Cliente & Relato da Ocorrência
+                  </h2>
                 </div>
-              )}
+                <div className="flex items-center gap-2 font-mono font-black text-xs sm:text-sm bg-white/10 px-2.5 py-1 rounded-md border border-white/20 text-sky-200 self-start sm:self-auto shadow-2xs">
+                  <Hash className="w-3.5 h-3.5 text-sky-400" />
+                  <span>ID: #{rnc.id}</span>
+                </div>
+              </div>
 
-              {/* COLUNA DIREITA: Contenção (Foto 3) */}
-              {(activeBlockTab === 'todos' || activeBlockTab === 'contencao') && (
-                <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden flex flex-col">
-                  {/* Header Escuro Estilo Power Apps */}
-                  <div className="bg-[#0f2942] text-white px-4 py-3 flex items-center justify-between border-b border-[#1b3d5e]">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-400/30">
-                        <Bot className="w-4 h-4" />
-                      </div>
-                      <h2 className="font-bold text-sm sm:text-base tracking-wide text-white">
-                        Contenção:
-                      </h2>
-                    </div>
-                    <span className="text-[11px] font-semibold text-emerald-300 bg-emerald-950/60 px-2.5 py-1 rounded border border-emerald-700/60">
-                      Triagem & Processo
+              {/* Corpo do Bloco 1 */}
+              <div className="p-4 sm:p-6 flex flex-col gap-5 text-xs text-slate-700">
+                {/* Grid Superior: Identificação e Dados Cadastrais */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-4 rounded-xl bg-slate-50/70 border border-slate-200/80">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[11px] font-semibold text-slate-500">Status do Registro:</span>
+                    <span className={`px-2.5 py-1 rounded-md font-bold text-xs border inline-block text-center ${
+                      rnc.status === 'Concluído'
+                        ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                        : rnc.status === 'Em Andamento'
+                        ? 'bg-amber-50 text-amber-900 border-amber-200'
+                        : rnc.status === 'Reprovado'
+                        ? 'bg-rose-50 text-rose-800 border-rose-200'
+                        : 'bg-blue-50 text-blue-800 border-blue-200'
+                    }`}>
+                      {rnc.status}
                     </span>
                   </div>
 
-                  {/* Corpo das Informações de Contenção */}
-                  <div className="p-4 sm:p-5 flex flex-col gap-3.5 divide-y divide-slate-100 text-xs text-slate-700">
-                    
-                    {/* Linha 1: Co-Produto? */}
-                    <div className="flex items-center justify-between pb-1">
-                      <span className="font-semibold text-slate-500">Co-Produto?</span>
-                      <strong className="text-slate-800">{rnc.coProduto || '-'}</strong>
-                    </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[11px] font-semibold text-slate-500">Governança 8D:</span>
+                    <span className={`px-2.5 py-1 rounded-md font-bold text-xs border inline-block text-center ${
+                      rnc.abrir8D === 'Sim'
+                        ? 'bg-blue-50 text-blue-800 border-blue-200'
+                        : 'bg-slate-100 text-slate-700 border-slate-200'
+                    }`}>
+                      8D - {rnc.abrir8D === 'Sim' ? 'Sim' : 'Não'}
+                    </span>
+                  </div>
 
-                    {/* Linha 2: Carry Over? */}
-                    <div className="flex items-center justify-between pt-3">
-                      <span className="font-semibold text-slate-500">Carry Over?</span>
-                      <strong className="text-slate-800">{rnc.carryOver || 'Não -'}</strong>
-                    </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[11px] font-semibold text-slate-500 flex items-center gap-1">
+                      <Calendar className="w-3 h-3 text-slate-400" />
+                      <span>Data de Abertura & Turno:</span>
+                    </span>
+                    <strong className="text-slate-900 font-mono text-xs mt-1">
+                      {formatDateBR(rnc.dataOcorrencia)} - {rnc.turno || '1º Turno'}
+                    </strong>
+                  </div>
 
-                    {/* Linha 3: Reincidente? */}
-                    <div className="flex items-center justify-between pt-3">
-                      <span className="font-semibold text-slate-500">Reincidente?</span>
-                      <span className={`px-2.5 py-0.5 rounded font-bold text-xs ${
-                        rnc.reincidente === 'SIM'
-                          ? 'bg-amber-100 text-amber-900 border border-amber-300'
-                          : 'text-slate-800'
-                      }`}>
-                        {rnc.reincidente === 'SIM' 
-                          ? `SIM - Data: ${formatDateBR(rnc.dataReincidente || '13/06/2025')}` 
-                          : (rnc.reincidente || 'Não')}
-                      </span>
-                    </div>
-
-                    {/* Linha 4: Peça de Segurança? */}
-                    <div className="flex items-center justify-between pt-3">
-                      <span className="font-semibold text-slate-500">Peça de Segurança?</span>
-                      <span className={`px-2.5 py-0.5 rounded font-bold text-xs ${
-                        rnc.caracteristicaSeguranca === 'Sim'
-                          ? 'bg-rose-100 text-rose-800 border border-rose-300'
-                          : 'text-slate-800'
-                      }`}>
-                        {rnc.caracteristicaSeguranca === 'Sim' ? 'Sim (Item Crítico)' : 'Não'}
-                      </span>
-                    </div>
-
-                    {/* Linha 5: Rastreabilidade DOC. */}
-                    <div className="flex items-center justify-between pt-3">
-                      <span className="font-semibold text-slate-500">Rastreabilidade DOC.:</span>
-                      <strong className="text-slate-900">{rnc.documentoRastreabilidade || 'Etiqueta SAP'}</strong>
-                    </div>
-
-                    {/* Linha 6: CÓD. */}
-                    <div className="flex items-center justify-between pt-3">
-                      <span className="font-semibold text-slate-500">CÓD.:</span>
-                      <div className="flex items-center gap-2">
-                        <strong className="font-mono text-slate-900 bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
-                          {rnc.codigoRastreabilidade || '668360689'}
-                        </strong>
-                        {rnc.codigoRastreabilidade && (
-                          <button
-                            type="button"
-                            onClick={() => onNavigate('rastreabilidade', { rncId: rnc.id })}
-                            className="text-[11px] text-[#0f6cbd] font-bold hover:underline cursor-pointer"
-                          >
-                            Ver lotes
-                          </button>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Linha 7: Contadores de Triagem (Suspeitas, Inspecionadas, Bloqueadas) */}
-                    <div className="pt-3">
-                      <span className="font-semibold text-slate-500 block mb-2">Contadores de Triagem no Processo:</span>
-                      <div className="grid grid-cols-3 gap-2.5 text-center">
-                        <div className="p-3 bg-amber-50/80 rounded-lg border border-amber-200">
-                          <span className="text-[10px] font-bold text-amber-900 block truncate">Qtd Suspeitas</span>
-                          <span className="text-xl sm:text-2xl font-black font-mono text-amber-900 mt-1 block">
-                            {rnc.qtdSuspeita || 1}
-                          </span>
-                        </div>
-
-                        <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
-                          <span className="text-[10px] font-bold text-slate-600 block truncate">Qtd Inspecionadas</span>
-                          <span className="text-xl sm:text-2xl font-black font-mono text-slate-900 mt-1 block">
-                            {rnc.qtdInspecionada || 1}
-                          </span>
-                        </div>
-
-                        <div className="p-3 bg-rose-50/80 rounded-lg border border-rose-200">
-                          <span className="text-[10px] font-bold text-rose-900 block truncate">Qtd Bloqueadas</span>
-                          <span className="text-xl sm:text-2xl font-black font-mono text-rose-900 mt-1 block">
-                            {rnc.qtdBloqueada || 0}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Linha 8: Ações de Contenção Adotadas */}
-                    <div className="pt-3">
-                      <span className="font-semibold text-slate-500 block mb-1.5 flex items-center gap-1.5">
-                        <ShieldAlert className="w-4 h-4 text-amber-600" />
-                        <span>Ações de contenção adotadas:</span>
-                      </span>
-                      <div className="p-3 bg-amber-50/60 rounded-lg border border-amber-200/80 text-amber-950 font-semibold leading-relaxed">
-                        {rnc.acoesContencao || 'INSPEÇÃO 100% NO POSTO DE TRABALHO; RETRABALHAR'}
-                      </div>
-                    </div>
-
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[11px] font-semibold text-slate-500 flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3 text-amber-500" />
+                      <span>Data Final de Contenção:</span>
+                    </span>
+                    <strong className="text-slate-900 font-mono text-xs mt-1">
+                      {formatDateBR(rnc.dataContencao || rnc.dataOcorrencia)}
+                    </strong>
                   </div>
                 </div>
-              )}
 
+                {/* Grid Intermediário: Especificações de Engenharia e Origem */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="p-3 bg-white rounded-lg border border-slate-200">
+                    <span className="text-[11px] font-semibold text-slate-500 block mb-1">Cliente / Montadora:</span>
+                    <strong className="text-slate-900 text-sm font-bold block">{rnc.cliente}</strong>
+                  </div>
+
+                  <div className="p-3 bg-white rounded-lg border border-slate-200">
+                    <span className="text-[11px] font-semibold text-slate-500 block mb-1">Produto (Veículo / Projeto):</span>
+                    <strong className="text-slate-900 font-mono text-xs block">{rnc.produto || '-'}</strong>
+                  </div>
+
+                  <div className="p-3 bg-white rounded-lg border border-slate-200">
+                    <span className="text-[11px] font-semibold text-slate-500 block mb-1">Componente / Peça Afetada:</span>
+                    <strong className="text-slate-900 text-xs block">{rnc.componente || '-'}</strong>
+                  </div>
+
+                  <div className="p-3 bg-white rounded-lg border border-slate-200">
+                    <span className="text-[11px] font-semibold text-slate-500 block mb-1">Classificação / Código:</span>
+                    <div className="text-xs font-semibold text-slate-800">
+                      {rnc.tipoRnc} - Cód: <span className="font-mono font-bold text-slate-900">{rnc.field1 || rnc.codOcorrenciaCliente || '-'}</span>
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-white rounded-lg border border-slate-200">
+                    <span className="text-[11px] font-semibold text-slate-500 block mb-1">Quantidade com Defeito:</span>
+                    <div className="text-xs font-bold text-rose-700 font-mono">
+                      {rnc.quantidadeAfetada || 1} peça(s) ({rnc.modoFalha || rnc.descricaoProblema || 'Não especificado'})
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-white rounded-lg border border-slate-200">
+                    <span className="text-[11px] font-semibold text-slate-500 block mb-1">Detecção & Impacto:</span>
+                    <div className="text-xs text-slate-800">
+                      Detectado: <strong>{rnc.setorDeteccao || 'montagem'}</strong> | Impacto: <strong>{rnc.impactoCliente || 'peça amassada gerando montagem incorreta'}</strong>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Participantes do Atendimento */}
+                <div className="p-3.5 bg-slate-50/80 rounded-xl border border-slate-200 flex flex-col gap-1.5">
+                  <span className="text-[11px] font-semibold text-slate-500 flex items-center gap-1.5">
+                    <Users className="w-3.5 h-3.5 text-indigo-500" />
+                    <span>Participantes do Atendimento:</span>
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(rnc.participantesAtendimento || rnc.detector || 'LEANDRO SERAFIM DE LIMA;PAULO HENRIQUE VICENTE;LUIS HENRIQUE CAMARGO FELICIO').split(';').map((p, idx) => (
+                      <span key={idx} className="inline-flex items-center px-2.5 py-1 rounded text-xs font-semibold bg-indigo-50 text-indigo-900 border border-indigo-200">
+                        {p.trim()}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Detalhamento Técnico da Ocorrência */}
+                <div className="flex flex-col gap-1.5">
+                  <span className="text-[11px] font-semibold text-slate-500 flex items-center gap-1.5">
+                    <FileText className="w-3.5 h-3.5 text-slate-400" />
+                    <span>Detalhamento Técnico da Ocorrência:</span>
+                  </span>
+                  <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 text-slate-900 font-semibold leading-relaxed">
+                    {rnc.descricaoProblema || rnc.descricaoCompleta || 'Ponto de SOLDA Pegou fora Devido a PEÇA AMASSADA'}
+                  </div>
+                </div>
+
+                {/* Fotos Comparativas da Base do Bloco 1 (Foto 3) */}
+                <div className="pt-2">
+                  <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wide block mb-2.5">
+                    Padrões Fotográficos de Inspeção (Base do Bloco 1):
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Foto OK */}
+                    <div className="flex flex-col rounded-xl overflow-hidden border border-emerald-300 bg-white shadow-2xs">
+                      <div className="bg-emerald-600 text-white font-bold text-xs py-2 px-3.5 flex items-center justify-between">
+                        <span>Foto da peça OK (Padrão Conforme):</span>
+                        <Check className="w-4 h-4" />
+                      </div>
+                      <div className="h-52 sm:h-64 bg-slate-50 p-2 flex items-center justify-center overflow-hidden">
+                        <ImageWithFallback
+                          src={rnc.fotoPecaOk}
+                          alt={`Peça OK: ${rnc.componente}`}
+                          variant="ok"
+                          className="w-full h-full object-contain"
+                          emptyLabel="Sem foto do padrão OK cadastrada"
+                          showExternalLink={true}
+                          allowZoom={true}
+                          itemId={rnc.id}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Foto NG */}
+                    <div className="flex flex-col rounded-xl overflow-hidden border border-rose-300 bg-white shadow-2xs">
+                      <div className="bg-rose-600 text-white font-bold text-xs py-2 px-3.5 flex items-center justify-between">
+                        <span>Foto da peça NG (Evidência Não Conforme):</span>
+                        <X className="w-4 h-4" />
+                      </div>
+                      <div className="h-52 sm:h-64 bg-slate-50 p-2 flex items-center justify-center overflow-hidden">
+                        <ImageWithFallback
+                          src={rnc.fotoPecaNg}
+                          alt={`Peça NG: ${rnc.descricaoProblema || rnc.componente}`}
+                          variant="ng"
+                          className="w-full h-full object-contain"
+                          emptyLabel="Sem foto do defeito NG cadastrada"
+                          showExternalLink={true}
+                          allowZoom={true}
+                          itemId={rnc.id}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
-          {/* PARALELO 2: FOTO 4 DO POWER APPS (Disposição Interna + Diretrizes 5W2H) */}
-          {(activeBlockTab === 'todos' || activeBlockTab === 'disposicao' || activeBlockTab === 'contencao') && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          {/* ========================================================================= */}
+          {/* BLOCO 2: CONTENÇÃO IMEDIATA & DIRETRIZES OPERACIONAIS (5W2H)               */}
+          {/* ========================================================================= */}
+          {(activeBlockTab === 'todos' || activeBlockTab === 'contencao') && (
+            <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden flex flex-col w-full">
+              {/* Header Escuro Estilo Power Apps */}
+              <div className="bg-[#0f2942] text-white px-4 sm:px-5 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-[#1b3d5e]">
+                <div className="flex items-center gap-2.5">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-emerald-500 text-white tracking-wider">
+                    BLOCO 2
+                  </span>
+                  <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-400/30">
+                    <ShieldCheck className="w-4 h-4" />
+                  </div>
+                  <h2 className="font-bold text-sm sm:text-base tracking-wide text-white">
+                    2. Contenção Imediata & Diretrizes Operacionais (5W2H)
+                  </h2>
+                </div>
+                <span className="text-[11px] font-semibold text-emerald-300 bg-emerald-950/60 px-2.5 py-1 rounded border border-emerald-700/60 self-start sm:self-auto">
+                  Triagem, Bloqueio & Ações 5W2H
+                </span>
+              </div>
 
-              {/* COLUNA ESQUERDA: Disposição interna (Foto 4) */}
-              {(activeBlockTab === 'todos' || activeBlockTab === 'disposicao') && (
-                <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden flex flex-col">
-                  {/* Header Escuro Estilo Power Apps */}
-                  <div className="bg-[#0f2942] text-white px-4 py-3 flex items-center justify-between border-b border-[#1b3d5e]">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0 border border-indigo-400/30">
-                        <Bot className="w-4 h-4" />
-                      </div>
-                      <h2 className="font-bold text-sm sm:text-base tracking-wide text-white">
-                        Disposição interna:
-                      </h2>
-                    </div>
-                    <span className="text-[11px] font-semibold text-indigo-200">
-                      Posto & Parecer Fabril
+              {/* Corpo do Bloco 2 */}
+              <div className="p-4 sm:p-6 flex flex-col gap-5 text-xs text-slate-700">
+                {/* Grid 1: Governança de Rastreabilidade & Parâmetros Críticos */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-4 rounded-xl bg-slate-50/70 border border-slate-200/80">
+                  <div className="flex items-center justify-between bg-white p-3 rounded-lg border border-slate-200">
+                    <span className="font-semibold text-slate-500">Co-Produto?</span>
+                    <strong className="text-slate-800">{rnc.coProduto || '-'}</strong>
+                  </div>
+
+                  <div className="flex items-center justify-between bg-white p-3 rounded-lg border border-slate-200">
+                    <span className="font-semibold text-slate-500">Carry Over?</span>
+                    <strong className="text-slate-800">{rnc.carryOver || 'Não -'}</strong>
+                  </div>
+
+                  <div className="flex items-center justify-between bg-white p-3 rounded-lg border border-slate-200">
+                    <span className="font-semibold text-slate-500">Reincidente?</span>
+                    <span className={`px-2 py-0.5 rounded font-bold text-xs ${
+                      rnc.reincidente === 'SIM'
+                        ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                        : 'text-slate-800'
+                    }`}>
+                      {rnc.reincidente === 'SIM' 
+                        ? `SIM - Data: ${formatDateBR(rnc.dataReincidente || '13/06/2025')}` 
+                        : (rnc.reincidente || 'Não')}
                     </span>
                   </div>
 
-                  {/* Corpo da Disposição Interna */}
-                  <div className="p-4 sm:p-5 flex flex-col gap-3.5 divide-y divide-slate-100 text-xs text-slate-700">
-                    
-                    {/* Linha 1: Posto & Célula Fabril */}
-                    <div className="pb-1">
-                      <span className="text-slate-500 font-medium block mb-1">Posto & Célula Fabril:</span>
-                      <div className="font-bold text-slate-900 font-mono bg-slate-50 p-2.5 rounded-lg border border-slate-200">
-                        {rnc.posto || 'B643033 - ROBÔ 33 - SOLDA 3'} {rnc.fmds ? `- ${rnc.fmds}` : '- CEL. HONDA/HYUNDAI'} {rnc.classificacaoSetor ? `• ${rnc.classificacaoSetor}` : ''}
-                      </div>
-                    </div>
+                  <div className="flex items-center justify-between bg-white p-3 rounded-lg border border-slate-200">
+                    <span className="font-semibold text-slate-500">Peça de Segurança?</span>
+                    <span className={`px-2 py-0.5 rounded font-bold text-xs ${
+                      rnc.caracteristicaSeguranca === 'Sim'
+                        ? 'bg-rose-100 text-rose-800 border border-rose-300'
+                        : 'text-slate-800'
+                    }`}>
+                      {rnc.caracteristicaSeguranca === 'Sim' ? 'Sim (Crítico)' : 'Não'}
+                    </span>
+                  </div>
 
-                    {/* Linha 2: Possível detectar? */}
-                    <div className="flex items-center justify-between pt-3">
-                      <span className="font-semibold text-slate-500">Possível detectar?</span>
-                      <strong className="text-slate-900">{rnc.possivelDetectar || 'SIM - Visual'}</strong>
-                    </div>
+                  <div className="sm:col-span-2 flex items-center justify-between bg-white p-3 rounded-lg border border-slate-200">
+                    <span className="font-semibold text-slate-500">Rastreabilidade DOC.:</span>
+                    <strong className="text-slate-900">{rnc.documentoRastreabilidade || 'Etiqueta SAP'}</strong>
+                  </div>
 
-                    {/* Linha 3: Gravidade */}
-                    <div className="flex items-center justify-between pt-3">
-                      <span className="font-semibold text-slate-500">Gravidade:</span>
-                      <strong className="text-slate-900">{rnc.gravidade || 'Dimensional'}</strong>
+                  <div className="sm:col-span-2 flex items-center justify-between bg-white p-3 rounded-lg border border-slate-200">
+                    <span className="font-semibold text-slate-500">CÓD. Rastreabilidade:</span>
+                    <div className="flex items-center gap-2">
+                      <strong className="font-mono text-slate-900 bg-slate-50 px-2.5 py-0.5 rounded border border-slate-200 font-bold">
+                        {rnc.codigoRastreabilidade || '668360689'}
+                      </strong>
+                      {rnc.codigoRastreabilidade && (
+                        <button
+                          type="button"
+                          onClick={() => onNavigate('rastreabilidade', { rncId: rnc.id })}
+                          className="text-[11px] text-[#0f6cbd] font-bold hover:underline cursor-pointer"
+                        >
+                          Ver lotes SAP
+                        </button>
+                      )}
                     </div>
-
-                    {/* Linha 4: Contenção Operacional */}
-                    <div className="pt-3">
-                      <span className="font-semibold text-slate-500 block mb-1">Contenção:</span>
-                      <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-slate-900 font-bold leading-relaxed">
-                        {rnc.acoesContencao || 'INSPEÇÃO 100% NO POSTO DE TRABALHO; RETRABALHAR'}
-                      </div>
-                    </div>
-
-                    {/* Linha 5: Recomendações */}
-                    <div className="pt-3">
-                      <span className="font-semibold text-slate-500 block mb-1">Recomendações:</span>
-                      <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-slate-800 font-medium leading-relaxed">
-                        {rnc.recomendacoesProvidencias || 'Orientar TODOS ENVOLVIDOS'}
-                      </div>
-                    </div>
-
-                    {/* Linha 6: Desc. problema */}
-                    <div className="pt-3">
-                      <span className="font-semibold text-slate-500 block mb-1">Desc. problema:</span>
-                      <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-slate-900 font-bold leading-relaxed uppercase">
-                        {rnc.descricaoProblemaInterno || rnc.modoFalha || 'PEÇA AMASSADA / DEFORMADO'}
-                      </div>
-                    </div>
-
                   </div>
                 </div>
-              )}
 
-              {/* COLUNA DIREITA: Diretrizes Operacionais (5W2H) (Foto 4 & 5) */}
-              {(activeBlockTab === 'todos' || activeBlockTab === 'contencao' || activeBlockTab === 'disposicao') && (
-                <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden flex flex-col">
-                  {/* Header Escuro Estilo Power Apps */}
-                  <div className="bg-[#0f2942] text-white px-4 py-3 flex items-center justify-between border-b border-[#1b3d5e]">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 border border-amber-400/30">
-                        <Sparkles className="w-4 h-4" />
-                      </div>
-                      <h2 className="font-bold text-sm sm:text-base tracking-wide text-white">
-                        Diretrizes Operacionais (5W2H):
-                      </h2>
+                {/* Contadores de Triagem no Processo */}
+                <div className="flex flex-col gap-2">
+                  <span className="font-bold text-slate-700 block">Contadores de Triagem no Processo:</span>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+                    <div className="p-4 bg-amber-50/80 rounded-xl border border-amber-200">
+                      <span className="text-xs font-bold text-amber-900 block truncate">Qtd Peças Suspeitas</span>
+                      <span className="text-2xl sm:text-3xl font-black font-mono text-amber-900 mt-1.5 block">
+                        {rnc.qtdSuspeita || 1}
+                      </span>
+                      <span className="text-[11px] text-amber-700/80 block mt-1">Em quarentena para inspeção</span>
                     </div>
-                    <span className="text-[11px] font-semibold text-amber-200">
-                      Plano de Ação
-                    </span>
-                  </div>
 
-                  {/* Corpo do 5W2H */}
-                  <div className="p-4 sm:p-5 flex flex-col gap-3.5 divide-y divide-slate-100 text-xs text-slate-700">
-                    
-                    {/* O que fazer? */}
-                    <div className="pb-1">
-                      <span className="font-bold text-slate-800 block mb-1">O que fazer?</span>
-                      <p className="text-slate-900 font-semibold leading-relaxed bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                      <span className="text-xs font-bold text-slate-700 block truncate">Qtd Peças Inspecionadas</span>
+                      <span className="text-2xl sm:text-3xl font-black font-mono text-slate-900 mt-1.5 block">
+                        {rnc.qtdInspecionada || 1}
+                      </span>
+                      <span className="text-[11px] text-slate-500 block mt-1">Total verificado na linha</span>
+                    </div>
+
+                    <div className="p-4 bg-rose-50/80 rounded-xl border border-rose-200">
+                      <span className="text-xs font-bold text-rose-900 block truncate">Qtd Peças Bloqueadas</span>
+                      <span className="text-2xl sm:text-3xl font-black font-mono text-rose-900 mt-1.5 block">
+                        {rnc.qtdBloqueada || 0}
+                      </span>
+                      <span className="text-[11px] text-rose-700/80 block mt-1">Retidas para retrabalho / refugo</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Banner de Ações de Contenção Adotadas */}
+                <div className="p-4 bg-amber-50/60 rounded-xl border border-amber-200/80 flex flex-col gap-1.5">
+                  <span className="font-bold text-amber-950 flex items-center gap-1.5 text-xs">
+                    <ShieldAlert className="w-4 h-4 text-amber-600" />
+                    <span>Ações de contenção adotadas:</span>
+                  </span>
+                  <div className="text-amber-950 font-semibold leading-relaxed">
+                    {rnc.acoesContencao || 'INSPEÇÃO 100% NO POSTO DE TRABALHO; RETRABALHAR'}
+                  </div>
+                </div>
+
+                {/* Diretrizes Operacionais (5W2H) */}
+                <div className="flex flex-col gap-3 pt-2 border-t border-slate-100">
+                  <span className="font-bold text-slate-800 uppercase tracking-wide flex items-center gap-1.5 text-xs">
+                    <Sparkles className="w-4 h-4 text-amber-500" />
+                    <span>Diretrizes 5W2H de Ação Operacional:</span>
+                  </span>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
+                      <span className="font-bold text-slate-700 block mb-1">O que fazer?</span>
+                      <p className="text-slate-900 font-semibold leading-relaxed">
                         {rnc.oQueFazer || 'Seleção Visual PEÇAS com deformação Segregar para RETRABALHO E AVISAR QUALIDADE'}
                       </p>
                     </div>
 
-                    {/* Como fazer? */}
-                    <div className="pt-3">
-                      <span className="font-bold text-slate-800 block mb-1">Como fazer?</span>
-                      <p className="text-slate-900 font-semibold leading-relaxed bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                    <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
+                      <span className="font-bold text-slate-700 block mb-1">Como fazer?</span>
+                      <p className="text-slate-900 font-semibold leading-relaxed">
                         {rnc.comoFazer || 'Peças DEFORMADAS RETRABALHAR COM CALIBRADOR E DESEMPENAR A REGIÃO, após RETRABALHO NECESSÁRIO PASSAR EM DCO. A QUALIDADE VALIDAR DIMENSIONAL'}
                       </p>
                     </div>
 
-                    {/* Porque fazer? */}
-                    <div className="pt-3">
-                      <span className="font-bold text-slate-800 block mb-1">Porque fazer?</span>
-                      <p className="text-slate-900 font-semibold leading-relaxed bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                    <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
+                      <span className="font-bold text-slate-700 block mb-1">Porque fazer?</span>
+                      <p className="text-slate-900 font-semibold leading-relaxed">
                         {rnc.porQueFazer || 'Encontrado na montagem PEÇA AMASSADA'}
                       </p>
                     </div>
 
-                    {/* Quando fazer? & Onde fazer? */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3">
-                      <div className="flex items-center justify-between sm:justify-start sm:gap-2">
-                        <span className="font-bold text-slate-700">Quando fazer?</span>
-                        <span className="font-mono font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                          {rnc.quandoFara || formatDateBR(rnc.dataOcorrencia)}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between sm:justify-start sm:gap-2">
-                        <span className="font-bold text-slate-700">Onde fazer?</span>
-                        <span className="font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                          {rnc.ondeFara || 'Quarentena/RETRABALHO'}
-                        </span>
-                      </div>
+                    <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
+                      <span className="font-bold text-slate-700">Quando fazer?</span>
+                      <span className="font-mono font-bold text-slate-900 bg-white px-2.5 py-1 rounded border border-slate-200">
+                        {rnc.quandoFara || formatDateBR(rnc.dataOcorrencia)}
+                      </span>
                     </div>
 
-                    {/* Equipe resp. (Foto 5) */}
-                    <div className="pt-3">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-indigo-50/70 p-3 rounded-lg border border-indigo-200">
-                        <span className="font-bold text-indigo-950">Equipe resp.:</span>
-                        <strong className="text-indigo-900 font-bold uppercase tracking-wide">
-                          {rnc.quemFara || rnc.detector || 'LEANDRO APARECIDO POSSOMATO'}
-                        </strong>
-                      </div>
+                    <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
+                      <span className="font-bold text-slate-700">Onde fazer?</span>
+                      <span className="font-bold text-slate-900 bg-white px-2.5 py-1 rounded border border-slate-200">
+                        {rnc.ondeFara || 'Quarentena/RETRABALHO'}
+                      </span>
                     </div>
 
+                    <div className="p-3.5 bg-indigo-50/70 rounded-xl border border-indigo-200 flex items-center justify-between">
+                      <span className="font-bold text-indigo-950">Equipe resp.:</span>
+                      <strong className="text-indigo-900 font-bold uppercase tracking-wide">
+                        {rnc.quemFara || rnc.detector || 'LEANDRO APARECIDO POSSOMATO'}
+                      </strong>
+                    </div>
                   </div>
                 </div>
-              )}
-
+              </div>
             </div>
           )}
 
-          {/* PARTE FINAL: FOTO 5 DO POWER APPS (Foto Auxiliar + Comentários Proteção + Treinamentos + Histórico) */}
+          {/* ========================================================================= */}
+          {/* BLOCO 3: DISPOSIÇÃO INTERNA, EVIDÊNCIAS FOTOGRÁFICAS & EQUIPE (FOTOS 4 E 5)*/}
+          {/* ========================================================================= */}
           {(activeBlockTab === 'todos' || activeBlockTab === 'disposicao') && (
-            <div className="flex flex-col gap-6">
-
-              {/* CARD: Foto Auxiliar & Comentários Proteção ao Cliente (Foto 5) */}
-              <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden flex flex-col">
-                <div className="bg-[#0f2942] text-white px-4 py-3 flex items-center justify-between border-b border-[#1b3d5e]">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center shrink-0 border border-sky-400/30">
-                      <ImageIcon className="w-4 h-4" />
-                    </div>
-                    <h2 className="font-bold text-sm sm:text-base tracking-wide text-white">
-                      Foto auxiliar & Demarcação de Defeito (Foto 5)
-                    </h2>
-                  </div>
-                  <span className="text-xs text-sky-200 font-semibold">
-                    Equipe resp.: <strong className="text-white">{rnc.quemFara || rnc.detector || 'LEANDRO APARECIDO POSSOMATO'}</strong>
+            <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden flex flex-col w-full">
+              {/* Header Escuro Estilo Power Apps */}
+              <div className="bg-[#0f2942] text-white px-4 sm:px-5 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b border-[#1b3d5e]">
+                <div className="flex items-center gap-2.5">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-indigo-500 text-white tracking-wider">
+                    BLOCO 3
                   </span>
+                  <div className="w-7 h-7 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0 border border-indigo-400/30">
+                    <Layers className="w-4 h-4" />
+                  </div>
+                  <h2 className="font-bold text-sm sm:text-base tracking-wide text-white">
+                    3. Disposição Interna, Evidências Fotográficas & Equipe
+                  </h2>
                 </div>
+                <span className="text-[11px] font-semibold text-indigo-200 self-start sm:self-auto">
+                  Parecer Técnico, Foto Auxiliar & Treinamentos
+                </span>
+              </div>
 
-                <div className="p-4 sm:p-6 flex flex-col gap-5">
-                  {/* Foto Auxiliar Ampla */}
-                  <div className="w-full rounded-xl bg-slate-50 border border-slate-200 p-3 flex flex-col items-center justify-center min-h-[280px] max-h-[460px] overflow-hidden shadow-2xs">
-                    <ImageWithFallback
-                      src={rnc.fotoAuxiliar || rnc.fotoPecaNg}
-                      alt="Foto auxiliar com marcação do defeito"
-                      variant="ng"
-                      className="w-full h-full max-h-[440px] object-contain rounded-lg"
-                      emptyLabel="Sem foto auxiliar registrada para esta ocorrência"
-                      showExternalLink={true}
-                      allowZoom={true}
-                      itemId={rnc.id}
-                    />
+              {/* Corpo do Bloco 3 */}
+              <div className="p-4 sm:p-6 flex flex-col gap-6 text-xs text-slate-700">
+                {/* Parâmetros de Disposição Interna Fabril */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-4 rounded-xl bg-slate-50/70 border border-slate-200/80">
+                  <div className="sm:col-span-2 lg:col-span-3 p-3 bg-white rounded-lg border border-slate-200">
+                    <span className="text-[11px] font-semibold text-slate-500 block mb-1">Posto & Célula Fabril:</span>
+                    <strong className="text-slate-900 font-mono text-xs block">
+                      {rnc.posto || 'B643033 - ROBÔ 33 - SOLDA 3'} {rnc.fmds ? `- ${rnc.fmds}` : '- CEL. HONDA/HYUNDAI'} {rnc.classificacaoSetor ? `• ${rnc.classificacaoSetor}` : ''}
+                    </strong>
                   </div>
 
-                  {/* O que fazer? */}
-                  <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-xs">
-                    <span className="font-bold text-slate-800 block mb-1">O que fazer?</span>
-                    <p className="text-slate-900 font-semibold leading-relaxed">
-                      {rnc.oQueFazer || 'Seleção Visual PEÇAS com deformação Segregar para RETRABALHO E AVISAR QUALIDADE'}
+                  <div className="p-3 bg-white rounded-lg border border-slate-200 flex items-center justify-between">
+                    <span className="font-semibold text-slate-500">Possível detectar?</span>
+                    <strong className="text-slate-900">{rnc.possivelDetectar || 'SIM - Visual'}</strong>
+                  </div>
+
+                  <div className="p-3 bg-white rounded-lg border border-slate-200 flex items-center justify-between">
+                    <span className="font-semibold text-slate-500">Gravidade:</span>
+                    <strong className="text-slate-900">{rnc.gravidade || 'Dimensional'}</strong>
+                  </div>
+
+                  <div className="p-3 bg-white rounded-lg border border-slate-200">
+                    <span className="font-semibold text-slate-500 block mb-1">Desc. problema interno:</span>
+                    <strong className="text-slate-900 uppercase block">
+                      {rnc.descricaoProblemaInterno || rnc.modoFalha || 'PEÇA AMASSADA / DEFORMADO'}
+                    </strong>
+                  </div>
+
+                  <div className="sm:col-span-2 lg:col-span-3 p-3.5 bg-slate-50 rounded-lg border border-slate-200">
+                    <span className="font-semibold text-slate-500 block mb-1">Recomendações / Providências:</span>
+                    <p className="text-slate-800 font-medium leading-relaxed">
+                      {rnc.recomendacoesProvidencias || 'Orientar TODOS ENVOLVIDOS'}
                     </p>
                   </div>
+                </div>
 
-                  {/* Comentários Proteção ao cliente (Foto 5) */}
-                  <div className="p-4 bg-blue-50/60 rounded-xl border border-blue-200 text-xs">
-                    <span className="font-bold text-blue-950 block mb-1.5 flex items-center gap-1.5">
-                      <ShieldCheck className="w-4 h-4 text-blue-700" />
-                      <span>Comentários Proteção ao cliente</span>
+                {/* Foto Auxiliar Ampla com Demarcações de Inspeção (Foto 5) */}
+                <div className="flex flex-col rounded-xl overflow-hidden border border-slate-200 bg-white shadow-2xs">
+                  <div className="bg-[#0f2942] text-white px-4 py-2.5 flex items-center justify-between border-b border-[#1b3d5e]">
+                    <div className="flex items-center gap-2">
+                      <ImageIcon className="w-4 h-4 text-sky-400" />
+                      <span className="font-bold text-xs sm:text-sm">Foto Auxiliar & Demarcações de Inspeção (Foto 5)</span>
+                    </div>
+                    <span className="text-xs text-sky-200 font-semibold">
+                      Equipe resp.: <strong className="text-white">{rnc.quemFara || rnc.detector || 'LEANDRO APARECIDO POSSOMATO'}</strong>
                     </span>
-                    <p className="text-blue-950 font-medium leading-relaxed whitespace-pre-wrap">
-                      {rnc.comentarioGestor || 'Comentários da Proteção ao Cliente devidamente registrados e validados pela equipe de Qualidade.'}
-                    </p>
                   </div>
-                </div>
-              </div>
 
-              {/* CARD: Operadores Treinados nesta Ocorrência */}
-              <div className="rounded-xl border border-slate-200 overflow-hidden bg-white shadow-xs">
-                <div className="p-4 border-b border-[#e2e8f0] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-slate-50/80">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0">
-                      <Users className="w-4 h-4 text-indigo-700" />
+                  <div className="p-4 sm:p-5 flex flex-col gap-4">
+                    <div className="w-full rounded-xl bg-slate-50 border border-slate-200 p-2 sm:p-3 flex items-center justify-center min-h-[260px] max-h-[500px] overflow-hidden">
+                      <ImageWithFallback
+                        src={rnc.fotoAuxiliar || rnc.fotoPecaNg}
+                        alt="Foto auxiliar com demarcação do defeito"
+                        variant="ng"
+                        className="w-full h-full max-h-[480px] object-contain rounded-lg"
+                        emptyLabel="Sem foto auxiliar cadastrada para esta ocorrência"
+                        showExternalLink={true}
+                        allowZoom={true}
+                        itemId={rnc.id}
+                      />
                     </div>
-                    <div>
-                      <h3 className="text-xs sm:text-sm font-bold text-[#0f172a]">
-                        Operadores Treinados nesta Ocorrência ({treinamentos.length})
-                      </h3>
-                      <p className="text-[11px] text-[#64748b]">Capacitação e alinhamento da equipe quanto ao padrão</p>
-                    </div>
-                  </div>
-                  {!isOperator && (
-                    <button
-                      type="button"
-                      onClick={() => setModalTreinOpen(true)}
-                      className="btn-secondary h-7 px-2.5 text-xs font-semibold self-start sm:self-auto"
-                    >
-                      <span>+ Novo Treinamento</span>
-                    </button>
-                  )}
-                </div>
 
-                {treinamentos.length === 0 ? (
-                  <div className="p-6 text-center text-xs text-[#64748b]">
-                    Nenhum operador registrado até o momento. Clique em "+ Novo Treinamento" para registrar a capacitação da equipe.
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs">
-                      <thead>
-                        <tr className="border-b border-[#e2e8f0] bg-[#f8fafc] text-[#64748b] font-semibold">
-                          <th className="py-2.5 px-4">Operador</th>
-                          <th className="py-2.5 px-4">RE</th>
-                          <th className="py-2.5 px-4">Data</th>
-                          <th className="py-2.5 px-4">Instrutor</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[#f1f5f9]">
-                        {treinamentos.map(t => (
-                          <tr key={t.id} className="hover:bg-[#f8fafc] transition-colors">
-                            <td className="py-2.5 px-4 font-bold text-[#0f172a]">{t.nomeColaborador || (t as any).nomeOperador}</td>
-                            <td className="py-2.5 px-4 font-mono text-[#64748b]">{t.re}</td>
-                            <td className="py-2.5 px-4 font-mono text-[#64748b]">{formatDateBR(t.dataTreinamento)}</td>
-                            <td className="py-2.5 px-4 text-[#334155]">{t.responsavel || (t as any).instrutor}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-
-              {/* CARD: Histórico de Reincidências Registradas */}
-              <div className="p-4 sm:p-5 bg-amber-50/40 rounded-xl border border-amber-200/80 flex flex-col gap-3.5 shadow-xs">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-amber-200/60">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
-                      <History className="w-3.5 h-3.5" />
-                    </div>
-                    <div>
-                      <h3 className="text-xs sm:text-sm font-bold text-[#0f172a] flex items-center gap-2">
-                        <span>Histórico de Reincidências Registradas</span>
-                        <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
-                          {historicoReincidencias.length} registro(s)
-                        </span>
-                      </h3>
-                      <p className="text-[11px] text-[#64748b]">
-                        Ocorrências da mesma peça com o defeito <strong>"{rnc.modoFalha || rnc.descricaoProblema}"</strong>
+                    <div className="p-3.5 bg-blue-50/60 rounded-xl border border-blue-200 text-xs">
+                      <span className="font-bold text-blue-950 block mb-1 flex items-center gap-1.5">
+                        <ShieldCheck className="w-4 h-4 text-blue-700" />
+                        <span>Comentários Proteção ao cliente (Parecer Técnico):</span>
+                      </span>
+                      <p className="text-blue-950 font-medium leading-relaxed whitespace-pre-wrap">
+                        {rnc.comentarioGestor || 'Comentários da Proteção ao Cliente devidamente registrados e validados pela equipe de Qualidade.'}
                       </p>
                     </div>
                   </div>
                 </div>
 
-                {historicoReincidencias.length === 0 ? (
-                  <div className="p-3 bg-white rounded-lg border border-amber-200/60 text-center flex items-center justify-center gap-2 text-xs text-slate-500">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                    <span>Nenhuma outra ocorrência anterior encontrada no histórico para esta peça com este defeito. (Primeira Ocorrência / Não Reincidente).</span>
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-2 max-h-72 overflow-y-auto pr-1">
-                    {historicoReincidencias.map((item, idx) => (
-                      <div 
-                        key={item.id || idx}
-                        className="p-3 bg-white rounded-lg border border-slate-200 hover:border-amber-400 hover:shadow-xs transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
+                {/* Operadores Treinados nesta Ocorrência */}
+                <div className="rounded-xl border border-slate-200 overflow-hidden bg-white shadow-xs">
+                  <div className="p-4 border-b border-[#e2e8f0] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-slate-50/80">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0">
+                        <Users className="w-4 h-4 text-indigo-700" />
+                      </div>
+                      <div>
+                        <h3 className="text-xs sm:text-sm font-bold text-[#0f172a]">
+                          Operadores Treinados nesta Ocorrência ({treinamentos.length})
+                        </h3>
+                        <p className="text-[11px] text-[#64748b]">Capacitação e alinhamento da equipe quanto ao padrão</p>
+                      </div>
+                    </div>
+                    {!isOperator && (
+                      <button
+                        type="button"
+                        onClick={() => setModalTreinOpen(true)}
+                        className="btn-secondary h-7 px-2.5 text-xs font-semibold self-start sm:self-auto cursor-pointer"
                       >
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 min-w-0 flex-1">
-                          <div className="flex items-center gap-2 shrink-0">
-                            <span className="text-xs font-bold text-slate-900 font-mono bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                              {item.field1 || `RNC #${item.id}`}
-                            </span>
-                            <span className="text-[11px] font-semibold text-slate-700 bg-slate-50 px-2 py-0.5 rounded border border-slate-200 flex items-center gap-1">
-                              <Calendar className="w-3 h-3 text-slate-400" />
-                              <span>{formatDateBR(item.dataOcorrencia)}</span>
-                            </span>
-                          </div>
+                        <span>+ Novo Treinamento</span>
+                      </button>
+                    )}
+                  </div>
 
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-slate-900 truncate">
-                                {item.modoFalha || item.descricaoProblema || 'Defeito registrado'}
+                  {treinamentos.length === 0 ? (
+                    <div className="p-6 text-center text-xs text-[#64748b]">
+                      Nenhum operador registrado até o momento. Clique em "+ Novo Treinamento" para registrar a capacitação da equipe.
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead>
+                          <tr className="border-b border-[#e2e8f0] bg-[#f8fafc] text-[#64748b] font-semibold">
+                            <th className="py-2.5 px-4">Operador</th>
+                            <th className="py-2.5 px-4">RE</th>
+                            <th className="py-2.5 px-4">Data</th>
+                            <th className="py-2.5 px-4">Instrutor</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#f1f5f9]">
+                          {treinamentos.map(t => (
+                            <tr key={t.id} className="hover:bg-[#f8fafc] transition-colors">
+                              <td className="py-2.5 px-4 font-bold text-[#0f172a]">{t.nomeColaborador || (t as any).nomeOperador}</td>
+                              <td className="py-2.5 px-4 font-mono text-[#64748b]">{t.re}</td>
+                              <td className="py-2.5 px-4 font-mono text-[#64748b]">{formatDateBR(t.dataTreinamento)}</td>
+                              <td className="py-2.5 px-4 text-[#334155]">{t.responsavel || (t as any).instrutor}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
+                {/* Histórico de Reincidências Registradas */}
+                <div className="p-4 sm:p-5 bg-amber-50/40 rounded-xl border border-amber-200/80 flex flex-col gap-3.5 shadow-xs">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-amber-200/60">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+                        <History className="w-3.5 h-3.5" />
+                      </div>
+                      <div>
+                        <h3 className="text-xs sm:text-sm font-bold text-[#0f172a] flex items-center gap-2">
+                          <span>Histórico de Reincidências Registradas</span>
+                          <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
+                            {historicoReincidencias.length} registro(s)
+                          </span>
+                        </h3>
+                        <p className="text-[11px] text-[#64748b]">
+                          Ocorrências da mesma peça com o defeito <strong>"{rnc.modoFalha || rnc.descricaoProblema}"</strong>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {historicoReincidencias.length === 0 ? (
+                    <div className="p-3 bg-white rounded-lg border border-amber-200/60 text-center flex items-center justify-center gap-2 text-xs text-slate-500">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      <span>Nenhuma outra ocorrência anterior encontrada no histórico para esta peça com este defeito. (Primeira Ocorrência / Não Reincidente).</span>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2 max-h-72 overflow-y-auto pr-1">
+                      {historicoReincidencias.map((item, idx) => (
+                        <div 
+                          key={item.id || idx}
+                          className="p-3 bg-white rounded-lg border border-slate-200 hover:border-amber-400 hover:shadow-xs transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
+                        >
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 min-w-0 flex-1">
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="text-xs font-bold text-slate-900 font-mono bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                                {item.field1 || `RNC #${item.id}`}
+                              </span>
+                              <span className="text-[11px] font-semibold text-slate-700 bg-slate-50 px-2 py-0.5 rounded border border-slate-200 flex items-center gap-1">
+                                <Calendar className="w-3 h-3 text-slate-400" />
+                                <span>{formatDateBR(item.dataOcorrencia)}</span>
                               </span>
                             </div>
-                            <p className="text-[11px] text-slate-500 truncate mt-0.5">
-                              {item.cliente} • {item.produto || item.componente} {item.posto ? `• Posto: ${item.posto}` : ''} • Qtd: {item.quantidadeAfetada || 1}
-                            </p>
+
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-slate-900 truncate">
+                                  {item.modoFalha || item.descricaoProblema || 'Defeito registrado'}
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                                {item.cliente} • {item.produto || item.componente} {item.posto ? `• Posto: ${item.posto}` : ''} • Qtd: {item.quantidadeAfetada || 1}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0">
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                              item.status === 'Concluído' 
+                                ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
+                                : item.status === 'Em Andamento' 
+                                ? 'bg-amber-50 text-amber-900 border-amber-200' 
+                                : 'bg-blue-50 text-blue-800 border-blue-200'
+                            }`}>
+                              {item.status || 'Em Andamento'}
+                            </span>
+
+                            <button
+                              type="button"
+                              onClick={() => setRncPopupVisualizar(item)}
+                              className="btn-secondary h-7 px-2.5 text-xs font-bold text-[#0b5796] hover:bg-blue-50 border-blue-200 flex items-center gap-1 cursor-pointer"
+                              title="Visualizar detalhes em pop-up rápido"
+                            >
+                              <Eye className="w-3.5 h-3.5 text-[#0b5796]" />
+                              <span>Ver RNC</span>
+                            </button>
                           </div>
                         </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
-                        <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0">
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                            item.status === 'Concluído' 
-                              ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
-                              : item.status === 'Em Andamento' 
-                              ? 'bg-amber-50 text-amber-900 border-amber-200' 
-                              : 'bg-blue-50 text-blue-800 border-blue-200'
-                          }`}>
-                            {item.status || 'Em Andamento'}
-                          </span>
-
-                          <button
-                            type="button"
-                            onClick={() => setRncPopupVisualizar(item)}
-                            className="btn-secondary h-7 px-2.5 text-xs font-bold text-[#0b5796] hover:bg-blue-50 border-blue-200 flex items-center gap-1 cursor-pointer"
-                            title="Visualizar detalhes em pop-up rápido"
-                          >
-                            <Eye className="w-3.5 h-3.5 text-[#0b5796]" />
-                            <span>Ver RNC</span>
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
-
             </div>
           )}
 

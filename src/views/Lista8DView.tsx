@@ -477,17 +477,6 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
               <span className="hidden md:inline">Galeria</span>
             </button>
           </div>
-
-          {/* Botão Nova RNC */}
-          <button
-            type="button"
-            onClick={() => onNavigate('registro-8d', { edicao: false, rncId: undefined, timestamp: Date.now() })}
-            className="btn-primary !h-10 px-4 text-xs font-semibold shadow-sm hover:shadow flex items-center gap-1.5 cursor-pointer"
-            title="Abrir novo Relatório Inicial de Não Conformidade"
-          >
-            <Plus className="w-4 h-4 stroke-[2.5]" />
-            <span className="font-display">Nova NCC / RNC</span>
-          </button>
         </div>
       </div>
 
@@ -657,7 +646,7 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
                 <tr className="border-b border-[#e2e8f0] text-xs font-display font-semibold text-[#64748b] bg-[#f8fafc]/90">
                   <th className="py-3 px-4 font-semibold w-[34%] max-w-[340px]">Identificação / Peça & Defeito</th>
                   <th className="py-3 px-4 font-semibold hidden md:table-cell w-[18%]">Posto & Célula Fabril</th>
-                  <th className="py-3 px-4 font-semibold hidden lg:table-cell w-[16%] whitespace-nowrap">Cliente & Planta</th>
+                  <th className="py-3 px-4 font-semibold hidden lg:table-cell w-[16%] whitespace-nowrap">Cliente</th>
                   <th className="py-3 px-4 font-semibold w-[18%]">Governança & Rastreabilidade</th>
                   <th className="py-3 px-4 font-semibold w-[14%] whitespace-nowrap">Status</th>
                   <th className="py-3 px-4 font-semibold hidden sm:table-cell w-[10%] whitespace-nowrap">Data</th>
@@ -781,16 +770,11 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
                           </div>
                         </td>
 
-                        {/* Coluna 3: Cliente & Planta (Sem data duplicada) */}
+                        {/* Coluna 3: Cliente */}
                         <td className="py-2.5 px-4 hidden lg:table-cell text-slate-700 whitespace-nowrap">
-                          <div className="flex flex-col gap-0.5">
-                            <span className="font-bold text-xs text-slate-900">
-                              {r.cliente}
-                            </span>
-                            <span className="text-[11px] text-slate-500 whitespace-nowrap">
-                              Gestamp Sorocaba
-                            </span>
-                          </div>
+                          <span className="font-bold text-xs text-slate-900">
+                            {r.cliente}
+                          </span>
                         </td>
 
                         {/* Coluna 4: Governança & Rastreabilidade (Tipo + SAP + 8D) */}
@@ -908,11 +892,11 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
                       </span>
                     </div>
 
-                    {/* Linha 3: Cliente - Planta - Data */}
+                    {/* Linha 3: Cliente - Data */}
                     <div className="text-xs text-slate-500 flex items-center gap-1.5 truncate">
                       <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                       <span className="font-medium">
-                        {r.cliente} - SOROCABA - {formatDateBR(r.dataOcorrencia)} ({r.turno})
+                        {r.cliente} • {formatDateBR(r.dataOcorrencia)} ({r.turno})
                       </span>
                     </div>
 

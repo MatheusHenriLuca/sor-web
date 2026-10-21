@@ -3,6 +3,7 @@ import { ArrowLeft, Printer, CheckCircle2, ShieldAlert, FileText, Check } from '
 import { RNCRecord, RegistroTreinamento } from '../types';
 import { spStore } from '../services/sharepointService';
 import { ImageWithFallback } from '../components/ImageWithFallback';
+import { formatDateBR } from '../utils/date';
 
 interface DetalhesImpressaoViewProps {
   rncId: number;
@@ -113,7 +114,7 @@ export const DetalhesImpressaoView: React.FC<DetalhesImpressaoViewProps> = ({ rn
             <div className="text-base font-black text-rose-600 font-mono">
               {rnc.field1 || `RNC #${rnc.id}`}
             </div>
-            <div className="text-[10px] text-slate-500 font-medium">Data: {rnc.dataOcorrencia}</div>
+            <div className="text-[10px] text-slate-500 font-medium">Data: {formatDateBR(rnc.dataOcorrencia)}</div>
           </div>
         </div>
 
@@ -215,7 +216,7 @@ export const DetalhesImpressaoView: React.FC<DetalhesImpressaoViewProps> = ({ rn
                     {t.nomeColaborador}
                   </td>
                   <td className="p-1 border border-slate-300 font-mono text-center">
-                    {t.dataTreinamento}
+                    {formatDateBR(t.dataTreinamento)}
                   </td>
                   <td className="p-1 border border-slate-300"></td>
                 </tr>

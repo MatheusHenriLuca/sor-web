@@ -97,7 +97,7 @@ export const VerifUserView: React.FC<VerifUserViewProps> = ({ onLoginSuccess }) 
   };
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] flex flex-col justify-between font-sans select-none text-[#0f172a]">
+    <div className="min-h-screen bg-[#f8fafc] flex flex-col justify-between font-sans text-[#0f172a]">
       
       {/* Top Header */}
       <header className="h-14 px-6 flex items-center justify-between border-b border-[#e2e8f0] bg-white">

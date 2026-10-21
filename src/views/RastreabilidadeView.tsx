@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { RastreabilidadeItem, EtiquetaVivaParsed, LoteSAPParsed, RastCabeceiraParsed, UsuarioQualidade } from '../types';
 import { spStore } from '../services/sharepointService';
+import { formatDateBR } from '../utils/date';
 
 interface RastreabilidadeViewProps {
   onNavigate: (screen: any, params?: any) => void;
@@ -265,7 +266,7 @@ export const RastreabilidadeView: React.FC<RastreabilidadeViewProps> = ({ onNavi
                         {l.qtd} pçs
                       </td>
                       <td className="py-3 px-4 text-[#64748b] font-mono">
-                        {l.data}
+                        {formatDateBR(l.data)}
                       </td>
                     </tr>
                   ))

@@ -38,6 +38,7 @@ import { CLIENTES_LIST, DEFAULT_CLIENTE, getClientBadgeInfo } from '../constants
 import { MODOS_FALHA_LIST, IMPACTOS_CLIENTE_LIST, GRAVIDADE_LIST, ACOES_CONTENCAO_LIST } from '../constants/defeitos';
 import { SearchableSelect } from '../components/SearchableSelect';
 import { RncDetalhesModal } from '../components/RncDetalhesModal';
+import { formatDateBR } from '../utils/date';
 
 interface Registro8DViewProps {
   onNavigate: (screen: any, params?: any) => void;
@@ -1860,7 +1861,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                           </span>
                           <span className="text-[11px] font-semibold text-slate-700 bg-slate-50 px-2 py-0.5 rounded border border-slate-200 flex items-center gap-1">
                             <Calendar className="w-3 h-3 text-slate-400" />
-                            <span>{item.dataOcorrencia}</span>
+                            <span>{formatDateBR(item.dataOcorrencia)}</span>
                           </span>
                         </div>
 

@@ -15,6 +15,7 @@ import {
 import { FalhaEntregaRecord, UsuarioQualidade } from '../types';
 import { spStore } from '../services/sharepointService';
 import { CLIENTES_LIST, DEFAULT_CLIENTE, getClientBadgeInfo } from '../constants/clientes';
+import { formatDateBR } from '../utils/date';
 
 interface FalhaEntregaViewProps {
   onNavigate: (screen: any) => void;
@@ -234,7 +235,7 @@ export const FalhaEntregaView: React.FC<FalhaEntregaViewProps> = ({ onNavigate, 
                         </div>
                       </td>
                       <td className="py-3 px-4 font-mono text-[#64748b]">
-                        {f.data}
+                        {formatDateBR(f.data)}
                       </td>
                       <td className="py-3 px-4 font-semibold text-[#0f172a]">
                         {f.cliente}

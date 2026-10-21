@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { RNCRecord } from '../types';
 import { ImageWithFallback } from './ImageWithFallback';
+import { formatDateBR } from '../utils/date';
 
 interface RncDetalhesModalProps {
   rnc: RNCRecord | null | undefined;
@@ -115,7 +116,7 @@ export const RncDetalhesModal: React.FC<RncDetalhesModalProps> = ({
               <span className="text-[11px] text-slate-500 font-medium">Data Ocorrência</span>
               <span className="font-bold text-slate-900 flex items-center gap-1.5">
                 <Calendar className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                <span>{rnc.dataOcorrencia}</span>
+                <span>{formatDateBR(rnc.dataOcorrencia)}</span>
               </span>
               <span className="text-[10px] text-slate-400">{rnc.turno || '1º Turno'}</span>
             </div>
@@ -215,7 +216,7 @@ export const RncDetalhesModal: React.FC<RncDetalhesModalProps> = ({
               )}
               {rnc.dataInicioRastreabilidade && (
                 <div>
-                  <strong className="text-slate-900">Período de Contenção:</strong> {rnc.dataInicioRastreabilidade} até {rnc.dataFimRastreabilidade || 'Atual'}
+                  <strong className="text-slate-900">Período de Contenção:</strong> {formatDateBR(rnc.dataInicioRastreabilidade)} até {formatDateBR(rnc.dataFimRastreabilidade) || 'Atual'}
                 </div>
               )}
             </div>

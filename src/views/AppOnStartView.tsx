@@ -80,7 +80,7 @@ export const AppOnStartView: React.FC<AppOnStartViewProps> = ({
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col justify-between bg-[#f8fafc] font-sans select-none text-[#0f172a]">
+    <div className="min-h-screen w-full flex flex-col justify-between bg-[#f8fafc] font-sans text-[#0f172a]">
       
       {/* 1. CABEÇALHO CORPORATIVO PADRONIZADO */}
       <header className="!h-14 w-full !px-4 sm:!px-8 lg:!px-10 flex items-center justify-between border-b border-[#e2e8f0] bg-white shadow-2xs z-10 shrink-0">

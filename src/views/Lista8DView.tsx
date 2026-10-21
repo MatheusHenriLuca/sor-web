@@ -26,6 +26,8 @@ import {
 import { RNCRecord, UsuarioQualidade } from '../types';
 import { spStore } from '../services/sharepointService';
 import { CLIENTES_LIST, getClientBadgeInfo } from '../constants/clientes';
+import { formatDateBR } from '../utils/date';
+import { handleSafeClick } from '../utils/selection';
 
 interface Lista8DViewProps {
   onNavigate: (screen: string, params?: any) => void;
@@ -653,19 +655,18 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-[#e2e8f0] text-xs font-display font-semibold text-[#64748b] bg-[#f8fafc]/90">
-                  <th className="py-3 px-4 font-semibold w-[30%] max-w-[320px]">Identificação / Peça & Defeito</th>
+                  <th className="py-3 px-4 font-semibold w-[34%] max-w-[340px]">Identificação / Peça & Defeito</th>
                   <th className="py-3 px-4 font-semibold hidden md:table-cell w-[18%]">Posto & Célula Fabril</th>
-                  <th className="py-3 px-4 font-semibold hidden lg:table-cell w-[15%] whitespace-nowrap">Cliente & Planta</th>
-                  <th className="py-3 px-4 font-semibold w-[16%]">Governança & Rastreabilidade</th>
-                  <th className="py-3 px-4 font-semibold w-[12%] whitespace-nowrap">Status</th>
-                  <th className="py-3 px-4 font-semibold hidden sm:table-cell w-[9%] whitespace-nowrap">Data</th>
-                  <th className="py-3 px-4 font-semibold text-right">Ação</th>
+                  <th className="py-3 px-4 font-semibold hidden lg:table-cell w-[16%] whitespace-nowrap">Cliente & Planta</th>
+                  <th className="py-3 px-4 font-semibold w-[18%]">Governança & Rastreabilidade</th>
+                  <th className="py-3 px-4 font-semibold w-[14%] whitespace-nowrap">Status</th>
+                  <th className="py-3 px-4 font-semibold hidden sm:table-cell w-[10%] whitespace-nowrap">Data</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#f1f5f9] text-xs sm:text-sm">
                 {paginatedRncs.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-16 text-center">
+                    <td colSpan={6} className="py-16 text-center">
                       <div className="flex flex-col items-center justify-center max-w-sm mx-auto gap-3">
                         <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 border border-slate-200">
                           <Search className="w-6 h-6" />
@@ -694,11 +695,11 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
                     return (
                       <tr
                         key={r.id}
-                        onClick={() => onNavigate('detalhes-8d', { rncId: r.id })}
+                        onClick={(e) => handleSafeClick(() => onNavigate('detalhes-8d', { rncId: r.id }), e)}
                         className="hover:bg-[#f8fafc] transition-colors cursor-pointer group"
                       >
                         {/* Coluna 1: Miniatura + Identificação + Peça + Defeito */}
-                        <td className="py-2.5 px-4 w-[30%] max-w-[320px]">
+                        <td className="py-2.5 px-4 w-[34%] max-w-[340px]">
                           <div className="flex items-start gap-3">
                             {/* Miniatura Compacta */}
                             <div className="w-12 h-12 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shadow-2xs flex items-center justify-center shrink-0 relative group-hover:border-[#0f6cbd]/40 transition-all mt-0.5">
@@ -734,9 +735,14 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
                             {/* Informações da Peça e Defeito */}
                             <div className="flex flex-col gap-0.5 min-w-0">
                               <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="font-bold text-[#0f172a] group-hover:text-[#0f6cbd] transition-colors text-xs sm:text-sm font-mono-numbers">
-                                  {r.field1 || `RNC #${r.id}`}
+                                <span className="font-bold text-[#0f6cbd] group-hover:text-[#0b5796] transition-colors text-xs sm:text-sm font-mono-numbers">
+                                  RNC #{r.id}
                                 </span>
+                                {r.field1 && (
+                                  <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold bg-slate-100 text-slate-700 border border-slate-200" title={`Código do Cliente: ${r.field1}`}>
+                                    <span className="text-slate-400 font-normal mr-0.5">Cód:</span>{r.field1}
+                                  </span>
+                                )}
                                 <span className={`inline-flex px-1.5 py-0.2 rounded text-[9px] font-bold border tracking-wide uppercase ${tpBadge.style}`}>
                                   {tpBadge.label}
                                 </span>
@@ -775,14 +781,14 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
                           </div>
                         </td>
 
-                        {/* Coluna 3: Cliente & Planta */}
+                        {/* Coluna 3: Cliente & Planta (Sem data duplicada) */}
                         <td className="py-2.5 px-4 hidden lg:table-cell text-slate-700 whitespace-nowrap">
                           <div className="flex flex-col gap-0.5">
                             <span className="font-bold text-xs text-slate-900">
                               {r.cliente}
                             </span>
-                            <span className="text-[11px] text-slate-500 font-mono whitespace-nowrap">
-                              SOROCABA • {r.dataOcorrencia}
+                            <span className="text-[11px] text-slate-500 whitespace-nowrap">
+                              Gestamp Sorocaba
                             </span>
                           </div>
                         </td>
@@ -803,18 +809,10 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
                           {getStatusBadge(r.status, r.protcliente)}
                         </td>
 
-                        {/* Coluna 6: Data */}
-                        <td className="py-2.5 px-4 hidden sm:table-cell text-slate-500 font-mono text-xs whitespace-nowrap">
-                          <div>{r.dataOcorrencia}</div>
-                          <div className="text-[10px] text-slate-400">{r.turno}</div>
-                        </td>
-
-                        {/* Coluna 7: Ação */}
-                        <td className="py-2.5 px-4 text-right">
-                          <span className="btn-subtle text-xs text-[#0f6cbd] font-semibold group-hover:bg-blue-50 py-1 px-2.5 rounded-lg inline-flex items-center gap-1">
-                            <span>Abrir</span>
-                            <ChevronRight className="w-3.5 h-3.5" />
-                          </span>
+                        {/* Coluna 6: Data Padronizada DD/MM/AA */}
+                        <td className="py-2.5 px-4 hidden sm:table-cell text-slate-600 font-mono text-xs whitespace-nowrap">
+                          <div className="font-semibold">{formatDateBR(r.dataOcorrencia)}</div>
+                          {r.turno && <div className="text-[10px] text-slate-400">{r.turno}</div>}
                         </td>
                       </tr>
                     );
@@ -846,7 +844,7 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
               return (
                 <div
                   key={r.id}
-                  onClick={() => onNavigate('detalhes-8d', { rncId: r.id })}
+                  onClick={(e) => handleSafeClick(() => onNavigate('detalhes-8d', { rncId: r.id }), e)}
                   className="card-saas p-4 sm:p-5 border-slate-200 hover:border-[#0f6cbd] hover:shadow-md transition-all cursor-pointer flex flex-col md:flex-row items-start md:items-center justify-between gap-4 group"
                 >
                   {/* SEÇÃO 1: FOTO / MINIATURA (LADO ESQUERDO DA FOTO DO POWER APPS) */}
@@ -914,7 +912,7 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
                     <div className="text-xs text-slate-500 flex items-center gap-1.5 truncate">
                       <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                       <span className="font-medium">
-                        {r.cliente} - SOROCABA - {r.dataOcorrencia} ({r.turno})
+                        {r.cliente} - SOROCABA - {formatDateBR(r.dataOcorrencia)} ({r.turno})
                       </span>
                     </div>
 
@@ -930,10 +928,16 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
                   <div className="flex md:flex-col items-start md:items-end justify-between md:justify-center gap-1.5 shrink-0 w-full md:w-auto pt-3 md:pt-0 border-t md:border-t-0 border-slate-100">
                     
                     {/* Linha 1: ID - Status */}
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-bold text-slate-700 font-mono">
-                        ID: {r.id} -
+                    <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                      <span className="text-xs font-bold text-slate-800 font-mono">
+                        RNC #{r.id}
                       </span>
+                      {r.field1 && (
+                        <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold bg-slate-100 text-slate-700 border border-slate-200" title={`Código do Cliente: ${r.field1}`}>
+                          <span className="text-slate-400 font-normal mr-0.5">Cód:</span>{r.field1}
+                        </span>
+                      )}
+                      <span className="text-slate-300">-</span>
                       {getStatusBadge(r.status, r.protcliente)}
                     </div>
 

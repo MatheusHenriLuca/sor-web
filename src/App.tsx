@@ -72,7 +72,7 @@ export function App() {
 
   // 3. ESTRUTURA PRINCIPAL (Top Header + Sidebar + Main Canvas)
   return (
-    <div className="min-h-screen bg-[#f8fafc] flex flex-col font-sans select-none antialiased text-[#0f172a]" key={refreshKey}>
+    <div className="min-h-screen bg-[#f8fafc] flex flex-col font-sans antialiased text-[#0f172a]" key={refreshKey}>
       
       {/* Barra Superior */}
       <AppHeader 

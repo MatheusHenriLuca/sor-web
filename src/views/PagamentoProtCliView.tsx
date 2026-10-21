@@ -13,6 +13,7 @@ import {
 import { RNCRecord, UsuarioQualidade } from '../types';
 import { spStore } from '../services/sharepointService';
 import { getClientBadgeInfo } from '../constants/clientes';
+import { formatDateBR } from '../utils/date';
 
 interface PagamentoProtCliViewProps {
   onNavigate: (screen: any) => void;
@@ -194,7 +195,7 @@ export const PagamentoProtCliView: React.FC<PagamentoProtCliViewProps> = ({ onNa
                         {r.field1 || `RNC-${r.id}`}
                       </td>
                       <td className="py-3 px-4 font-mono text-[#64748b]">
-                        {r.dataOcorrencia}
+                        {formatDateBR(r.dataOcorrencia)}
                       </td>
                       <td className="py-3 px-4 font-semibold text-[#0f172a]">
                         {r.cliente}

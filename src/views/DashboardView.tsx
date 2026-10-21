@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { RNCRecord, UsuarioQualidade } from '../types';
 import { spStore } from '../services/sharepointService';
+import { formatDateBR } from '../utils/date';
 
 interface DashboardViewProps {
   onNavigate: (screen: any, params?: any) => void;
@@ -213,7 +214,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, curren
                     <tr key={rnc.id} className="hover:bg-slate-50/80 transition">
                       <td className="py-3 px-5">
                         <strong className="font-mono text-slate-900 font-bold">{rnc.field1 || `RNC-${rnc.id}`}</strong>
-                        <div className="text-[10px] text-slate-400 font-mono">{rnc.dataOcorrencia}</div>
+                        <div className="text-[10px] text-slate-400 font-mono">{formatDateBR(rnc.dataOcorrencia)}</div>
                       </td>
                       <td className="py-3 px-5 font-semibold text-slate-800">
                         {rnc.cliente}
@@ -280,7 +281,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, curren
                   >
                     <div className="font-extrabold truncate">{alerta.produto} - {alerta.defeito}</div>
                     <div className="text-[11px] text-amber-800/80 mt-0.5">
-                      Postos: {alerta.postosDivulgados} • {alerta.dataDivulgacao}
+                      Postos: {alerta.postosDivulgados} • {formatDateBR(alerta.dataDivulgacao)}
                     </div>
                   </div>
                 ))}

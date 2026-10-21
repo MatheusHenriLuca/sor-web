@@ -32,6 +32,8 @@ import { RNCRecord, UsuarioQualidade, RegistroTreinamento } from '../types';
 import { spStore } from '../services/sharepointService';
 import { ImageWithFallback } from '../components/ImageWithFallback';
 import { RncDetalhesModal } from '../components/RncDetalhesModal';
+import { formatDateBR } from '../utils/date';
+import { handleSafeClick } from '../utils/selection';
 
 interface Detalhes8DViewProps {
   rncId: number;
@@ -486,17 +488,19 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
       {activeViewMode === 'detalhes' && (
         <div className="flex flex-col gap-6 animate-in fade-in">
           
-          {/* SEÇÃO 1: HISTÓRICO & RELATO COMPLETO */}
+          {/* ========================================================================= */}
+          {/* BLOCO 1: INFORMAÇÕES DO CLIENTE & OCORRÊNCIA */}
+          {/* ========================================================================= */}
           <div className="card-saas p-6 flex flex-col gap-5">
             <div className="flex items-center justify-between pb-3 border-b border-[#f1f5f9]">
               <div className="flex items-center gap-2.5">
                 <FileText className="w-4 h-4 text-[#0f6cbd]" />
                 <h2 className="text-sm sm:text-base font-bold text-[#0f172a]">
-                  Histórico & Relato Completo da Ocorrência
+                  1. Informações do Cliente & Relato da Ocorrência
                 </h2>
               </div>
               <div className="text-xs text-[#64748b] font-mono">
-                Data: {rnc.dataOcorrencia} • Turno: {rnc.turno || '1º Turno'}
+                Data: {formatDateBR(rnc.dataOcorrencia)} • Turno: {rnc.turno || '1º Turno'}
               </div>
             </div>
 
@@ -568,7 +572,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                         </span>
                         <span className="text-[11px] font-semibold text-slate-700 bg-slate-50 px-2 py-0.5 rounded border border-slate-200 flex items-center gap-1">
                           <Calendar className="w-3 h-3 text-slate-400" />
-                          <span>{item.dataOcorrencia}</span>
+                          <span>{formatDateBR(item.dataOcorrencia)}</span>
                         </span>
                       </div>
 
@@ -726,7 +730,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
 
                 <div className="info-tile">
                   <span className="info-tile-label">Data e turno</span>
-                  <span className="info-tile-value font-mono">{rnc.dataOcorrencia} ({rnc.turno})</span>
+                  <span className="info-tile-value font-mono">{formatDateBR(rnc.dataOcorrencia)} ({rnc.turno})</span>
                 </div>
 
                 <div className="info-tile">
@@ -763,7 +767,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                       </span>
                       {rnc.documentoRastreabilidade === 'Não Informado' ? (
                         <span className="text-[11px] font-mono text-slate-600 mt-0.5">
-                          Período de Lote: {rnc.dataInicioRastreabilidade || 'N/A'} até {rnc.dataFimRastreabilidade || 'N/A'}
+                          Período de Lote: {formatDateBR(rnc.dataInicioRastreabilidade)} até {formatDateBR(rnc.dataFimRastreabilidade)}
                         </span>
                       ) : (
                         <span className="text-xs font-mono font-bold text-[#0f172a] mt-0.5">
@@ -805,7 +809,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                 </div>
                 <div>
                   <h3 className="text-sm sm:text-base font-bold text-[#0f172a]">
-                    Contenção Imediata & Diretrizes 5W2H
+                    2. Contenção Imediata & Diretrizes 5W2H
                   </h3>
                   <p className="text-xs text-[#64748b]">Ações de triagem e bloqueio para não evasão do defeito</p>
                 </div>
@@ -876,13 +880,13 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
             </div>
           </div>
 
-          {/* SEÇÃO 4: EVIDÊNCIAS FOTOGRÁFICAS REGISTRADAS (NG x OK COM FOTOS REAIS) */}
+          {/* SEÇÃO 3: DISPOSIÇÃO INTERNA & EVIDÊNCIAS FOTOGRÁFICAS (NG x OK COM FOTOS REAIS) */}
           <div className="card-saas p-6 flex flex-col gap-5">
             <div className="flex items-center justify-between pb-3 border-b border-[#f1f5f9]">
               <div className="flex items-center gap-2">
                 <Layers className="w-4 h-4 text-[#0f6cbd]" />
                 <h3 className="text-sm font-bold text-[#0f172a]">
-                  Evidências Fotográficas Registradas
+                  3. Disposição Interna & Evidências Fotográficas
                 </h3>
               </div>
               <button
@@ -894,6 +898,32 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                 <ChevronRight className="w-3.5 h-3.5" />
               </button>
             </div>
+
+            {/* Disposição Interna e Recomendações Técnicas */}
+            {(rnc.recomendacoesProvidencias || rnc.descricaoProblemaInterno) && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-xl bg-slate-50 border border-slate-200">
+                {rnc.recomendacoesProvidencias && (
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
+                      Recomendações / Providências de Disposição:
+                    </span>
+                    <p className="text-xs text-slate-800 font-medium leading-relaxed whitespace-pre-wrap">
+                      {rnc.recomendacoesProvidencias}
+                    </p>
+                  </div>
+                )}
+                {rnc.descricaoProblemaInterno && (
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
+                      Descrição do Problema Interno:
+                    </span>
+                    <p className="text-xs text-slate-800 font-medium leading-relaxed">
+                      {rnc.descricaoProblemaInterno}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               
@@ -1002,7 +1032,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                       <tr key={t.id} className="hover:bg-[#f8fafc] transition-colors">
                         <td className="py-3 px-5 font-bold text-[#0f172a]">{t.nomeColaborador || (t as any).nomeOperador}</td>
                         <td className="py-3 px-5 font-mono text-[#64748b]">{t.re}</td>
-                        <td className="py-3 px-5 font-mono text-[#64748b]">{t.dataTreinamento}</td>
+                        <td className="py-3 px-5 font-mono text-[#64748b]">{formatDateBR(t.dataTreinamento)}</td>
                         <td className="py-3 px-5 text-[#334155]">{t.responsavel || (t as any).instrutor}</td>
                       </tr>
                     ))}
@@ -1368,7 +1398,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                           Quando fazer?
                         </span>
                         <span className="text-xs font-bold text-slate-900">
-                          {rnc.quandoFara || rnc.dataContencao || 'Imediato'}
+                          {rnc.quandoFara || formatDateBR(rnc.dataContencao) || 'Imediato'}
                         </span>
                       </div>
 
@@ -1441,7 +1471,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                       <tr key={t.id} className="hover:bg-[#f8fafc] transition-colors">
                         <td className="py-3 px-5 font-bold text-[#0f172a]">{t.nomeColaborador || (t as any).nomeOperador}</td>
                         <td className="py-3 px-5 font-mono text-[#64748b]">{t.re}</td>
-                        <td className="py-3 px-5 font-mono text-[#64748b]">{t.dataTreinamento}</td>
+                        <td className="py-3 px-5 font-mono text-[#64748b]">{formatDateBR(t.dataTreinamento)}</td>
                         <td className="py-3 px-5 text-[#334155]">{t.responsavel || (t as any).instrutor}</td>
                       </tr>
                     ))}

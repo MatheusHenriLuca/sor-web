@@ -17,7 +17,9 @@ import {
   Building2,
   Factory,
   Barcode,
-  Layers
+  Layers,
+  Hash,
+  Tag
 } from 'lucide-react';
 import { RNCRecord, UsuarioQualidade } from '../types';
 import { spStore } from '../services/sharepointService';
@@ -691,12 +693,11 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
               <div
                 key={r.id}
                 onClick={(e) => handleSafeClick(() => onNavigate('detalhes-8d', { rncId: r.id }), e)}
-                className="card-saas p-4 sm:p-5 border-slate-200 hover:border-[#0f6cbd] hover:shadow-md transition-all cursor-pointer flex flex-col md:flex-row items-start md:items-center justify-between gap-4 group"
+                className="card-saas p-3.5 sm:p-4 border-slate-200 hover:border-[#0f6cbd] hover:shadow-md transition-all cursor-pointer flex flex-col md:flex-row items-stretch justify-between gap-4 group"
               >
-                {/* SEÇÃO 1: FOTO / MINIATURA (LADO ESQUERDO DA FOTO DO POWER APPS) */}
                 {/* SEÇÃO 1: FOTO / MINIATURA EXPANDIDA (APROVEITANDO O ESPAÇO DO CARD) */}
-                <div className="flex items-center gap-3 shrink-0 self-start md:self-center">
-                  <div className="w-28 h-28 sm:w-32 sm:h-32 md:w-36 md:h-36 rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 shadow-2xs flex items-center justify-center shrink-0 relative group-hover:scale-[1.02] transition-transform">
+                <div className="flex items-center gap-3 shrink-0 self-start md:self-stretch">
+                  <div className="w-28 h-28 sm:w-32 sm:h-32 md:w-36 md:h-36 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shadow-2xs flex items-center justify-center shrink-0 relative group-hover:scale-[1.01] transition-transform">
                     {r.fotoPecaNg ? (
                       <>
                         <img 
@@ -732,84 +733,202 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
                   </div>
                 </div>
 
-                {/* SEÇÃO 2: DADOS DO PRODUTO E PROCESSO */}
-                <div className="flex-1 flex flex-col gap-1.5 min-w-0 md:px-2">
+                {/* SEÇÃO 2: DADOS DO PRODUTO E PROCESSO (3 LINHAS AUTO-DIMENSIONADAS PREENCHENDO O ESPAÇO DISPONÍVEL) */}
+                <div className="flex-1 flex flex-col justify-between gap-2 min-w-0 w-full md:px-1 self-stretch">
                   {/* Linha 1: Peça Final / Componente */}
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs sm:text-base font-bold text-slate-900 group-hover:text-[#0b5796] transition-colors">
+                  <div className="flex-1 min-h-[38px] px-3.5 rounded-xl border border-slate-200/80 bg-slate-50/60 group-hover:bg-blue-50/30 group-hover:border-blue-200/70 transition-colors flex items-center justify-between gap-3 w-full shadow-2xs">
+                    <span 
+                      className="text-xs sm:text-sm lg:text-[15px] font-bold text-slate-900 group-hover:text-[#0b5796] transition-colors truncate"
+                      title={r.produto || r.componente}
+                    >
                       {r.finalComponente === 'Peça Final + Componente' && r.produto && r.componente ? (
-                        <>Peça Final + Componente: <strong className="font-mono-numbers">{r.produto} - {r.componente}</strong></>
+                        <>Peça Final + Comp.: <strong className="font-mono-numbers">{r.produto} - {r.componente}</strong></>
                       ) : (
                         <>Peça Final: <strong className="font-mono-numbers">{r.produto || r.componente}</strong></>
                       )}
                     </span>
-                    <span className={`inline-flex px-1.5 py-0.5 rounded text-[10px] font-bold border tracking-wide uppercase ${tpBadge.style}`}>
+                    <span className={`inline-flex px-2.5 py-0.5 rounded-lg text-[10px] sm:text-[11px] font-bold border tracking-wide uppercase shrink-0 ${tpBadge.style}`}>
                       {tpBadge.label}
                     </span>
                   </div>
 
                   {/* Linha 2: Posto - Máquina - Setor / Área */}
-                  <div className="text-xs font-semibold text-slate-700 flex items-center gap-1.5 truncate">
-                    <Factory className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    <span className="truncate">
-                      {r.posto || 'Posto N/A'} {r.fmds ? `- ${r.fmds}` : r.classificacaoSetor ? `- ${r.classificacaoSetor}` : ''}
-                    </span>
+                  <div className="flex-1 min-h-[38px] px-3.5 rounded-xl border border-slate-200/70 bg-slate-50/40 flex items-center justify-between gap-3 w-full">
+                    <div className="text-xs sm:text-[13px] font-semibold text-slate-700 flex items-center gap-2 min-w-0 truncate">
+                      <Factory className="w-4 h-4 text-[#0b5796]/80 shrink-0" />
+                      <span className="truncate" title={`${r.posto || 'Posto N/A'} ${r.fmds ? `- ${r.fmds}` : ''}`}>
+                        {r.posto || 'Posto N/A'} {r.fmds ? `- ${r.fmds}` : r.classificacaoSetor ? `- ${r.classificacaoSetor}` : ''}
+                      </span>
+                    </div>
+                    {r.classificacaoSetor && (
+                      <span className="hidden xl:inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-white text-slate-600 border border-slate-200/80 shrink-0">
+                        Setor: {r.classificacaoSetor}
+                      </span>
+                    )}
                   </div>
 
-                  {/* Linha 3: Cliente - Data */}
-                  <div className="text-xs text-slate-600 flex items-center gap-1.5 truncate">
-                    <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    <span className="font-medium">
-                      {r.cliente} • <span className="tabular-nums font-semibold">{formatDateBR(r.dataOcorrencia)}</span> {r.turno && `(${r.turno})`}
-                    </span>
+                  {/* Linha 3: Cliente - Data - Turno - Quantidade */}
+                  <div className="flex-1 min-h-[38px] px-3.5 rounded-xl border border-slate-200/70 bg-slate-50/40 flex items-center justify-between gap-3 w-full">
+                    <div className="text-xs sm:text-[13px] text-slate-700 flex items-center gap-2 min-w-0 truncate">
+                      <Building2 className="w-4 h-4 text-[#0b5796]/80 shrink-0" />
+                      <span className="font-bold text-slate-800 truncate">{r.cliente}</span>
+                      <span className="text-slate-300">•</span>
+                      <span className="tabular-nums font-semibold text-slate-700 shrink-0">{formatDateBR(r.dataOcorrencia)}</span>
+                      {r.turno && <span className="text-slate-500 font-medium shrink-0">({r.turno})</span>}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {r.reincidente === 'SIM' && (
+                        <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 uppercase tracking-wide">
+                          Reincidente
+                        </span>
+                      )}
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-mono font-semibold bg-white text-slate-700 border border-slate-200/80">
+                        Qtd: {r.quantidadeAfetada || 1}
+                      </span>
+                    </div>
                   </div>
                 </div>
 
-                {/* SEÇÃO 3: STATUS/TIPO/DEFEITO E RNC/SAP/8D (2 COLUNAS COM 3 LINHAS CADA) */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-2 shrink-0 w-full md:w-auto pt-3 md:pt-0 border-t md:border-t-0 border-slate-100 items-start md:items-center">
+                {/* SEÇÃO 3: MATRIZ PADRONIZADA 2 COLUNAS x 3 LINHAS PREENCHENDO 100% DA ALTURA DO CONTAINER */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 shrink-0 w-full md:w-auto pt-3 md:pt-0 md:pl-4 border-t md:border-t-0 md:border-l border-slate-100 self-stretch">
                   
-                  {/* Coluna 1: Status, Tipo e Defeito */}
-                  <div className="flex flex-col items-start md:items-end gap-1.5">
+                  {/* Coluna 1: Status, Tipo e Defeito (Auto-dimensionados na altura total) */}
+                  <div className="flex flex-col justify-between gap-2 w-full sm:w-[175px] h-full">
                     {/* Linha 1: Status */}
-                    <div className="flex items-center justify-start md:justify-end">
-                      {getStatusBadge(r.status, r.protcliente)}
-                    </div>
+                    {(() => {
+                      const isProt = r.protcliente && r.protcliente !== 'Não';
+                      let statusStyle = 'bg-slate-50 text-slate-700 border-slate-200';
+                      let StatusIcon = Clock;
+                      let iconColor = 'text-slate-500';
+
+                      if (r.status === 'Concluído') {
+                        statusStyle = 'bg-emerald-50/90 text-emerald-800 border-emerald-200/90';
+                        StatusIcon = CheckCircle2;
+                        iconColor = 'text-emerald-600';
+                      } else if (r.status === 'Em Andamento') {
+                        statusStyle = 'bg-amber-50/90 text-amber-900 border-amber-300/80';
+                        StatusIcon = Clock;
+                        iconColor = 'text-amber-600';
+                      } else if (r.status === 'RNC Emitida') {
+                        statusStyle = 'bg-indigo-50/90 text-indigo-900 border-indigo-200/90';
+                        StatusIcon = AlertCircle;
+                        iconColor = 'text-indigo-600';
+                      } else if (r.status === 'Relatório Inicial') {
+                        statusStyle = 'bg-sky-50/90 text-sky-800 border-sky-200/90';
+                        StatusIcon = FileText;
+                        iconColor = 'text-sky-600';
+                      } else if (r.status === 'Reprovado') {
+                        statusStyle = 'bg-rose-50/90 text-rose-800 border-rose-200/90';
+                        StatusIcon = AlertTriangle;
+                        iconColor = 'text-rose-600';
+                      }
+
+                      return (
+                        <div className={`flex-1 min-h-[38px] px-3 rounded-xl border text-xs font-semibold flex items-center justify-between gap-2 w-full shadow-2xs ${statusStyle}`}>
+                          <div className="flex items-center gap-2 min-w-0 truncate">
+                            <StatusIcon className={`w-4 h-4 shrink-0 ${iconColor}`} />
+                            <span className="truncate">{r.status}</span>
+                          </div>
+                          {isProt && (
+                            <span title="Proteção ao Cliente Ativa" className="text-emerald-600 shrink-0">
+                              <ShieldCheck className="w-4 h-4 stroke-[2.2]" />
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })()}
+
                     {/* Linha 2: Tipo de RNC */}
-                    <div className="flex items-center justify-start md:justify-end">
-                      {getTipoRncBadge(r.tipoRnc)}
-                    </div>
-                    {/* Linha 3: Defeito */}
-                    <div className="flex items-center justify-start md:justify-end">
-                      <span 
-                        className="inline-block text-xs font-bold text-amber-950 bg-amber-50 border border-amber-300/80 px-2.5 py-0.5 rounded-lg max-w-[200px] truncate"
-                        title={r.modoFalha || r.descricaoProblema || 'Defeito não informado'}
-                      >
+                    {(() => {
+                      const tipo = r.tipoRnc || 'Formal';
+                      let tipoStyle = 'bg-slate-50 text-slate-700 border-slate-200/90';
+                      let iconColor = 'text-slate-500';
+
+                      if (tipo === 'Formal') {
+                        tipoStyle = 'bg-rose-50/80 text-rose-800 border-rose-200/90';
+                        iconColor = 'text-rose-500';
+                      } else if (tipo === 'Informal') {
+                        tipoStyle = 'bg-purple-50/80 text-purple-800 border-purple-200/90';
+                        iconColor = 'text-purple-500';
+                      } else if (tipo === 'Improcedente') {
+                        tipoStyle = 'bg-amber-50/80 text-amber-800 border-amber-200/90';
+                        iconColor = 'text-amber-500';
+                      }
+
+                      return (
+                        <div className={`flex-1 min-h-[38px] px-3 rounded-xl border text-xs font-semibold flex items-center gap-2 w-full shadow-2xs ${tipoStyle}`}>
+                          <Tag className={`w-4 h-4 shrink-0 ${iconColor}`} />
+                          <span className="truncate">Tipo: {tipo}</span>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Linha 3: Defeito Identificado */}
+                    <div 
+                      className="flex-1 min-h-[38px] px-3 rounded-xl border border-amber-300/75 bg-amber-50/60 text-amber-950 text-xs font-bold flex items-center gap-2 w-full shadow-2xs"
+                      title={r.modoFalha || r.descricaoProblema || 'Defeito não informado'}
+                    >
+                      <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span className="truncate">
                         {r.modoFalha || r.descricaoProblema || 'Defeito não informado'}
                       </span>
                     </div>
                   </div>
 
-                  {/* Coluna 2: RNC com Código, Etiqueta SAP e Governança 8D */}
-                  <div className="flex flex-col items-start md:items-end gap-1.5">
+                  {/* Coluna 2: RNC com Código, Etiqueta SAP e Governança 8D (Auto-dimensionados na altura total) */}
+                  <div className="flex flex-col justify-between gap-2 w-full sm:w-[175px] h-full">
                     {/* Linha 1: RNC # com código */}
-                    <div className="flex items-center gap-1.5 flex-wrap justify-start md:justify-end">
-                      <span className="text-xs font-bold text-slate-900 font-mono tabular-nums">
-                        RNC #{r.id}
-                      </span>
+                    <div 
+                      className="flex-1 min-h-[38px] px-3 rounded-xl border border-slate-200/90 bg-slate-100/80 text-slate-900 text-xs font-bold font-mono flex items-center justify-between gap-2 w-full shadow-2xs"
+                      title={formalCode ? `RNC #${r.id} • Código Cliente: ${formalCode}` : `RNC #${r.id}`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0 truncate">
+                        <Hash className="w-4 h-4 text-slate-500 shrink-0" />
+                        <span className="tabular-nums truncate">RNC #{r.id}</span>
+                      </div>
                       {formalCode && (
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-800 border border-slate-200" title={`Código do Cliente: ${formalCode}`}>
-                          <span className="text-slate-500 font-normal mr-0.5">Cód:</span>{formalCode}
+                        <span className="text-[10px] font-semibold text-slate-600 bg-white px-1.5 py-0.5 rounded border border-slate-200 truncate max-w-[65px]">
+                          {formalCode}
                         </span>
                       )}
                     </div>
+
                     {/* Linha 2: Etiqueta SAP */}
-                    <div className="flex items-center justify-start md:justify-end">
-                      {getSapBadge(r.documentoRastreabilidade, r.codigoRastreabilidade)}
-                    </div>
+                    {(() => {
+                      const isSap = r.documentoRastreabilidade === 'Etiqueta SAP' || !!r.codigoRastreabilidade;
+                      if (isSap) {
+                        return (
+                          <div 
+                            className="flex-1 min-h-[38px] px-3 rounded-xl border border-sky-200/90 bg-sky-50/80 text-sky-800 text-xs font-semibold font-mono flex items-center gap-2 w-full shadow-2xs"
+                            title={r.codigoRastreabilidade ? `SAP: ${r.codigoRastreabilidade}` : 'Etiqueta SAP'}
+                          >
+                            <Barcode className="w-4 h-4 text-sky-600 shrink-0" />
+                            <span className="truncate">{r.codigoRastreabilidade ? `SAP: ${r.codigoRastreabilidade}` : 'Etiqueta SAP'}</span>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div className="flex-1 min-h-[38px] px-3 rounded-xl border border-slate-200/80 bg-slate-50 text-slate-400 text-xs font-medium flex items-center gap-2 w-full shadow-2xs">
+                          <Barcode className="w-4 h-4 text-slate-300 shrink-0" />
+                          <span className="truncate">SAP: Não inform.</span>
+                        </div>
+                      );
+                    })()}
+
                     {/* Linha 3: Governança 8D */}
-                    <div className="flex items-center justify-start md:justify-end">
-                      {get8DBadge(r.abrir8D)}
-                    </div>
+                    {(() => {
+                      const isSim = String(r.abrir8D || '').toUpperCase() === 'SIM';
+                      return (
+                        <div className={`flex-1 min-h-[38px] px-3 rounded-xl border text-xs font-semibold flex items-center gap-2 w-full shadow-2xs ${
+                          isSim 
+                            ? 'bg-emerald-50/80 text-emerald-800 border-emerald-300/80' 
+                            : 'bg-slate-50 text-slate-600 border-slate-200/90'
+                        }`}>
+                          <Layers className={`w-4 h-4 shrink-0 ${isSim ? 'text-emerald-600' : 'text-slate-400'}`} />
+                          <span className="truncate">Plano 8D: {isSim ? 'Sim' : 'Não'}</span>
+                        </div>
+                      );
+                    })()}
                   </div>
 
                 </div>

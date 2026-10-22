@@ -590,11 +590,6 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                   <span>3. Disposição & Evidências</span>
                 </button>
               </div>
-
-              <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
-                <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
-                <span className="hidden md:inline">Visualização Consolidada Power Apps</span>
-              </div>
             </div>
           )}
         </div>

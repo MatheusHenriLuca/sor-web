@@ -88,15 +88,18 @@ export class SharePointDirectService {
         dataOcorrencia: f.field_2 ? f.field_2.split('T')[0] : (f.Created ? f.Created.split('T')[0] : new Date().toISOString().split('T')[0]),
         dataOficializacao: f.data_oficializacao ? f.data_oficializacao.split('T')[0] : '',
         classificacaoSetor: f.field_18 || '',
-        setorDeteccao: f.Origem_x0020_do_x0020_8D_x0020_i || '',
+        setorDeteccao: f.field_14 || f.Origem_x0020_do_x0020_8D_x0020_i || f.setor_deteccao || f.Origem || '',
+        impactoCliente: f.field_16 || f.Impacto_x0020_no_x0020_Cliente || f.impacto_cliente || f.Impacto_x0020_na_x0020_Linha || f.impacto || f.Impacto || '',
+        tipoDeteccao: f.Tipo_x0020_de_x0020_Deteccao || f.tipo_deteccao || '',
         turno: f.field_11 || '1º Turno',
         produto: f.Produto1 || '',
         componente: f.Componente || '',
         finalComponente: (f.final_componente === 'Produto Final' ? 'Peça Final' : f.final_componente) || 'Peça Final',
         quantidadeAfetada: Number(f.field_10) || 1,
         modoFalha: f.field_12 || '',
-        descricaoProblema: f.field_17 || f.DETALHAMENTO_x0020_DA_x0020_OCOR || '',
-        descricaoCompleta: f.DETALHAMENTO_x0020_DA_x0020_OCOR || f.field_17 || '',
+        detalhamentoOcorrencia: f.DETALHAMENTO_x0020_DA_x0020_OCOR || f.detalhamento_ocorrencia || f.field_17_cliente || '',
+        descricaoProblema: f.DETALHAMENTO_x0020_DA_x0020_OCOR || f.detalhamento_ocorrencia || f.field_17 || '',
+        descricaoCompleta: f.DETALHAMENTO_x0020_DA_x0020_OCOR || f.detalhamento_ocorrencia || '',
         fotoPecaNg: extractSharePointImageUrl(f.Foto_x0020_da_x0020_pe_x00e7_a_x, idNum),
         fotoPecaOk: extractSharePointImageUrl(f.Foto_x0020_pe_x00e7_a_x0020_OK, idNum),
         fotoAuxiliar: extractSharePointImageUrl(f.Foto_x0020_auxiliar_x0020__x0028, idNum),
@@ -146,14 +149,17 @@ export class SharePointDirectService {
       field_2: rnc.dataOcorrencia ? `${rnc.dataOcorrencia}T00:00:00Z` : new Date().toISOString(),
       field_18: rnc.classificacaoSetor || 'Qualidade',
       Origem_x0020_do_x0020_8D_x0020_i: rnc.setorDeteccao || '',
+      field_14: rnc.setorDeteccao || '',
+      field_16: rnc.impactoCliente || '',
+      Impacto_x0020_no_x0020_Cliente: rnc.impactoCliente || '',
       field_11: rnc.turno || '1º',
       Produto1: rnc.produto || '',
       Componente: rnc.componente || '',
       final_componente: rnc.finalComponente || 'Peça Final',
       field_10: rnc.quantidadeAfetada || 1,
       field_12: rnc.modoFalha || '',
-      field_17: rnc.descricaoProblema || '',
-      DETALHAMENTO_x0020_DA_x0020_OCOR: rnc.descricaoCompleta || rnc.descricaoProblema || '',
+      field_17: rnc.descricaoProblemaInterno || '',
+      DETALHAMENTO_x0020_DA_x0020_OCOR: rnc.detalhamentoOcorrencia || rnc.descricaoCompleta || rnc.descricaoProblema || '',
       field_13: rnc.caracteristicaSeguranca || 'Não',
       Co_x002d_Produto1_x003f_: rnc.coProduto || 'Não',
       A_x0020_pe_x00e7_a_x0020__x00e9_: rnc.carryOver || 'Não',
@@ -210,16 +216,24 @@ export class SharePointDirectService {
     if (fields.status) fieldsPayload.Status = fields.status;
     if (fields.tipoRnc) fieldsPayload.Tipo_x0020_de_x0020_RNC = fields.tipoRnc;
     if (fields.cliente) fieldsPayload.field_6 = fields.cliente;
+    if (fields.setorDeteccao !== undefined) {
+      fieldsPayload.field_14 = fields.setorDeteccao;
+      fieldsPayload.Origem_x0020_do_x0020_8D_x0020_i = fields.setorDeteccao;
+    }
+    if (fields.impactoCliente !== undefined) {
+      fieldsPayload.field_16 = fields.impactoCliente;
+      fieldsPayload.Impacto_x0020_no_x0020_Cliente = fields.impactoCliente;
+    }
     if (fields.produto !== undefined) fieldsPayload.Produto1 = fields.produto;
     if (fields.componente !== undefined) fieldsPayload.Componente = fields.componente;
     if (fields.modoFalha !== undefined) fieldsPayload.field_12 = fields.modoFalha;
     if (fields.finalComponente !== undefined) fieldsPayload.final_componente = fields.finalComponente;
     if (fields.descricaoProblemaInterno !== undefined) {
       fieldsPayload.field_17 = fields.descricaoProblemaInterno;
-    } else if (fields.descricaoProblema !== undefined) {
-      fieldsPayload.field_17 = fields.descricaoProblema;
     }
-    if (fields.descricaoCompleta !== undefined) fieldsPayload.DETALHAMENTO_x0020_DA_x0020_OCOR = fields.descricaoCompleta;
+    if (fields.detalhamentoOcorrencia !== undefined || fields.descricaoCompleta !== undefined || fields.descricaoProblema !== undefined) {
+      fieldsPayload.DETALHAMENTO_x0020_DA_x0020_OCOR = fields.detalhamentoOcorrencia || fields.descricaoCompleta || fields.descricaoProblema || '';
+    }
     if (fields.quantidadeAfetada !== undefined) fieldsPayload.field_10 = fields.quantidadeAfetada;
     if (fields.responsavelConclusao) fieldsPayload.responsavel_concluir = fields.responsavelConclusao;
     if (fields.protcliente) fieldsPayload.protcliente = fields.protcliente;

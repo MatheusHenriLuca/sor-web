@@ -33,9 +33,22 @@ import { handleSafeClick } from '../utils/selection';
 interface RegistroProtCliViewProps {
   onNavigate: (screen: any, params?: any) => void;
   currentUser: UsuarioQualidade;
+  fromScreen?: string;
 }
 
-export const RegistroProtCliView: React.FC<RegistroProtCliViewProps> = ({ onNavigate, currentUser }) => {
+export const RegistroProtCliView: React.FC<RegistroProtCliViewProps> = ({ 
+  onNavigate, 
+  currentUser,
+  fromScreen
+}) => {
+  const handleBack = () => {
+    if (fromScreen === 'lista-8d' || fromScreen === 'lista') {
+      onNavigate('lista-8d', { tipo: 'protcliente' });
+    } else {
+      onNavigate('menu-2');
+    }
+  };
+
   // 1. Etiqueta SAP (Crítica para Proteção ao Cliente)
   const [etiquetaSap, setEtiquetaSap] = useState('');
 
@@ -227,7 +240,7 @@ export const RegistroProtCliView: React.FC<RegistroProtCliViewProps> = ({ onNavi
   };
 
   return (
-    <div className="w-full max-w-5xl mx-auto flex flex-col gap-5 pb-16 animate-in fade-in duration-150">
+    <div className="w-full flex flex-col gap-5 pb-24 animate-in fade-in duration-150">
       
       {/* Toast Notification */}
       {notification && (
@@ -246,42 +259,55 @@ export const RegistroProtCliView: React.FC<RegistroProtCliViewProps> = ({ onNavi
         </div>
       )}
 
-      {/* 1. CABEÇALHO RESPONSIVO DA TELA */}
-      <div className="card-saas p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white border-slate-200">
+      {/* 1. BARRA SUPERIOR: CONTEXTO, TÍTULO E AÇÕES (LARGURA TOTAL IGUAL AO NOVO 8D) */}
+      <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 pb-4 border-b border-slate-200/80">
         <div className="flex items-center gap-3">
           <button 
             type="button"
-            onClick={e => handleSafeClick(() => onNavigate('menu-2'), e)}
-            className="btn-secondary h-9 px-3 text-xs font-semibold shrink-0 gap-1.5"
-            title="Voltar ao início"
+            onClick={handleBack}
+            className="btn-secondary h-9 px-3 text-xs"
+            title="Voltar"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>Voltar</span>
           </button>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
-              <h1 className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight">
-                Nova Proteção ao Cliente / Produção
-              </h1>
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                Padrão 25 Cards Power Apps
+              <span className="text-[11px] font-display font-semibold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 shadow-2xs">
+                Novo Lançamento
+              </span>
+              <span className="text-xs text-slate-500 font-medium">
+                Proteção ao Cliente
               </span>
             </div>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Cadastro completo e responsivo de contenção imediata e rastreabilidade SAP para bloqueio na fábrica.
+            <h1 className="text-base sm:text-2xl font-display font-bold text-slate-900 mt-0.5">
+              Nova Proteção ao Cliente
+            </h1>
+            <p className="text-xs text-slate-500 hidden sm:block">
+              Cadastro de contenção imediata e rastreabilidade SAP para bloqueio na fábrica e proteção das montadoras.
             </p>
           </div>
         </div>
 
-        <button 
-          type="button"
-          onClick={handleSubmit}
-          className="btn-primary h-9 px-4 text-xs font-bold bg-rose-600 hover:bg-rose-700 border-rose-600 self-end sm:self-auto shadow-sm gap-2 shrink-0"
-        >
-          <ShieldAlert className="w-4 h-4" />
-          <span>Salvar e Acionar Contenção</span>
-        </button>
+        <div className="flex items-center gap-2.5 self-end sm:self-auto">
+          <button 
+            type="button"
+            onClick={handleBack}
+            className="btn-secondary h-9 px-3.5 text-xs font-semibold"
+          >
+            Cancelar
+          </button>
+          <button 
+            type="button"
+            onClick={handleSubmit}
+            className="btn-primary h-9 px-4 text-xs font-semibold shadow-sm hover:shadow flex items-center gap-2 cursor-pointer bg-emerald-600 hover:bg-emerald-700 border-emerald-600 text-white"
+          >
+            <ShieldCheck className="w-4 h-4" />
+            <span className="font-display">
+              Salvar e Acionar Contenção
+            </span>
+          </button>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
@@ -358,7 +384,7 @@ export const RegistroProtCliView: React.FC<RegistroProtCliViewProps> = ({ onNavi
             </h2>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             
             {/* Cliente / Montadora */}
             <div className="flex flex-col gap-1.5">
@@ -523,7 +549,7 @@ export const RegistroProtCliView: React.FC<RegistroProtCliViewProps> = ({ onNavi
             </h2>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             
             {/* Peça Final vs Componente (Card 7) */}
             <div className="flex flex-col gap-1.5">
@@ -638,7 +664,7 @@ export const RegistroProtCliView: React.FC<RegistroProtCliViewProps> = ({ onNavi
             </div>
 
             {/* Toggles de Engenharia (Cards 12, 13) */}
-            <div className="sm:col-span-2 lg:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-slate-100">
+            <div className="sm:col-span-2 lg:col-span-4 grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-slate-100">
               
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
                 <div>
@@ -828,7 +854,7 @@ export const RegistroProtCliView: React.FC<RegistroProtCliViewProps> = ({ onNavi
             <button 
               type="button" 
               className="btn-secondary h-9 px-4 text-xs font-semibold"
-              onClick={e => handleSafeClick(() => onNavigate('menu-2'), e)}
+              onClick={handleBack}
             >
               Cancelar
             </button>

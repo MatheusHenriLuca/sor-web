@@ -1,9 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
-  Plus, 
   Search, 
   LayoutGrid, 
-  List, 
+  List,
   ChevronRight, 
   ChevronLeft, 
   RotateCw, 
@@ -18,10 +17,7 @@ import {
   Building2,
   Factory,
   Barcode,
-  Layers,
-  MapPin,
-  Calendar,
-  Filter
+  Layers
 } from 'lucide-react';
 import { RNCRecord, UsuarioQualidade } from '../types';
 import { spStore } from '../services/sharepointService';
@@ -35,50 +31,92 @@ interface Lista8DViewProps {
   initialTipo?: string;
   initialStatus?: string;
   initialSearch?: string;
+  initialCliente?: string;
+  initialSetor?: string;
 }
 
 export const Lista8DView: React.FC<Lista8DViewProps> = ({ 
   onNavigate, 
   currentUser,
-  initialTipo = 'Tudo',
-  initialStatus = 'Todas',
-  initialSearch = ''
+  initialTipo,
+  initialStatus,
+  initialSearch,
+  initialCliente,
+  initialSetor
 }) => {
+  const savedState = spStore.getListFiltersState();
+
   const [rncs, setRncs] = useState<RNCRecord[]>(spStore.getRNCs());
-  const [tipoFilter, setTipoFilter] = useState<string>(initialTipo || 'Tudo');
-  const [searchInput, setSearchInput] = useState(initialSearch);
-  const [debouncedSearch, setDebouncedSearch] = useState(initialSearch);
+  const [tipoFilter, setTipoFilter] = useState<string>(initialTipo || savedState.tipoFilter || 'Tudo');
+  const [searchInput, setSearchInput] = useState<string>(initialSearch !== undefined ? initialSearch : savedState.searchInput || '');
+  const [debouncedSearch, setDebouncedSearch] = useState<string>(initialSearch !== undefined ? initialSearch : savedState.searchInput || '');
   
   // Abas de Status (como na imagem do Power Apps)
-  const [statusFilter, setStatusFilter] = useState<string>(initialStatus || 'Todas');
+  const [statusFilter, setStatusFilter] = useState<string>(initialStatus && initialStatus !== 'Todas' ? initialStatus : (savedState.statusFilter || 'Todas'));
   
   // 4 Dropdowns de Filtro da Imagem do Power Apps:
-  const [setorFilter, setSetorFilter] = useState<string>('Todos');
-  const [tipoRncFilter, setTipoRncFilter] = useState<string>('Todos');
-  const [clienteFilter, setClienteFilter] = useState<string>('Todos');
-  const [areaFilter, setAreaFilter] = useState<string>('Todas');
+  const [setorFilter, setSetorFilter] = useState<string>(initialSetor || savedState.setorFilter || 'Todos');
+  const [tipoRncFilter, setTipoRncFilter] = useState<string>(savedState.tipoRncFilter || 'Todos');
+  const [clienteFilter, setClienteFilter] = useState<string>(initialCliente && initialCliente !== 'Todos' ? initialCliente : (savedState.clienteFilter || 'Todos'));
+  const [areaFilter, setAreaFilter] = useState<string>(savedState.areaFilter || 'Todas');
 
-  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>(savedState.viewMode || 'grid');
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
 
-  useEffect(() => {
-    if (initialTipo) {
-      setTipoFilter(initialTipo);
-      setCurrentPage(1);
-    }
-  }, [initialTipo]);
-
   // Paginação
-  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [currentPage, setCurrentPage] = useState<number>(savedState.currentPage || 1);
   const pageSize = 15;
 
   const role = currentUser.perfil;
   const isOperator = role === 'User';
 
   useEffect(() => {
+    if (initialTipo && initialTipo !== tipoFilter) {
+      setTipoFilter(initialTipo);
+      spStore.setListFiltersState({ tipoFilter: initialTipo, currentPage: 1 });
+    }
+  }, [initialTipo]);
+
+  useEffect(() => {
+    if (initialStatus && initialStatus !== statusFilter) {
+      setStatusFilter(initialStatus);
+      spStore.setListFiltersState({ statusFilter: initialStatus, currentPage: 1 });
+    }
+  }, [initialStatus]);
+
+  useEffect(() => {
+    if (initialCliente && initialCliente !== clienteFilter) {
+      setClienteFilter(initialCliente);
+      spStore.setListFiltersState({ clienteFilter: initialCliente, currentPage: 1 });
+    }
+  }, [initialCliente]);
+
+  useEffect(() => {
+    if (initialSearch !== undefined && initialSearch !== searchInput) {
+      setSearchInput(initialSearch);
+      setDebouncedSearch(initialSearch);
+      spStore.setListFiltersState({ searchInput: initialSearch, currentPage: 1 });
+    }
+  }, [initialSearch]);
+
+  // Sincroniza o estado dos filtros em tempo real com o store persistente
+  useEffect(() => {
+    spStore.setListFiltersState({
+      tipoFilter,
+      statusFilter,
+      setorFilter,
+      tipoRncFilter,
+      clienteFilter,
+      areaFilter,
+      searchInput,
+      viewMode,
+      currentPage
+    });
+  }, [tipoFilter, statusFilter, setorFilter, tipoRncFilter, clienteFilter, areaFilter, searchInput, viewMode, currentPage]);
+
+  useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearch(searchInput);
-      setCurrentPage(1);
     }, 150);
     return () => clearTimeout(handler);
   }, [searchInput]);
@@ -296,10 +334,6 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
     }
   };
 
-  const getClientBadge = (cliente: string) => {
-    return getClientBadgeInfo(cliente);
-  };
-
   const getStatusBadge = (status: string, prot?: string) => {
     const isProtCliente = prot && prot !== 'Não';
     return (
@@ -412,7 +446,7 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
   return (
     <div className="w-full flex flex-col gap-4 animate-in fade-in duration-150 pb-12">
       
-      {/* 1. CABEÇALHO DA PÁGINA (Com botões de ação e alternador Tabela / Galeria) */}
+      {/* 1. CABEÇALHO DA PÁGINA (Com botões de ação e alternador Bloco / Lista Compacta) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 pb-4 border-b border-[#e2e8f0]">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#0f6cbd] flex items-center justify-center border border-blue-100 shadow-xs">
@@ -435,48 +469,48 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5 sm:gap-3 self-start sm:self-auto flex-wrap">
-          {/* Botão Sincronizar */}
+        {/* Alternador de Visão: Visão em Bloco (Principal) vs Lista Compacta (Segunda Opção) */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center p-1 bg-slate-100 border border-slate-200 rounded-xl gap-1 shrink-0 shadow-2xs">
+            <button
+              type="button"
+              onClick={() => setViewMode('grid')}
+              className={`h-8 px-3 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer select-none ${
+                viewMode === 'grid'
+                  ? 'bg-white text-[#0b5796] shadow-xs border border-slate-200'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+              }`}
+              title="Visão principal em Blocos (Galeria completa com fotos)"
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+              <span>Visão em Bloco</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setViewMode('list')}
+              className={`h-8 px-3 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer select-none ${
+                viewMode === 'list'
+                  ? 'bg-white text-[#0b5796] shadow-xs border border-slate-200'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+              }`}
+              title="Visão de lista compacta (Tabela condensada de alta densidade)"
+            >
+              <List className="w-3.5 h-3.5" />
+              <span>Lista Compacta</span>
+            </button>
+          </div>
+
           <button
             type="button"
             onClick={() => handleRefresh(true)}
             disabled={isSyncing}
-            className="btn-secondary !h-10 px-3.5 text-xs font-semibold flex items-center justify-center gap-1.5"
-            title="Atualizar lista com o SharePoint"
+            className="btn-secondary h-8 px-3 text-xs font-semibold gap-1.5 shrink-0"
+            title="Sincronizar dados com SharePoint"
           >
-            <RotateCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+            <RotateCw className={`w-3.5 h-3.5 text-slate-500 ${isSyncing ? 'animate-spin' : ''}`} />
             <span className="hidden sm:inline">Atualizar</span>
           </button>
-
-          {/* Alternador de Visualização: Tabela vs Galeria (Estilo Power Apps) */}
-          <div className="!h-10 flex items-center gap-1 border border-[#e2e8f0] rounded-xl bg-slate-100/90 p-1 shadow-2xs box-border">
-            <button
-              type="button"
-              onClick={() => setViewMode('list')}
-              className={`h-full flex items-center gap-1.5 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                viewMode === 'list' 
-                  ? 'bg-white text-[#0b5796] font-bold shadow-xs border border-slate-200/80' 
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
-              }`}
-              title="Exibir como Tabela de Dados"
-            >
-              <List className="w-4 h-4" />
-              <span className="hidden md:inline">Tabela</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('grid')}
-              className={`h-full flex items-center gap-1.5 px-3 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                viewMode === 'grid' 
-                  ? 'bg-white text-[#0b5796] font-bold shadow-xs border border-slate-200/80' 
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
-              }`}
-              title="Exibir como Galeria de Ocorrências (Estilo Power Apps)"
-            >
-              <LayoutGrid className="w-4 h-4" />
-              <span className="hidden md:inline">Galeria</span>
-            </button>
-          </div>
         </div>
       </div>
 
@@ -497,7 +531,7 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
               placeholder="Buscar por código de produtos, RNC, defeito, posto ou SAP..."
               value={searchInput}
               onChange={e => setSearchInput(e.target.value)}
-              className="w-full h-10 pl-10 pr-9 text-xs sm:text-sm bg-slate-50/80 border border-slate-200 rounded-xl focus:bg-white focus:border-[#0f6cbd] focus:ring-2 focus:ring-[#0f6cbd]/15 outline-none transition"
+              className="form-input search-input-field w-full text-xs sm:text-sm bg-slate-50/70"
             />
             {searchInput && (
               <button
@@ -515,7 +549,7 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
             <button
               type="button"
               onClick={clearAllFilters}
-              className="btn-subtle text-xs text-[#0f6cbd] font-bold h-10 px-3.5 rounded-xl border border-blue-200 bg-blue-50/70 hover:bg-blue-100 transition shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
+              className="btn-subtle text-xs text-[#0b5796] font-bold h-[38px] px-3.5 rounded-lg border border-blue-200 bg-blue-50/70 hover:bg-blue-100 transition shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
             >
               <RotateCw className="w-3.5 h-3.5" />
               <span>Limpar Filtros</span>
@@ -524,18 +558,18 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
         </div>
 
         {/* Linha 2: Os 4 Dropdowns da Foto do Power Apps */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1 border-t border-slate-100">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2 border-t border-slate-100">
           
           {/* Dropdown 1: Setor Responsável */}
           <div className="flex flex-col gap-1">
             <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1">
-              <Factory className="w-3 h-3 text-slate-400" />
+              <Factory className="w-3.5 h-3.5 text-slate-400" />
               <span>Setor Responsável</span>
             </label>
             <select
               value={setorFilter}
               onChange={e => { setSetorFilter(e.target.value); setCurrentPage(1); }}
-              className="h-9.5 px-3 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:border-[#0f6cbd] outline-none transition cursor-pointer"
+              className="form-input h-[38px] text-xs font-semibold text-slate-800 cursor-pointer"
             >
               <option value="Todos">Localizar itens (Todos)</option>
               {setoresOptions.map(s => (
@@ -547,13 +581,13 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
           {/* Dropdown 2: Tipo de RNC */}
           <div className="flex flex-col gap-1">
             <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1">
-              <FileText className="w-3 h-3 text-slate-400" />
+              <FileText className="w-3.5 h-3.5 text-slate-400" />
               <span>Tipo de RNC</span>
             </label>
             <select
               value={tipoRncFilter}
               onChange={e => { setTipoRncFilter(e.target.value); setCurrentPage(1); }}
-              className="h-9.5 px-3 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:border-[#0f6cbd] outline-none transition cursor-pointer"
+              className="form-input h-[38px] text-xs font-semibold text-slate-800 cursor-pointer"
             >
               <option value="Todos">Localizar itens (Todos)</option>
               <option value="Formal">Formal</option>
@@ -566,13 +600,13 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
           {/* Dropdown 3: Cliente */}
           <div className="flex flex-col gap-1">
             <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1">
-              <Building2 className="w-3 h-3 text-slate-400" />
+              <Building2 className="w-3.5 h-3.5 text-slate-400" />
               <span>Cliente</span>
             </label>
             <select
               value={clienteFilter}
               onChange={e => { setClienteFilter(e.target.value); setCurrentPage(1); }}
-              className="h-9.5 px-3 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:border-[#0f6cbd] outline-none transition cursor-pointer"
+              className="form-input h-[38px] text-xs font-semibold text-slate-800 cursor-pointer"
             >
               <option value="Todos">Localizar itens (Todos)</option>
               {clientesOptions.map(c => (
@@ -584,13 +618,13 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
           {/* Dropdown 4: Área */}
           <div className="flex flex-col gap-1">
             <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1">
-              <Layers className="w-3 h-3 text-slate-400" />
+              <Layers className="w-3.5 h-3.5 text-slate-400" />
               <span>Área</span>
             </label>
             <select
               value={areaFilter}
               onChange={e => { setAreaFilter(e.target.value); setCurrentPage(1); }}
-              className="h-9.5 px-3 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 focus:border-[#0f6cbd] outline-none transition cursor-pointer"
+              className="form-input h-[38px] text-xs font-semibold text-slate-800 cursor-pointer"
             >
               <option value="Todas">Localizar itens (Todas)</option>
               {areasOptions.map(a => (
@@ -611,15 +645,15 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
                 key={tab.id}
                 type="button"
                 onClick={() => { setStatusFilter(tab.id); setCurrentPage(1); }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shrink-0 cursor-pointer select-none ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-display font-bold transition flex items-center gap-1.5 shrink-0 cursor-pointer select-none ${
                   isActive
-                    ? 'bg-[#092162] text-white shadow-xs'
+                    ? 'bg-[#0b5796] text-white shadow-xs'
                     : 'bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900'
                 }`}
               >
                 <span>{tab.label}</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
-                  isActive ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-800'
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono tabular-nums font-bold ${
+                  isActive ? 'bg-white/25 text-white' : 'bg-slate-200 text-slate-800'
                 }`}>
                   {count}
                 </span>
@@ -631,323 +665,244 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
       </div>
 
       {/* =========================================================================
-          3. CONTEÚDO PRINCIPAL: TABELA OU GALERIA
+          3. CONTEÚDO PRINCIPAL: VISÃO EM BLOCOS (PRINCIPAL) OU LISTA COMPACTA
           ========================================================================= */}
-      {viewMode === 'list' ? (
-        
-        /* -------------------------------------------------------------------------
-           MODO 1: TABELA DETALHADA COM INFORMAÇÕES AGREGADAS
-           ------------------------------------------------------------------------- */
-        <div className="card-saas p-0 overflow-hidden shadow-xs">
-          
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-[#e2e8f0] text-xs font-display font-semibold text-[#64748b] bg-[#f8fafc]/90">
-                  <th className="py-3 px-4 font-semibold w-[34%] max-w-[340px]">Identificação / Peça & Defeito</th>
-                  <th className="py-3 px-4 font-semibold hidden md:table-cell w-[18%]">Posto & Célula Fabril</th>
-                  <th className="py-3 px-4 font-semibold hidden lg:table-cell w-[16%] whitespace-nowrap">Cliente</th>
-                  <th className="py-3 px-4 font-semibold w-[18%]">Governança & Rastreabilidade</th>
-                  <th className="py-3 px-4 font-semibold w-[14%] whitespace-nowrap">Status</th>
-                  <th className="py-3 px-4 font-semibold hidden sm:table-cell w-[10%] whitespace-nowrap">Data</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#f1f5f9] text-xs sm:text-sm">
-                {paginatedRncs.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="py-16 text-center">
-                      <div className="flex flex-col items-center justify-center max-w-sm mx-auto gap-3">
-                        <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 border border-slate-200">
-                          <Search className="w-6 h-6" />
-                        </div>
-                        <h3 className="font-display font-bold text-sm text-[#0f172a]">
-                          Nenhuma ocorrência encontrada
-                        </h3>
-                        <p className="text-xs text-[#64748b] leading-relaxed">
-                          Tente ajustar a busca ou limpe os filtros de setor, tipo, cliente ou área.
-                        </p>
-                        {hasActiveFilters && (
-                          <button
-                            type="button"
-                            onClick={clearAllFilters}
-                            className="btn-subtle text-xs text-[#0f6cbd] font-semibold mt-1"
-                          >
-                            Limpar filtros aplicados
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  paginatedRncs.map(r => {
-                    const tpBadge = getTipoPecaBadge(r.finalComponente);
-                    return (
-                      <tr
-                        key={r.id}
-                        onClick={(e) => handleSafeClick(() => onNavigate('detalhes-8d', { rncId: r.id }), e)}
-                        className="hover:bg-[#f8fafc] transition-colors cursor-pointer group"
-                      >
-                        {/* Coluna 1: Miniatura + Identificação + Peça + Defeito */}
-                        <td className="py-2.5 px-4 w-[34%] max-w-[340px]">
-                          <div className="flex items-start gap-3">
-                            {/* Miniatura Compacta */}
-                            <div className="w-12 h-12 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shadow-2xs flex items-center justify-center shrink-0 relative group-hover:border-[#0f6cbd]/40 transition-all mt-0.5">
-                              {r.fotoPecaNg ? (
-                                <>
-                                  <img 
-                                    src={r.fotoPecaNg} 
-                                    alt={`Peça ${r.field1 || r.id}`}
-                                    className="w-full h-full object-cover"
-                                    onError={(e) => {
-                                      const el = e.currentTarget;
-                                      el.style.display = 'none';
-                                      const fallback = el.nextElementSibling as HTMLElement;
-                                      if (fallback) fallback.style.display = 'flex';
-                                    }}
-                                  />
-                                  <div className="hidden flex-col items-center justify-center text-slate-400 p-1 text-center w-full h-full bg-slate-50">
-                                    <Image className="w-5 h-5 text-slate-400" />
-                                    <span className="text-[8px] font-mono font-medium text-slate-500 mt-0.5">FOTO</span>
-                                  </div>
-                                </>
-                              ) : (
-                                <div className="flex flex-col items-center justify-center text-slate-400 p-1 text-center">
-                                  <Image className="w-5 h-5 text-slate-300" />
-                                  <span className="text-[8px] font-mono font-medium text-slate-400 mt-0.5">S/ FOTO</span>
-                                </div>
-                              )}
-                              {r.fotoPecaOk && (
-                                <span className="absolute bottom-1 right-1 w-2.5 h-2.5 rounded-full bg-emerald-500 border border-white" title="Contém foto padrão OK" />
-                              )}
-                            </div>
-
-                            {/* Informações da Peça e Defeito */}
-                            <div className="flex flex-col gap-0.5 min-w-0">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="font-bold text-[#0f6cbd] group-hover:text-[#0b5796] transition-colors text-xs sm:text-sm font-mono-numbers">
-                                  RNC #{r.id}
-                                </span>
-                                {r.field1 && (
-                                  <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold bg-slate-100 text-slate-700 border border-slate-200" title={`Código do Cliente: ${r.field1}`}>
-                                    <span className="text-slate-400 font-normal mr-0.5">Cód:</span>{r.field1}
-                                  </span>
-                                )}
-                                <span className={`inline-flex px-1.5 py-0.2 rounded text-[9px] font-bold border tracking-wide uppercase ${tpBadge.style}`}>
-                                  {tpBadge.label}
-                                </span>
-                              </div>
-
-                              {/* Linha da Peça */}
-                              <div className="text-xs text-[#1e293b] font-semibold truncate flex items-center gap-1">
-                                {r.finalComponente === 'Peça Final + Componente' && r.produto && r.componente ? (
-                                  <span className="truncate" title={`Final: ${r.produto} • Comp: ${r.componente}`}>
-                                    <span className="text-slate-400 font-normal">Final:</span> {r.produto} <span className="text-slate-300">•</span> <span className="text-slate-400 font-normal">Comp:</span> {r.componente}
-                                  </span>
-                                ) : (
-                                  <span className="truncate" title={r.componente || r.produto}>
-                                    {r.componente || r.produto || 'Peça não informada'}
-                                  </span>
-                                )}
-                              </div>
-
-                              {/* Defeito em destaque */}
-                              <p className="text-xs font-bold text-slate-700 line-clamp-1 mt-0.5" title={r.modoFalha || r.descricaoProblema}>
-                                {r.modoFalha || r.descricaoProblema || 'Defeito não informado'}
-                              </p>
-                            </div>
-                          </div>
-                        </td>
-
-                        {/* Coluna 2: Posto & Célula Fabril */}
-                        <td className="py-2.5 px-4 hidden md:table-cell text-slate-700">
-                          <div className="flex flex-col gap-0.5">
-                            <span className="font-bold text-xs text-slate-900 truncate" title={r.posto}>
-                              {r.posto || 'Posto N/A'}
-                            </span>
-                            <span className="text-[11px] text-slate-500 truncate" title={r.fmds || r.classificacaoSetor}>
-                              {r.fmds || r.classificacaoSetor || 'Área não informada'}
-                            </span>
-                          </div>
-                        </td>
-
-                        {/* Coluna 3: Cliente */}
-                        <td className="py-2.5 px-4 hidden lg:table-cell text-slate-700 whitespace-nowrap">
-                          <span className="font-bold text-xs text-slate-900">
-                            {r.cliente}
-                          </span>
-                        </td>
-
-                        {/* Coluna 4: Governança & Rastreabilidade (Tipo + SAP + 8D) */}
-                        <td className="py-2.5 px-4">
-                          <div className="flex flex-col gap-1 items-start">
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              {getTipoRncBadge(r.tipoRnc)}
-                              {get8DBadge(r.abrir8D)}
-                            </div>
-                            {getSapBadge(r.documentoRastreabilidade, r.codigoRastreabilidade)}
-                          </div>
-                        </td>
-
-                        {/* Coluna 5: Status */}
-                        <td className="py-2.5 px-4 whitespace-nowrap">
-                          {getStatusBadge(r.status, r.protcliente)}
-                        </td>
-
-                        {/* Coluna 6: Data Padronizada DD/MM/AA */}
-                        <td className="py-2.5 px-4 hidden sm:table-cell text-slate-600 font-mono text-xs whitespace-nowrap">
-                          <div className="font-semibold">{formatDateBR(r.dataOcorrencia)}</div>
-                          {r.turno && <div className="text-[10px] text-slate-400">{r.turno}</div>}
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-
+      {paginatedRncs.length === 0 ? (
+        <div className="card-saas p-12 text-center text-xs text-slate-500">
+          <Search className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+          Nenhuma ocorrência encontrada para os filtros aplicados.
         </div>
-      ) : (
-
-        /* -------------------------------------------------------------------------
-           MODO 2: GALERIA DE OCORRÊNCIAS (ADAPTAÇÃO FIEL DA FOTO DO POWER APPS)
-           - Card Horizontal
-           - Esquerda: Miniatura da Peça
-           - Centro: Dados Operacionais (Peça, Posto, Cliente/Planta/Data, Defeito)
-           - Direita: Governança (ID - Status, Formal em vermelho, SAP, 8D - Sim/Não)
-           ------------------------------------------------------------------------- */
+      ) : viewMode === 'grid' ? (
+        /* VISÃO 1: BLOCOS / CARDS (GALERIA PRINCIPAL COM FOTOS) */
         <div className="flex flex-col gap-3">
-          {paginatedRncs.length === 0 ? (
-            <div className="card-saas p-12 text-center text-xs text-slate-500">
-              <Search className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-              Nenhuma ocorrência encontrada para os filtros aplicados.
-            </div>
-          ) : (
-            paginatedRncs.map(r => {
-              const tpBadge = getTipoPecaBadge(r.finalComponente);
-              return (
-                <div
-                  key={r.id}
-                  onClick={(e) => handleSafeClick(() => onNavigate('detalhes-8d', { rncId: r.id }), e)}
-                  className="card-saas p-4 sm:p-5 border-slate-200 hover:border-[#0f6cbd] hover:shadow-md transition-all cursor-pointer flex flex-col md:flex-row items-start md:items-center justify-between gap-4 group"
-                >
-                  {/* SEÇÃO 1: FOTO / MINIATURA (LADO ESQUERDO DA FOTO DO POWER APPS) */}
-                  <div className="flex items-center gap-3 shrink-0 self-start md:self-center">
-                    <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 shadow-xs flex items-center justify-center shrink-0 relative group-hover:scale-105 transition-transform">
-                      {r.fotoPecaNg ? (
-                        <>
-                          <img 
-                            src={r.fotoPecaNg} 
-                            alt={`Peça ${r.produto}`}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              const el = e.currentTarget;
-                              el.style.display = 'none';
-                              const fallback = el.nextElementSibling as HTMLElement;
-                              if (fallback) fallback.style.display = 'flex';
-                            }}
-                          />
-                          <div className="hidden flex-col items-center justify-center text-slate-400 p-1 text-center w-full h-full bg-slate-50">
-                            <Image className="w-6 h-6 text-slate-400" />
-                            <span className="text-[9px] font-mono mt-0.5">FOTO</span>
-                          </div>
-                        </>
-                      ) : (
-                        <div className="flex flex-col items-center justify-center text-slate-400 p-1 text-center">
-                          <Image className="w-6 h-6 text-slate-300" />
-                          <span className="text-[9px] font-mono mt-0.5">S/ FOTO</span>
-                        </div>
-                      )}
+          {paginatedRncs.map(r => {
+            const tpBadge = getTipoPecaBadge(r.finalComponente);
+            const isFormal = r.tipoRnc === 'Formal';
+            const formalCode = isFormal 
+              ? (r.codOcorrenciaCliente?.trim() || (
+                  r.field1 && 
+                  !['RNC #' + r.id, 'RNC-' + r.id, 'RNC ' + r.id, '#' + r.id, String(r.id)].includes(r.field1.trim()) 
+                    ? r.field1.trim() 
+                    : null
+                ))
+              : null;
 
-                      {/* Tag se tiver foto OK e Auxiliar */}
-                      {(r.fotoPecaOk || r.fotoAuxiliar) && (
-                        <span className="absolute bottom-1.5 right-1.5 bg-slate-900/80 backdrop-blur-xs text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md">
-                          +2 fotos
-                        </span>
+            return (
+              <div
+                key={r.id}
+                onClick={(e) => handleSafeClick(() => onNavigate('detalhes-8d', { rncId: r.id }), e)}
+                className="card-saas p-4 sm:p-5 border-slate-200 hover:border-[#0f6cbd] hover:shadow-md transition-all cursor-pointer flex flex-col md:flex-row items-start md:items-center justify-between gap-4 group"
+              >
+                {/* SEÇÃO 1: FOTO / MINIATURA (LADO ESQUERDO DA FOTO DO POWER APPS) */}
+                {/* SEÇÃO 1: FOTO / MINIATURA EXPANDIDA (APROVEITANDO O ESPAÇO DO CARD) */}
+                <div className="flex items-center gap-3 shrink-0 self-start md:self-center">
+                  <div className="w-28 h-28 sm:w-32 sm:h-32 md:w-36 md:h-36 rounded-2xl overflow-hidden bg-slate-100 border border-slate-200 shadow-2xs flex items-center justify-center shrink-0 relative group-hover:scale-[1.02] transition-transform">
+                    {r.fotoPecaNg ? (
+                      <>
+                        <img 
+                          src={r.fotoPecaNg} 
+                          alt={`Peça ${r.produto}`}
+                          loading="lazy"
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            const el = e.currentTarget;
+                            el.style.display = 'none';
+                            const fallback = el.nextElementSibling as HTMLElement;
+                            if (fallback) fallback.style.display = 'flex';
+                          }}
+                        />
+                        <div className="hidden flex-col items-center justify-center text-slate-400 p-2 text-center w-full h-full bg-slate-50">
+                          <Image className="w-8 h-8 text-slate-400" />
+                          <span className="text-[10px] font-mono mt-1 font-bold">FOTO</span>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center text-slate-400 p-2 text-center">
+                        <Image className="w-8 h-8 text-slate-300" />
+                        <span className="text-[10px] font-mono mt-1 font-bold">S/ FOTO</span>
+                      </div>
+                    )}
+
+                    {/* Tag se tiver foto OK e Auxiliar */}
+                    {(r.fotoPecaOk || r.fotoAuxiliar) && (
+                      <span className="absolute bottom-2 right-2 bg-slate-900/85 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-md font-mono shadow-xs">
+                        +2 fotos
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* SEÇÃO 2: DADOS DO PRODUTO E PROCESSO */}
+                <div className="flex-1 flex flex-col gap-1.5 min-w-0 md:px-2">
+                  {/* Linha 1: Peça Final / Componente */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs sm:text-base font-bold text-slate-900 group-hover:text-[#0b5796] transition-colors">
+                      {r.finalComponente === 'Peça Final + Componente' && r.produto && r.componente ? (
+                        <>Peça Final + Componente: <strong className="font-mono-numbers">{r.produto} - {r.componente}</strong></>
+                      ) : (
+                        <>Peça Final: <strong className="font-mono-numbers">{r.produto || r.componente}</strong></>
                       )}
-                    </div>
+                    </span>
+                    <span className={`inline-flex px-1.5 py-0.5 rounded text-[10px] font-bold border tracking-wide uppercase ${tpBadge.style}`}>
+                      {tpBadge.label}
+                    </span>
                   </div>
 
-                  {/* SEÇÃO 2: DADOS DO PRODUTO E PROCESSO (CENTRO DA FOTO DO POWER APPS) */}
-                  <div className="flex-1 flex flex-col gap-1 min-w-0 md:px-2">
-                    {/* Linha 1: Peça Final / Componente */}
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-[#0f6cbd] transition-colors">
-                        {r.finalComponente === 'Peça Final + Componente' && r.produto && r.componente ? (
-                          <>Peça Final + Componente: <strong className="font-mono-numbers">{r.produto} - {r.componente}</strong></>
-                        ) : (
-                          <>Peça Final: <strong className="font-mono-numbers">{r.produto || r.componente}</strong></>
-                        )}
-                      </span>
-                      <span className={`inline-flex px-1.5 py-0.2 rounded text-[10px] font-bold border tracking-wide uppercase ${tpBadge.style}`}>
-                        {tpBadge.label}
-                      </span>
-                    </div>
+                  {/* Linha 2: Posto - Máquina - Setor / Área */}
+                  <div className="text-xs font-semibold text-slate-700 flex items-center gap-1.5 truncate">
+                    <Factory className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <span className="truncate">
+                      {r.posto || 'Posto N/A'} {r.fmds ? `- ${r.fmds}` : r.classificacaoSetor ? `- ${r.classificacaoSetor}` : ''}
+                    </span>
+                  </div>
 
-                    {/* Linha 2: Posto - Máquina - Setor / Área */}
-                    <div className="text-xs font-semibold text-slate-600 flex items-center gap-1.5 truncate">
-                      <Factory className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      <span className="truncate">
-                        {r.posto || 'Posto N/A'} {r.fmds ? `- ${r.fmds}` : r.classificacaoSetor ? `- ${r.classificacaoSetor}` : ''}
-                      </span>
-                    </div>
+                  {/* Linha 3: Cliente - Data */}
+                  <div className="text-xs text-slate-600 flex items-center gap-1.5 truncate">
+                    <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <span className="font-medium">
+                      {r.cliente} • <span className="tabular-nums font-semibold">{formatDateBR(r.dataOcorrencia)}</span> {r.turno && `(${r.turno})`}
+                    </span>
+                  </div>
+                </div>
 
-                    {/* Linha 3: Cliente - Data */}
-                    <div className="text-xs text-slate-500 flex items-center gap-1.5 truncate">
-                      <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      <span className="font-medium">
-                        {r.cliente} • {formatDateBR(r.dataOcorrencia)} ({r.turno})
-                      </span>
+                {/* SEÇÃO 3: STATUS/TIPO/DEFEITO E RNC/SAP/8D (2 COLUNAS COM 3 LINHAS CADA) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-2 shrink-0 w-full md:w-auto pt-3 md:pt-0 border-t md:border-t-0 border-slate-100 items-start md:items-center">
+                  
+                  {/* Coluna 1: Status, Tipo e Defeito */}
+                  <div className="flex flex-col items-start md:items-end gap-1.5">
+                    {/* Linha 1: Status */}
+                    <div className="flex items-center justify-start md:justify-end">
+                      {getStatusBadge(r.status, r.protcliente)}
                     </div>
-
-                    {/* Linha 4: Defeito em destaque (Exatamente como a última linha em negrito da foto) */}
-                    <div className="pt-1 mt-0.5">
-                      <span className="inline-block text-xs sm:text-sm font-extrabold text-slate-900 bg-amber-50/70 border border-amber-200/60 px-2.5 py-1 rounded-lg">
+                    {/* Linha 2: Tipo de RNC */}
+                    <div className="flex items-center justify-start md:justify-end">
+                      {getTipoRncBadge(r.tipoRnc)}
+                    </div>
+                    {/* Linha 3: Defeito */}
+                    <div className="flex items-center justify-start md:justify-end">
+                      <span 
+                        className="inline-block text-xs font-bold text-amber-950 bg-amber-50 border border-amber-300/80 px-2.5 py-0.5 rounded-lg max-w-[200px] truncate"
+                        title={r.modoFalha || r.descricaoProblema || 'Defeito não informado'}
+                      >
                         {r.modoFalha || r.descricaoProblema || 'Defeito não informado'}
                       </span>
                     </div>
                   </div>
 
-                  {/* SEÇÃO 3: GOVERNANÇA, RASTREABILIDADE E 8D (LADO DIREITO DA FOTO DO POWER APPS) */}
-                  <div className="flex md:flex-col items-start md:items-end justify-between md:justify-center gap-1.5 shrink-0 w-full md:w-auto pt-3 md:pt-0 border-t md:border-t-0 border-slate-100">
-                    
-                    {/* Linha 1: ID - Status */}
-                    <div className="flex items-center gap-1.5 flex-wrap justify-end">
-                      <span className="text-xs font-bold text-slate-800 font-mono">
+                  {/* Coluna 2: RNC com Código, Etiqueta SAP e Governança 8D */}
+                  <div className="flex flex-col items-start md:items-end gap-1.5">
+                    {/* Linha 1: RNC # com código */}
+                    <div className="flex items-center gap-1.5 flex-wrap justify-start md:justify-end">
+                      <span className="text-xs font-bold text-slate-900 font-mono tabular-nums">
                         RNC #{r.id}
                       </span>
-                      {r.field1 && (
-                        <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold bg-slate-100 text-slate-700 border border-slate-200" title={`Código do Cliente: ${r.field1}`}>
-                          <span className="text-slate-400 font-normal mr-0.5">Cód:</span>{r.field1}
+                      {formalCode && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-800 border border-slate-200" title={`Código do Cliente: ${formalCode}`}>
+                          <span className="text-slate-500 font-normal mr-0.5">Cód:</span>{formalCode}
                         </span>
                       )}
-                      <span className="text-slate-300">-</span>
-                      {getStatusBadge(r.status, r.protcliente)}
                     </div>
-
-                    {/* Linha 2: Tipo de RNC (Formal em vermelho como no Power Apps) */}
-                    <div className="mt-0.5">
-                      {getTipoRncBadge(r.tipoRnc)}
-                    </div>
-
-                    {/* Linha 3: Etiqueta SAP ou Não Informado */}
-                    <div className="mt-0.5">
+                    {/* Linha 2: Etiqueta SAP */}
+                    <div className="flex items-center justify-start md:justify-end">
                       {getSapBadge(r.documentoRastreabilidade, r.codigoRastreabilidade)}
                     </div>
-
-                    {/* Linha 4: 8D - Sim ou 8D - Não */}
-                    <div className="mt-0.5">
+                    {/* Linha 3: Governança 8D */}
+                    <div className="flex items-center justify-start md:justify-end">
                       {get8DBadge(r.abrir8D)}
                     </div>
-
                   </div>
 
                 </div>
-              );
-            })
-          )}
-        </div>
 
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        /* VISÃO 2: LISTA COMPACTA (TABELA CONDENSADA DE ALTA DENSIDADE) */
+        <div className="card-saas border-slate-200 overflow-hidden shadow-2xs bg-white">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="bg-slate-50/90 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500 select-none">
+                  <th className="py-2.5 px-3">Identificador</th>
+                  <th className="py-2.5 px-3">Peça / Produto</th>
+                  <th className="py-2.5 px-3">Defeito Identificado</th>
+                  <th className="py-2.5 px-3">Montadora</th>
+                  <th className="py-2.5 px-3">Posto / Linha</th>
+                  <th className="py-2.5 px-3">Data</th>
+                  <th className="py-2.5 px-3">Status</th>
+                  <th className="py-2.5 px-3">Tipo</th>
+                  <th className="py-2.5 px-3 text-center">8D</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {paginatedRncs.map(r => {
+                  const isFormal = r.tipoRnc === 'Formal';
+                  const formalCode = isFormal 
+                    ? (r.codOcorrenciaCliente?.trim() || (
+                        r.field1 && 
+                        !['RNC #' + r.id, 'RNC-' + r.id, 'RNC ' + r.id, '#' + r.id, String(r.id)].includes(r.field1.trim()) 
+                          ? r.field1.trim() 
+                          : null
+                      ))
+                    : null;
+                  const peca9 = (r.componente || r.produto || '').trim().substring(0, 9);
+
+                  return (
+                    <tr 
+                      key={r.id}
+                      onClick={(e) => handleSafeClick(() => onNavigate('detalhes-8d', { rncId: r.id }), e)}
+                      className="hover:bg-blue-50/60 transition-colors cursor-pointer group"
+                    >
+                      <td className="py-2.5 px-3 whitespace-nowrap">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-slate-900 font-mono">RNC #{r.id}</span>
+                          {formalCode && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-800 border border-slate-200" title={`Código do Cliente: ${formalCode}`}>
+                              <span className="text-slate-500 mr-0.5">Cód:</span>{formalCode}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <div className="font-bold text-slate-900 group-hover:text-[#0b5796] transition-colors line-clamp-1" title={r.componente || r.produto}>
+                          {peca9 || '-'}
+                        </div>
+                        <div className="text-[11px] text-slate-500 truncate" title={r.produto || r.componente}>
+                          {r.produto || '-'}
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-3 max-w-[220px]">
+                        <span className="font-semibold text-slate-800 truncate block" title={r.modoFalha || r.descricaoProblema}>
+                          {r.modoFalha || r.descricaoProblema || 'Não informado'}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 whitespace-nowrap text-slate-700 font-medium">
+                        {r.cliente}
+                      </td>
+                      <td className="py-2.5 px-3 whitespace-nowrap text-slate-600 font-mono text-[11px]">
+                        {r.posto || r.fmds || r.classificacaoSetor || '-'}
+                      </td>
+                      <td className="py-2.5 px-3 whitespace-nowrap text-slate-600 font-mono tabular-nums">
+                        {formatDateBR(r.dataOcorrencia)}
+                      </td>
+                      <td className="py-2.5 px-3 whitespace-nowrap">
+                        {getStatusBadge(r.status, r.protcliente)}
+                      </td>
+                      <td className="py-2.5 px-3 whitespace-nowrap">
+                        {getTipoRncBadge(r.tipoRnc)}
+                      </td>
+                      <td className="py-2.5 px-3 whitespace-nowrap text-center">
+                        {get8DBadge(r.abrir8D)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
 
       {/* 4. BARRA DE PAGINAÇÃO */}

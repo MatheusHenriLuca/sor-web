@@ -104,7 +104,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
             }`}
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
-            <span className="font-display">Nova RNC</span>
+            <span className="font-display">Nova ocorrência</span>
           </button>
         </div>
 
@@ -232,7 +232,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                   <span className="absolute left-0 top-2 bottom-2 w-1.25 bg-[#0f6cbd] rounded-r-full shadow-[0_0_8px_rgba(15,108,189,0.5)]" />
                 )}
                 <ShieldPlus className={getIconClasses(currentScreen === 'registro-protcli')} />
-                <span className="truncate">Novo proteção ao cliente</span>
+                <span className="truncate">Nova Proteção ao Cliente</span>
               </button>
 
               {(() => {
@@ -247,7 +247,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                       <span className="absolute left-0 top-2 bottom-2 w-1.25 bg-[#0f6cbd] rounded-r-full shadow-[0_0_8px_rgba(15,108,189,0.5)]" />
                     )}
                     <List className={getIconClasses(isActive)} />
-                    <span className="truncate">Lista proteção ao cliente</span>
+                    <span className="truncate">Lista Proteção ao Cliente</span>
                   </button>
                 );
               })()}

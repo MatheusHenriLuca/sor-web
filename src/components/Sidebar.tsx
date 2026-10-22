@@ -130,7 +130,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   style={{ color: 'var(--primary)', fontWeight: 600 }}
                 >
                   <PlusCircle size={16} />
-                  <span>Nova RNC / 8D</span>
+                  <span>Nova ocorrência</span>
                 </div>
               </>
             )}

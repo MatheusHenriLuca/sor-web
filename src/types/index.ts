@@ -174,6 +174,11 @@ export interface RastreabilidadeItem {
   statusGeral?: 'E' | 'R' | 'P'; // E = Erro, R = Realizado, P = Pendente
   statusVerif?: 'NR' | 'E' | 'OK'; // NR = Não Realizado, E = Em Espera, OK = Verificado
   dataHora: string;
+  produto?: string;
+  tipoRastreamento?: string;
+  ocorrenciaAbrangencia?: string;
+  observacao?: string;
+  bloqueado?: boolean;
 }
 
 export interface LoteSAPParsed {
@@ -249,4 +254,16 @@ export interface Abrir8DRecord {
   motivoNaoAbertura?: string;
   responsavel: string;
   dataAbertura: string;
+}
+
+export interface ListFiltersState {
+  tipoFilter: string;
+  statusFilter: string;
+  setorFilter: string;
+  tipoRncFilter: string;
+  clienteFilter: string;
+  areaFilter: string;
+  searchInput: string;
+  viewMode: 'grid' | 'list';
+  currentPage: number;
 }

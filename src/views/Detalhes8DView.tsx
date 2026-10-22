@@ -263,11 +263,30 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
     });
     setRnc(updated);
     setModalAvaliacaoOpen(false);
-    setNotification({ type: 'warning', message: 'Ocorrência do Programa Produção / Cliente reprovada.' });
+    setNotification({ type: 'warning', message: 'Ocorrência do Programa Proteção ao Cliente reprovada.' });
     reloadData();
   };
 
   const isProtecaoAtiva = rnc.protcliente && rnc.protcliente !== 'Não';
+  const isFormal = rnc.tipoRnc === 'Formal';
+  // Código oficial/cliente para reclamação formal. Oculta se for informal ou se for mera repetição do ID
+  const codigoClienteOuFormal = isFormal
+    ? (rnc.codOcorrenciaCliente?.trim() || (
+        rnc.field1 &&
+        !['RNC #' + rnc.id, 'RNC-' + rnc.id, 'RNC ' + rnc.id, '#' + rnc.id, String(rnc.id)].includes(rnc.field1.trim())
+          ? rnc.field1.trim()
+          : null
+      ))
+    : null;
+
+  // Código da peça mostrando estritamente os 9 primeiros caracteres (sem descrições)
+  const codigoPeca9 = (rnc.componente || rnc.produto || '').trim().substring(0, 9);
+
+  // Apuração da Data de Incidência mais recente (quando houver mais de uma ocorrência anterior, pega sempre a mais recente)
+  const isReincidenteCalculado = historicoReincidencias.length > 0 || rnc.reincidente === 'SIM';
+  const dataIncidenciaMaisRecente = historicoReincidencias.length > 0 
+    ? historicoReincidencias[0].dataOcorrencia 
+    : (rnc.dataReincidente || null);
 
   return (
     <div className="w-full flex flex-col gap-4 animate-in fade-in duration-150 pb-16">
@@ -289,62 +308,80 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
         </div>
       )}
 
-      {/* 1. CABEÇALHO UNIFICADO & COMPACTO DA OCORRÊNCIA */}
-      <div className="card-saas p-3.5 sm:p-4 flex flex-col gap-3 shadow-xs bg-white border-slate-200">
+      {/* 1. CABEÇALHO UNIFICADO & EXECUTIVO DA OCORRÊNCIA */}
+      <div className="card-saas p-4 sm:p-5 flex flex-col gap-4 shadow-xs bg-white border-slate-200 rounded-2xl">
         
-        {/* Linha 1: Navegação + Identificador + Badges + Ações */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+        {/* Linha 1: Navegação + Identificador + Badges de Status + Ações de Gestão */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-slate-100">
           <div className="flex items-center gap-2.5 flex-wrap">
             <button 
               type="button"
               onClick={() => onNavigate('lista-8d')}
-              className="btn-secondary h-8 px-2.5 text-xs font-semibold shrink-0 gap-1.5"
+              className="btn-secondary h-9 px-3.5 text-xs font-semibold shrink-0 gap-1.5 shadow-2xs hover:bg-slate-50 inline-flex items-center justify-center"
               title="Voltar para a Lista de Ocorrências"
             >
-              <ArrowLeft className="w-3.5 h-3.5" />
+              <ArrowLeft className="w-4 h-4 text-slate-600" />
               <span>Voltar</span>
             </button>
 
-            <div className="h-4 w-px bg-slate-200 hidden sm:block" />
+            <div className="h-5 w-px bg-slate-200 hidden sm:block" />
 
-            {/* Identificador Único: RNC #{id} + Código (se diferente) */}
-            <span className="px-2.5 py-1 rounded-lg text-sm sm:text-base font-black bg-blue-100 text-[#0b5796] border border-blue-200 font-mono-numbers shrink-0 shadow-2xs">
+            {/* Identificador Único: RNC #{id} */}
+            <span className="h-9 inline-flex items-center px-3 rounded-lg text-xs sm:text-sm font-black bg-blue-50 text-[#0b5796] border border-blue-200 font-mono shrink-0 shadow-2xs">
               RNC #{rnc.id}
             </span>
-            {rnc.field1 && rnc.field1 !== `RNC #${rnc.id}` && (
-              <span className="text-sm sm:text-base font-bold text-slate-800 font-mono bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                {rnc.field1}
+
+            {/* Segundo Identificador: Código do Cliente / Formal (oculto quando não for formal para não duplicar o ID) */}
+            {codigoClienteOuFormal && (
+              <span 
+                className="h-9 inline-flex items-center gap-1.5 px-3 rounded-lg text-xs font-bold text-slate-800 font-mono bg-slate-100 border border-slate-200 shrink-0"
+                title={`Código Formal / Cliente: ${codigoClienteOuFormal}`}
+              >
+                <span className="text-slate-500 font-normal">Cód. Cliente:</span>
+                <span className="text-slate-900 font-bold">{codigoClienteOuFormal}</span>
               </span>
             )}
 
-            {/* Status */}
-            <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border shrink-0 ${
+            {/* Status com Alto Contraste (WCAG AA/AAA) */}
+            <span className={`h-9 inline-flex items-center gap-1.5 px-3 rounded-lg text-xs font-bold border shrink-0 ${
               rnc.status === 'Concluído' 
-                ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
+                ? 'bg-emerald-50 text-emerald-900 border-emerald-300' 
                 : rnc.status === 'Em Andamento' 
-                ? 'bg-amber-50 text-amber-900 border-amber-200' 
-                : 'bg-sky-50 text-sky-800 border-sky-200'
+                ? 'bg-amber-50 text-amber-950 border-amber-300' 
+                : 'bg-sky-50 text-sky-950 border-sky-300'
             }`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${
-                rnc.status === 'Concluído' ? 'bg-emerald-500' : rnc.status === 'Em Andamento' ? 'bg-amber-500' : 'bg-sky-500'
+              <span className={`w-2 h-2 rounded-full ${
+                rnc.status === 'Concluído' 
+                  ? 'bg-emerald-600' 
+                  : rnc.status === 'Em Andamento' 
+                  ? 'bg-amber-500 ring-2 ring-amber-200' 
+                  : 'bg-sky-600'
               }`} />
               {rnc.status}
             </span>
 
             {/* Tipo */}
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200 shrink-0">
-              {rnc.tipoRnc}
+            <span className="h-9 inline-flex items-center px-3 rounded-lg text-xs font-semibold bg-slate-100 text-slate-800 border border-slate-200 shrink-0">
+              {rnc.tipoRnc || 'Formal'}
+            </span>
+
+            {/* Governança 8D (sem título, exibido logo após o tipo de ocorrência) */}
+            <span className={`h-9 inline-flex items-center px-3 rounded-lg text-xs font-bold border shrink-0 ${
+              rnc.abrir8D === 'Sim'
+                ? 'bg-purple-50 text-purple-800 border-purple-200'
+                : 'bg-slate-100 text-slate-700 border-slate-200'
+            }`}>
+              8D - {rnc.abrir8D === 'Sim' ? 'Sim' : 'Não'}
             </span>
           </div>
 
-          {/* Ações Rápidas: Principais visíveis + Menu "⋯" para secundárias */}
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {/* Ações primárias sempre visíveis */}
+          {/* Ações Rápidas Alinhadas no Topo */}
+          <div className="flex items-center gap-2 flex-wrap shrink-0">
             {isLiderOrAbove && rnc.status !== 'Concluído' && (
               <button 
                 type="button"
                 onClick={() => setModalConcluirOpen(true)}
-                className="btn-primary h-8 px-3 text-xs font-bold gap-1.5"
+                className="btn-primary h-9 px-3.5 text-xs font-bold gap-1.5 shadow-sm inline-flex items-center justify-center"
               >
                 <CheckCircle className="w-3.5 h-3.5" />
                 <span>Concluir RNC</span>
@@ -354,10 +391,10 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
             {!isOperator && (
               <button 
                 type="button"
-                onClick={() => onNavigate('registro-8d', { edicao: true, rncId: rnc.id })}
-                className="btn-secondary h-8 px-2.5 text-xs font-medium gap-1.5"
+                onClick={() => onNavigate('registro-8d', { edicao: true, rncId: rnc.id, fromScreen: 'detalhes-8d' })}
+                className="btn-secondary h-9 px-3 text-xs font-semibold gap-1.5 text-slate-700 hover:text-slate-900 inline-flex items-center justify-center"
               >
-                <Edit3 className="w-3.5 h-3.5 text-[#64748b]" />
+                <Edit3 className="w-3.5 h-3.5 text-slate-500" />
                 <span>Editar</span>
               </button>
             )}
@@ -367,8 +404,8 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
               <button 
                 type="button"
                 onClick={() => setActionsMenuOpen(!actionsMenuOpen)}
-                className={`btn-secondary h-8 px-2.5 text-xs font-medium gap-1.5 ${
-                  actionsMenuOpen ? 'bg-slate-100 border-slate-300' : ''
+                className={`btn-secondary h-9 px-3 text-xs font-semibold gap-1.5 inline-flex items-center justify-center ${
+                  actionsMenuOpen ? 'bg-slate-100 border-slate-300 text-slate-900' : 'text-slate-700 hover:text-slate-900'
                 }`}
                 title="Mais ações"
               >
@@ -448,67 +485,118 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
           </div>
         </div>
 
-        {/* Linha 2: Metadados + Segmented Tabs */}
-        <div className="pt-2 border-t border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#64748b]">
-            <span className="flex items-center gap-1.5">
-              <span className="text-[#94a3b8]">Montadora:</span>
-              <strong className="text-[#0f172a] font-semibold">{rnc.cliente || 'Não informada'}</strong>
-            </span>
-            <span className="text-slate-300 hidden sm:inline">•</span>
-            <span className="flex items-center gap-1.5">
-              <span className="text-[#94a3b8]">Peça:</span>
-              <strong className="text-[#0f172a] font-semibold">{rnc.produto || rnc.componente}</strong>
-            </span>
-            {rnc.classificacaoSetor && (
-              <>
-                <span className="text-slate-300 hidden sm:inline">•</span>
-                <span className="flex items-center gap-1.5">
-                  <span className="text-[#94a3b8]">Setor:</span>
-                  <strong className="text-[#0f172a] font-semibold">{rnc.classificacaoSetor}</strong>
-                </span>
-              </>
-            )}
+        {/* Linha 2: Segmented Control de Modos de Visualização e Ramificação de Blocos */}
+        <div className="flex flex-col gap-3 pt-1">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            <div className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+              <span>Modo de Exibição:</span>
+            </div>
+
+            {/* Segmented Control Moderno */}
+            <div className="flex items-center p-1 bg-slate-100 border border-slate-200 rounded-xl gap-1.5 self-start sm:self-auto">
+              <button
+                type="button"
+                onClick={() => setActiveViewMode('detalhes')}
+                className={`h-8 px-3.5 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer select-none ${
+                  activeViewMode === 'detalhes'
+                    ? 'bg-white text-[#0b5796] shadow-sm border border-slate-200'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                }`}
+              >
+                <List className="w-3.5 h-3.5" />
+                <span>Relatório Detalhado</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveViewMode('alerta')}
+                className={`h-8 px-3.5 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer select-none ${
+                  activeViewMode === 'alerta'
+                    ? 'bg-white text-rose-700 shadow-sm border border-slate-200'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                }`}
+              >
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                <span>Alerta Qualidade / Disposição</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onNavigate('rastreabilidade', { rncId: rnc.id })}
+                className="h-8 px-3.5 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer select-none text-slate-600 hover:text-indigo-700 hover:bg-slate-200/60"
+                title="Abrir tela de Rastreabilidade desta ocorrência"
+              >
+                <Barcode className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Rastrear SAP</span>
+              </button>
+            </div>
           </div>
 
-          {/* Segmented Control */}
-          <div className="flex items-center p-0.5 bg-[#f1f5f9] border border-[#e2e8f0] rounded-lg gap-1 shrink-0">
-            <button
-              type="button"
-              onClick={() => setActiveViewMode('detalhes')}
-              className={`h-7 px-3 rounded-md text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer select-none ${
-                activeViewMode === 'detalhes'
-                  ? 'bg-white text-[#0f6cbd] shadow-2xs border border-[#e2e8f0]'
-                  : 'text-[#64748b] hover:text-[#0f172a]'
-              }`}
-            >
-              <List className="w-3.5 h-3.5" />
-              <span>Detalhado</span>
-            </button>
+          {/* Ramificação exclusiva do Relatório Detalhado: Exibir Blocos */}
+          {activeViewMode === 'detalhes' && (
+            <div className="flex flex-wrap items-center justify-between gap-2.5 pt-2 border-t border-slate-200/70 animate-in fade-in">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-xs font-bold text-slate-500 mr-1">Exibir Bloco:</span>
+                
+                <button
+                  type="button"
+                  onClick={() => setActiveBlockTab('todos')}
+                  className={`h-8 px-3 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer select-none ${
+                    activeBlockTab === 'todos'
+                      ? 'bg-slate-900 text-white shadow-2xs'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
+                  }`}
+                >
+                  <Layers className="w-3.5 h-3.5" />
+                  <span>Todos os 3 Blocos</span>
+                </button>
 
-            <button
-              type="button"
-              onClick={() => setActiveViewMode('alerta')}
-              className={`h-7 px-3 rounded-md text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer select-none ${
-                activeViewMode === 'alerta'
-                  ? 'bg-white text-rose-700 shadow-2xs border border-[#e2e8f0]'
-                  : 'text-[#64748b] hover:text-[#0f172a]'
-              }`}
-            >
-              <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
-              <span>Alerta Qualidade / Disposição</span>
-            </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveBlockTab('cliente')}
+                  className={`h-8 px-3 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer select-none ${
+                    activeBlockTab === 'cliente'
+                      ? 'bg-[#0f6cbd] text-white shadow-2xs'
+                      : 'bg-blue-50 text-[#0f6cbd] hover:bg-blue-100 border border-blue-200/60'
+                  }`}
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>1. Cliente & Ocorrência</span>
+                </button>
 
-            <button
-              type="button"
-              onClick={() => onNavigate('rastreabilidade', { rncId: rnc.id })}
-              className="h-7 px-3 rounded-md text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer select-none text-[#64748b] hover:text-[#0f172a]"
-              title="Abrir tela de Rastreabilidade desta ocorrência"
-            >
-              <Barcode className="w-3.5 h-3.5 text-indigo-600" />
-              <span>Rastrear</span>
-            </button>
-          </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveBlockTab('contencao')}
+                  className={`h-8 px-3 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer select-none ${
+                    activeBlockTab === 'contencao'
+                      ? 'bg-emerald-700 text-white shadow-2xs'
+                      : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200/60'
+                  }`}
+                >
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>2. Contenção & Triagem</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveBlockTab('disposicao')}
+                  className={`h-8 px-3 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer select-none ${
+                    activeBlockTab === 'disposicao'
+                      ? 'bg-indigo-700 text-white shadow-2xs'
+                      : 'bg-indigo-50 text-indigo-800 hover:bg-indigo-100 border border-indigo-200/60'
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>3. Disposição & Evidências</span>
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+                <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
+                <span className="hidden md:inline">Visualização Consolidada Power Apps</span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Notificação Programa Produção / Cliente (Quando Ativo) */}
@@ -517,7 +605,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
             <div className="flex items-center gap-2.5">
               <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0" />
               <div className="text-xs text-emerald-900 leading-snug">
-                <strong>Programa Produção / Cliente:</strong> Etiqueta SAP <code className="font-mono font-bold bg-white px-1.5 py-0.5 rounded border border-emerald-300 text-emerald-950">{rnc.codigoRastreabilidade || 'Não informada'}</code>. Detecção no chão de fábrica.
+                <strong>Programa Proteção ao Cliente:</strong> Etiqueta SAP <code className="font-mono font-bold bg-white px-1.5 py-0.5 rounded border border-emerald-300 text-emerald-950">{rnc.codigoRastreabilidade || 'Não informada'}</code>. Detecção no chão de fábrica.
               </div>
             </div>
             {isLiderOrAbove && (
@@ -539,72 +627,6 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
       {/* ========================================================================= */}
       {activeViewMode === 'detalhes' && (
         <div className="flex flex-col gap-6 animate-in fade-in">
-          
-          {/* ========================================================================= */}
-          {/* BARRA DE NAVEGAÇÃO / FILTRO RÁPIDO DOS 3 BLOCOS POWER APPS                */}
-          {/* ========================================================================= */}
-          <div className="card-saas p-3 sm:p-3.5 flex flex-wrap items-center justify-between gap-3 bg-white border-slate-200 shadow-2xs">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-xs font-bold text-slate-500 mr-1 hidden sm:inline">Exibir Bloco:</span>
-              
-              <button
-                type="button"
-                onClick={() => setActiveBlockTab('todos')}
-                className={`h-8 px-3 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer select-none ${
-                  activeBlockTab === 'todos'
-                    ? 'bg-slate-900 text-white shadow-2xs'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
-                }`}
-              >
-                <Layers className="w-3.5 h-3.5" />
-                <span>Todos os 3 Blocos</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveBlockTab('cliente')}
-                className={`h-8 px-3 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer select-none ${
-                  activeBlockTab === 'cliente'
-                    ? 'bg-[#0f6cbd] text-white shadow-2xs'
-                    : 'bg-blue-50 text-[#0f6cbd] hover:bg-blue-100 border border-blue-200/60'
-                }`}
-              >
-                <FileText className="w-3.5 h-3.5" />
-                <span>1. Cliente & Ocorrência</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveBlockTab('contencao')}
-                className={`h-8 px-3 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer select-none ${
-                  activeBlockTab === 'contencao'
-                    ? 'bg-emerald-700 text-white shadow-2xs'
-                    : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200/60'
-                }`}
-              >
-                <ShieldCheck className="w-3.5 h-3.5" />
-                <span>2. Contenção & Triagem</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveBlockTab('disposicao')}
-                className={`h-8 px-3 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer select-none ${
-                  activeBlockTab === 'disposicao'
-                    ? 'bg-indigo-700 text-white shadow-2xs'
-                    : 'bg-indigo-50 text-indigo-800 hover:bg-indigo-100 border border-indigo-200/60'
-                }`}
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>3. Disposição & Evidências</span>
-              </button>
-            </div>
-
-            <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
-              <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
-              <span className="hidden md:inline">Visualização Arquitetural Consolidada Power Apps</span>
-            </div>
-          </div>
 
           {/* ========================================================================= */}
           {/* VISUALIZAÇÃO EM COLUNA ÚNICA DOS 3 BLOCOS (CONFORME SOLICITADO)           */}
@@ -617,63 +639,51 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
             <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden flex flex-col w-full">
               {/* Header do Bloco 1 */}
               <div className="bg-[#0f2942] text-white px-4 sm:px-5 py-3.5 flex items-center gap-2.5 border-b border-[#1b3d5e]">
-                <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-sky-500 text-white tracking-wider">
+                <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-sky-500 text-white tracking-wider shadow-2xs">
                   BLOCO 1
                 </span>
                 <div className="w-7 h-7 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center shrink-0 border border-sky-400/30">
-                  <Car className="w-4 h-4" />
+                  <Car className="w-4 h-4 text-sky-300" />
                 </div>
-                <h2 className="font-bold text-sm sm:text-base tracking-wide text-white">
+                <h2 className="font-bold text-sm sm:text-base tracking-wide text-white !text-white" style={{ color: '#ffffff' }}>
                   Informações do Cliente & Relato da Ocorrência
                 </h2>
               </div>
 
               {/* Corpo do Bloco 1 */}
               <div className="p-4 sm:p-6 flex flex-col gap-5 text-xs text-slate-700">
-                {/* Grid Superior: Identificação e Dados Cadastrais */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-4 rounded-xl bg-slate-50/70 border border-slate-200/80">
+                {/* Linha 1 do Bloco 1: Montadora, Setor Responsável, Data de Abertura & Turno, Data Final de Contenção */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-4 rounded-xl bg-white border border-slate-200 shadow-2xs">
                   <div className="flex flex-col gap-1">
-                    <span className="text-[11px] font-semibold text-slate-500">Status do Registro:</span>
-                    <span className={`px-2.5 py-1 rounded-md font-bold text-xs border inline-block text-center ${
-                      rnc.status === 'Concluído'
-                        ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                        : rnc.status === 'Em Andamento'
-                        ? 'bg-amber-50 text-amber-900 border-amber-200'
-                        : rnc.status === 'Reprovado'
-                        ? 'bg-rose-50 text-rose-800 border-rose-200'
-                        : 'bg-blue-50 text-blue-800 border-blue-200'
-                    }`}>
-                      {rnc.status}
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Montadora</span>
+                    <span className="text-xs sm:text-sm font-bold text-slate-900" title={rnc.cliente || 'Não informada'}>
+                      {rnc.cliente || 'Não informada'}
                     </span>
                   </div>
 
                   <div className="flex flex-col gap-1">
-                    <span className="text-[11px] font-semibold text-slate-500">Governança 8D:</span>
-                    <span className={`px-2.5 py-1 rounded-md font-bold text-xs border inline-block text-center ${
-                      rnc.abrir8D === 'Sim'
-                        ? 'bg-blue-50 text-blue-800 border-blue-200'
-                        : 'bg-slate-100 text-slate-700 border-slate-200'
-                    }`}>
-                      8D - {rnc.abrir8D === 'Sim' ? 'Sim' : 'Não'}
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Setor Responsável</span>
+                    <span className="text-xs sm:text-sm font-bold text-slate-900">
+                      {rnc.classificacaoSetor || 'Qualidade'}
                     </span>
                   </div>
 
                   <div className="flex flex-col gap-1">
-                    <span className="text-[11px] font-semibold text-slate-500 flex items-center gap-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1">
                       <Calendar className="w-3 h-3 text-slate-400" />
-                      <span>Data de Abertura & Turno:</span>
+                      <span>Data de Abertura & Turno</span>
                     </span>
-                    <strong className="text-slate-900 font-mono text-xs mt-1">
+                    <strong className="text-slate-900 font-mono text-xs sm:text-sm font-bold">
                       {formatDateBR(rnc.dataOcorrencia)} - {rnc.turno || '1º Turno'}
                     </strong>
                   </div>
 
                   <div className="flex flex-col gap-1">
-                    <span className="text-[11px] font-semibold text-slate-500 flex items-center gap-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1">
                       <AlertTriangle className="w-3 h-3 text-amber-500" />
-                      <span>Data Final de Contenção:</span>
+                      <span>Data Final de Contenção</span>
                     </span>
-                    <strong className="text-slate-900 font-mono text-xs mt-1">
+                    <strong className="text-slate-900 font-mono text-xs sm:text-sm font-bold">
                       {formatDateBR(rnc.dataContencao || rnc.dataOcorrencia)}
                     </strong>
                   </div>
@@ -681,28 +691,37 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
 
                 {/* Grid Intermediário: Especificações de Engenharia e Origem */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {/* 1. Posto / Linha / Área (Célula Fabril) */}
                   <div className="p-3 bg-white rounded-lg border border-slate-200">
-                    <span className="text-[11px] font-semibold text-slate-500 block mb-1">Cliente / Montadora:</span>
-                    <strong className="text-slate-900 text-sm font-bold block">{rnc.cliente}</strong>
+                    <span className="text-[11px] font-semibold text-slate-500 block mb-1">Posto / Linha / Área:</span>
+                    <strong className="text-slate-900 font-mono text-xs block truncate" title={`${rnc.posto || ''} ${rnc.fmds || ''} ${rnc.classificacaoSetor || ''}`}>
+                      {rnc.posto || 'B643033 - ROBÔ 33 - SOLDA 3'} {rnc.fmds ? `- ${rnc.fmds}` : ''} {rnc.classificacaoSetor ? `• ${rnc.classificacaoSetor}` : ''}
+                    </strong>
                   </div>
 
+                  {/* 2. Código da Peça (com divisão identificada) */}
                   <div className="p-3 bg-white rounded-lg border border-slate-200">
-                    <span className="text-[11px] font-semibold text-slate-500 block mb-1">Produto (Veículo / Projeto):</span>
-                    <strong className="text-slate-900 font-mono text-xs block">{rnc.produto || '-'}</strong>
-                  </div>
-
-                  <div className="p-3 bg-white rounded-lg border border-slate-200">
-                    <span className="text-[11px] font-semibold text-slate-500 block mb-1">Componente / Peça Afetada:</span>
-                    <strong className="text-slate-900 text-xs block">{rnc.componente || '-'}</strong>
-                  </div>
-
-                  <div className="p-3 bg-white rounded-lg border border-slate-200">
-                    <span className="text-[11px] font-semibold text-slate-500 block mb-1">Classificação / Tipo:</span>
-                    <div className="text-xs font-semibold text-slate-800">
-                      {rnc.tipoRnc}{rnc.codOcorrenciaCliente ? ` - Cód. Cliente: ${rnc.codOcorrenciaCliente}` : ''}
+                    <div className="flex items-center justify-between gap-1 mb-1">
+                      <span className="text-[11px] font-semibold text-slate-500">Código da Peça:</span>
+                      <span className="inline-flex items-center gap-1.5 font-bold text-[#0b5796] bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-200 text-[10px] shadow-2xs">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#0f6cbd]" />
+                        {rnc.finalComponente || 'Peça Final'}
+                      </span>
                     </div>
+                    <strong className="text-slate-900 font-mono text-xs font-bold block" title={rnc.componente || rnc.produto}>
+                      {codigoPeca9 || '-'}
+                    </strong>
                   </div>
 
+                  {/* 3. Código do Componente */}
+                  <div className="p-3 bg-white rounded-lg border border-slate-200">
+                    <span className="text-[11px] font-semibold text-slate-500 block mb-1">Código do Componente:</span>
+                    <strong className="text-slate-900 font-mono text-xs font-bold block truncate" title={rnc.componente || 'Não possui componente associado'}>
+                      {rnc.componente ? rnc.componente.trim() : '-'}
+                    </strong>
+                  </div>
+
+                  {/* 4. Quantidade com Defeito */}
                   <div className="p-3 bg-white rounded-lg border border-slate-200">
                     <span className="text-[11px] font-semibold text-slate-500 block mb-1">Quantidade com Defeito:</span>
                     <div className="text-xs font-bold text-rose-700 font-mono">
@@ -710,16 +729,25 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                     </div>
                   </div>
 
+                  {/* 5. Local de detecção do cliente (Power Apps Imagem 4) */}
                   <div className="p-3 bg-white rounded-lg border border-slate-200">
-                    <span className="text-[11px] font-semibold text-slate-500 block mb-1">Detecção & Impacto:</span>
-                    <div className="text-xs text-slate-800">
-                      Detectado: <strong>{rnc.setorDeteccao || 'montagem'}</strong> | Impacto: <strong>{rnc.impactoCliente || 'peça amassada gerando montagem incorreta'}</strong>
-                    </div>
+                    <span className="text-[11px] font-semibold text-slate-500 block mb-1">Local de detecção do cliente:</span>
+                    <strong className="text-slate-900 font-semibold text-xs block">
+                      {rnc.setorDeteccao || '-'}
+                    </strong>
+                  </div>
+
+                  {/* 6. Impacto no cliente (Power Apps Imagem 4) */}
+                  <div className="p-3 bg-white rounded-lg border border-slate-200">
+                    <span className="text-[11px] font-semibold text-slate-500 block mb-1">Impacto no cliente:</span>
+                    <strong className="text-slate-900 font-semibold text-xs block break-words" title={rnc.impactoCliente || '-'}>
+                      {rnc.impactoCliente || '-'}
+                    </strong>
                   </div>
                 </div>
 
-                {/* Participantes do Atendimento */}
-                <div className="p-3.5 bg-slate-50/80 rounded-xl border border-slate-200 flex flex-col gap-1.5">
+                {/* Participantes do Atendimento - Fundo Branco Unificado */}
+                <div className="p-3.5 bg-white rounded-xl border border-slate-200 flex flex-col gap-1.5">
                   <span className="text-[11px] font-semibold text-slate-500 flex items-center gap-1.5">
                     <Users className="w-3.5 h-3.5 text-indigo-500" />
                     <span>Participantes do Atendimento:</span>
@@ -733,22 +761,19 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                   </div>
                 </div>
 
-                {/* Detalhamento Técnico da Ocorrência */}
+                {/* Detalhamento da ocorrência (cliente) - Fundo Branco Unificado */}
                 <div className="flex flex-col gap-1.5">
                   <span className="text-[11px] font-semibold text-slate-500 flex items-center gap-1.5">
                     <FileText className="w-3.5 h-3.5 text-slate-400" />
-                    <span>Detalhamento Técnico da Ocorrência:</span>
+                    <span>* Detalhamento da ocorrência (cliente):</span>
                   </span>
-                  <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 text-slate-900 font-semibold leading-relaxed">
-                    {rnc.descricaoProblema || rnc.descricaoCompleta || 'Ponto de SOLDA Pegou fora Devido a PEÇA AMASSADA'}
+                  <div className="p-3.5 bg-white rounded-xl border border-slate-200 text-slate-900 font-semibold leading-relaxed whitespace-pre-wrap">
+                    {rnc.detalhamentoOcorrencia || rnc.descricaoCompleta || rnc.descricaoProblema || 'Ponto de SOLDA  Pegou  fora Dedevido a PEÇA AMASSADA'}
                   </div>
                 </div>
 
                 {/* Fotos Comparativas da Base do Bloco 1 (Foto 3) */}
                 <div className="pt-2">
-                  <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wide block mb-2.5">
-                    Padrões Fotográficos de Inspeção (Base do Bloco 1):
-                  </span>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {/* Foto OK */}
                     <div className="flex flex-col rounded-xl overflow-hidden border border-emerald-300 bg-white shadow-2xs">
@@ -802,13 +827,13 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
             <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden flex flex-col w-full">
               {/* Header do Bloco 2 */}
               <div className="bg-[#0f2942] text-white px-4 sm:px-5 py-3.5 flex items-center gap-2.5 border-b border-[#1b3d5e]">
-                <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-emerald-500 text-white tracking-wider">
+                <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-emerald-500 text-white tracking-wider shadow-2xs">
                   BLOCO 2
                 </span>
                 <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-400/30">
-                  <ShieldCheck className="w-4 h-4" />
+                  <ShieldCheck className="w-4 h-4 text-emerald-300" />
                 </div>
-                <h2 className="font-bold text-sm sm:text-base tracking-wide text-white">
+                <h2 className="font-bold text-sm sm:text-base tracking-wide text-white !text-white" style={{ color: '#ffffff' }}>
                   Contenção Imediata & Diretrizes Operacionais (5W2H)
                 </h2>
               </div>
@@ -816,7 +841,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
               {/* Corpo do Bloco 2 */}
               <div className="p-4 sm:p-6 flex flex-col gap-5 text-xs text-slate-700">
                 {/* Grid 1: Governança de Rastreabilidade & Parâmetros Críticos */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-4 rounded-xl bg-slate-50/70 border border-slate-200/80">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-4 rounded-xl bg-white border border-slate-200">
                   <div className="flex items-center justify-between bg-white p-3 rounded-lg border border-slate-200">
                     <span className="font-semibold text-slate-500">Co-Produto?</span>
                     <strong className="text-slate-800">{rnc.coProduto || '-'}</strong>
@@ -830,12 +855,12 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                   <div className="flex items-center justify-between bg-white p-3 rounded-lg border border-slate-200">
                     <span className="font-semibold text-slate-500">Reincidente?</span>
                     <span className={`px-2 py-0.5 rounded font-bold text-xs ${
-                      rnc.reincidente === 'SIM'
+                      isReincidenteCalculado
                         ? 'bg-amber-100 text-amber-900 border border-amber-300'
                         : 'text-slate-800'
                     }`}>
-                      {rnc.reincidente === 'SIM' 
-                        ? `SIM - Data: ${formatDateBR(rnc.dataReincidente || '13/06/2025')}` 
+                      {isReincidenteCalculado 
+                        ? `SIM - Data: ${formatDateBR(dataIncidenciaMaisRecente || rnc.dataOcorrencia)}` 
                         : (rnc.reincidente || 'Não')}
                     </span>
                   </div>
@@ -887,7 +912,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                       <span className="text-[11px] text-amber-700/80 block mt-1">Em quarentena para inspeção</span>
                     </div>
 
-                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                    <div className="p-4 bg-white rounded-xl border border-slate-200">
                       <span className="text-xs font-bold text-slate-700 block truncate">Qtd Peças Inspecionadas</span>
                       <span className="text-2xl sm:text-3xl font-black font-mono text-slate-900 mt-1.5 block">
                         {rnc.qtdInspecionada || 1}
@@ -906,12 +931,12 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                 </div>
 
                 {/* Banner de Ações de Contenção Adotadas */}
-                <div className="p-4 bg-amber-50/60 rounded-xl border border-amber-200/80 flex flex-col gap-1.5">
-                  <span className="font-bold text-amber-950 flex items-center gap-1.5 text-xs">
+                <div className="p-4 bg-white rounded-xl border border-slate-200 flex flex-col gap-1.5">
+                  <span className="font-bold text-slate-900 flex items-center gap-1.5 text-xs">
                     <ShieldAlert className="w-4 h-4 text-amber-600" />
                     <span>Ações de contenção adotadas:</span>
                   </span>
-                  <div className="text-amber-950 font-semibold leading-relaxed">
+                  <div className="text-slate-800 font-semibold leading-relaxed">
                     {rnc.acoesContencao || 'INSPEÇÃO 100% NO POSTO DE TRABALHO; RETRABALHAR'}
                   </div>
                 </div>
@@ -924,37 +949,37 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                   </span>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
+                    <div className="p-3.5 bg-white rounded-xl border border-slate-200">
                       <span className="font-bold text-slate-700 block mb-1">O que fazer?</span>
                       <p className="text-slate-900 font-semibold leading-relaxed">
                         {rnc.oQueFazer || 'Seleção Visual PEÇAS com deformação Segregar para RETRABALHO E AVISAR QUALIDADE'}
                       </p>
                     </div>
 
-                    <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
+                    <div className="p-3.5 bg-white rounded-xl border border-slate-200">
                       <span className="font-bold text-slate-700 block mb-1">Como fazer?</span>
                       <p className="text-slate-900 font-semibold leading-relaxed">
                         {rnc.comoFazer || 'Peças DEFORMADAS RETRABALHAR COM CALIBRADOR E DESEMPENAR A REGIÃO, após RETRABALHO NECESSÁRIO PASSAR EM DCO. A QUALIDADE VALIDAR DIMENSIONAL'}
                       </p>
                     </div>
 
-                    <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
+                    <div className="p-3.5 bg-white rounded-xl border border-slate-200">
                       <span className="font-bold text-slate-700 block mb-1">Porque fazer?</span>
                       <p className="text-slate-900 font-semibold leading-relaxed">
                         {rnc.porQueFazer || 'Encontrado na montagem PEÇA AMASSADA'}
                       </p>
                     </div>
 
-                    <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
+                    <div className="p-3.5 bg-white rounded-xl border border-slate-200 flex items-center justify-between">
                       <span className="font-bold text-slate-700">Quando fazer?</span>
-                      <span className="font-mono font-bold text-slate-900 bg-white px-2.5 py-1 rounded border border-slate-200">
+                      <span className="font-mono font-bold text-slate-900 bg-slate-50 px-2.5 py-1 rounded border border-slate-200">
                         {rnc.quandoFara || formatDateBR(rnc.dataOcorrencia)}
                       </span>
                     </div>
 
-                    <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
+                    <div className="p-3.5 bg-white rounded-xl border border-slate-200 flex items-center justify-between">
                       <span className="font-bold text-slate-700">Onde fazer?</span>
-                      <span className="font-bold text-slate-900 bg-white px-2.5 py-1 rounded border border-slate-200">
+                      <span className="font-bold text-slate-900 bg-slate-50 px-2.5 py-1 rounded border border-slate-200">
                         {rnc.ondeFara || 'Quarentena/RETRABALHO'}
                       </span>
                     </div>
@@ -978,13 +1003,13 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
             <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden flex flex-col w-full">
               {/* Header do Bloco 3 */}
               <div className="bg-[#0f2942] text-white px-4 sm:px-5 py-3.5 flex items-center gap-2.5 border-b border-[#1b3d5e]">
-                <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-indigo-500 text-white tracking-wider">
+                <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-indigo-500 text-white tracking-wider shadow-2xs">
                   BLOCO 3
                 </span>
                 <div className="w-7 h-7 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0 border border-indigo-400/30">
-                  <Layers className="w-4 h-4" />
+                  <Layers className="w-4 h-4 text-indigo-300" />
                 </div>
-                <h2 className="font-bold text-sm sm:text-base tracking-wide text-white">
+                <h2 className="font-bold text-sm sm:text-base tracking-wide text-white !text-white" style={{ color: '#ffffff' }}>
                   Disposição Interna, Evidências Fotográficas & Equipe
                 </h2>
               </div>
@@ -992,32 +1017,30 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
               {/* Corpo do Bloco 3 */}
               <div className="p-4 sm:p-6 flex flex-col gap-6 text-xs text-slate-700">
                 {/* Parâmetros de Disposição Interna Fabril */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-4 rounded-xl bg-slate-50/70 border border-slate-200/80">
-                  <div className="sm:col-span-2 lg:col-span-3 p-3 bg-white rounded-lg border border-slate-200">
-                    <span className="text-[11px] font-semibold text-slate-500 block mb-1">Posto & Célula Fabril:</span>
-                    <strong className="text-slate-900 font-mono text-xs block">
-                      {rnc.posto || 'B643033 - ROBÔ 33 - SOLDA 3'} {rnc.fmds ? `- ${rnc.fmds}` : '- CEL. HONDA/HYUNDAI'} {rnc.classificacaoSetor ? `• ${rnc.classificacaoSetor}` : ''}
-                    </strong>
-                  </div>
-
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-4 rounded-xl bg-white border border-slate-200 shadow-2xs">
                   <div className="p-3 bg-white rounded-lg border border-slate-200 flex items-center justify-between">
                     <span className="font-semibold text-slate-500">Possível detectar?</span>
                     <strong className="text-slate-900">{rnc.possivelDetectar || 'SIM - Visual'}</strong>
                   </div>
 
                   <div className="p-3 bg-white rounded-lg border border-slate-200 flex items-center justify-between">
-                    <span className="font-semibold text-slate-500">Gravidade:</span>
+                    <span className="font-semibold text-slate-500">Tipo de Detecção:</span>
+                    <strong className="text-slate-900">{rnc.tipoDeteccao || 'Inspeção Visual'}</strong>
+                  </div>
+
+                  <div className="p-3 bg-white rounded-lg border border-slate-200 flex items-center justify-between">
+                    <span className="font-semibold text-slate-500">Gravidade / Severidade:</span>
                     <strong className="text-slate-900">{rnc.gravidade || 'Dimensional'}</strong>
                   </div>
 
                   <div className="p-3 bg-white rounded-lg border border-slate-200">
                     <span className="font-semibold text-slate-500 block mb-1">Desc. problema interno:</span>
-                    <strong className="text-slate-900 uppercase block">
+                    <strong className="text-slate-900 uppercase block truncate">
                       {rnc.descricaoProblemaInterno || rnc.modoFalha || 'PEÇA AMASSADA / DEFORMADO'}
                     </strong>
                   </div>
 
-                  <div className="sm:col-span-2 lg:col-span-3 p-3.5 bg-slate-50 rounded-lg border border-slate-200">
+                  <div className="col-span-full p-3.5 bg-white rounded-lg border border-slate-200">
                     <span className="font-semibold text-slate-500 block mb-1">Recomendações / Providências:</span>
                     <p className="text-slate-800 font-medium leading-relaxed">
                       {rnc.recomendacoesProvidencias || 'Orientar TODOS ENVOLVIDOS'}
@@ -1025,97 +1048,90 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                   </div>
                 </div>
 
-                {/* Foto Auxiliar Ampla com Demarcações de Inspeção (Foto 5) */}
-                <div className="flex flex-col rounded-xl overflow-hidden border border-slate-200 bg-white shadow-2xs">
-                  <div className="bg-[#0f2942] text-white px-4 py-2.5 flex items-center justify-between border-b border-[#1b3d5e]">
-                    <div className="flex items-center gap-2">
-                      <ImageIcon className="w-4 h-4 text-sky-400" />
-                      <span className="font-bold text-xs sm:text-sm">Foto Auxiliar & Demarcações de Inspeção (Foto 5)</span>
+                {/* Linha lado a lado: Foto Auxiliar (mesmo tamanho OK/NG) e Operadores Treinados */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {/* Coluna 1: Foto Auxiliar & Demarcações de Inspeção (mesmo tamanho das fotos OK e NG: h-52 sm:h-64) */}
+                  <div className="flex flex-col rounded-xl overflow-hidden border border-slate-200 bg-white shadow-2xs h-full">
+                    <div className="bg-[#0f2942] text-white px-4 py-2.5 flex items-center justify-between border-b border-[#1b3d5e]">
+                      <div className="flex items-center gap-2">
+                        <ImageIcon className="w-4 h-4 text-sky-400" />
+                        <span className="font-bold text-xs sm:text-sm">Foto Auxiliar & Demarcações de Inspeção</span>
+                      </div>
+                      <span className="text-xs text-sky-200 font-semibold truncate max-w-[180px]">
+                        Resp.: <strong className="text-white">{rnc.quemFara || rnc.detector || 'LEANDRO APARECIDO POSSOMATO'}</strong>
+                      </span>
                     </div>
-                    <span className="text-xs text-sky-200 font-semibold">
-                      Equipe resp.: <strong className="text-white">{rnc.quemFara || rnc.detector || 'LEANDRO APARECIDO POSSOMATO'}</strong>
-                    </span>
-                  </div>
 
-                  <div className="p-4 sm:p-5 flex flex-col gap-4">
-                    <div className="w-full rounded-xl bg-slate-50 border border-slate-200 p-2 sm:p-3 flex items-center justify-center min-h-[260px] max-h-[500px] overflow-hidden">
+                    <div className="h-52 sm:h-64 bg-slate-50 p-2 flex items-center justify-center overflow-hidden flex-1">
                       <ImageWithFallback
                         src={rnc.fotoAuxiliar || rnc.fotoPecaNg}
                         alt="Foto auxiliar com demarcação do defeito"
                         variant="ng"
-                        className="w-full h-full max-h-[480px] object-contain rounded-lg"
+                        className="w-full h-full object-contain rounded-lg"
                         emptyLabel="Sem foto auxiliar cadastrada para esta ocorrência"
                         showExternalLink={true}
                         allowZoom={true}
                         itemId={rnc.id}
                       />
                     </div>
-
-                    <div className="p-3.5 bg-blue-50/60 rounded-xl border border-blue-200 text-xs">
-                      <span className="font-bold text-blue-950 block mb-1 flex items-center gap-1.5">
-                        <ShieldCheck className="w-4 h-4 text-blue-700" />
-                        <span>Comentários Proteção ao cliente (Parecer Técnico):</span>
-                      </span>
-                      <p className="text-blue-950 font-medium leading-relaxed whitespace-pre-wrap">
-                        {rnc.comentarioGestor || 'Comentários da Proteção ao Cliente devidamente registrados e validados pela equipe de Qualidade.'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Operadores Treinados nesta Ocorrência */}
-                <div className="rounded-xl border border-slate-200 overflow-hidden bg-white shadow-xs">
-                  <div className="p-4 border-b border-[#e2e8f0] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-slate-50/80">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0">
-                        <Users className="w-4 h-4 text-indigo-700" />
-                      </div>
-                      <div>
-                        <h3 className="text-xs sm:text-sm font-bold text-[#0f172a]">
-                          Operadores Treinados nesta Ocorrência ({treinamentos.length})
-                        </h3>
-                        <p className="text-[11px] text-[#64748b]">Capacitação e alinhamento da equipe quanto ao padrão</p>
-                      </div>
-                    </div>
-                    {!isOperator && (
-                      <button
-                        type="button"
-                        onClick={() => setModalTreinOpen(true)}
-                        className="btn-secondary h-7 px-2.5 text-xs font-semibold self-start sm:self-auto cursor-pointer"
-                      >
-                        <span>+ Novo Treinamento</span>
-                      </button>
-                    )}
                   </div>
 
-                  {treinamentos.length === 0 ? (
-                    <div className="p-6 text-center text-xs text-[#64748b]">
-                      Nenhum operador registrado até o momento. Clique em "+ Novo Treinamento" para registrar a capacitação da equipe.
+                  {/* Coluna 2: Operadores Treinados nesta Ocorrência */}
+                  <div className="rounded-xl border border-slate-200 overflow-hidden bg-white shadow-2xs flex flex-col h-full">
+                    <div className="p-3 sm:p-4 border-b border-[#e2e8f0] flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-50/80">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0">
+                          <Users className="w-4 h-4 text-indigo-700" />
+                        </div>
+                        <div>
+                          <h3 className="text-xs sm:text-sm font-bold text-[#0f172a]">
+                            Operadores Treinados nesta Ocorrência ({treinamentos.length})
+                          </h3>
+                          <p className="text-[11px] text-[#64748b]">Capacitação e alinhamento da equipe quanto ao padrão</p>
+                        </div>
+                      </div>
+                      {!isOperator && (
+                        <button
+                          type="button"
+                          onClick={() => setModalTreinOpen(true)}
+                          className="btn-secondary h-7 px-2.5 text-xs font-semibold self-start sm:self-auto cursor-pointer"
+                        >
+                          <span>+ Novo Treinamento</span>
+                        </button>
+                      )}
                     </div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left text-xs">
-                        <thead>
-                          <tr className="border-b border-[#e2e8f0] bg-[#f8fafc] text-[#64748b] font-semibold">
-                            <th className="py-2.5 px-4">Operador</th>
-                            <th className="py-2.5 px-4">RE</th>
-                            <th className="py-2.5 px-4">Data</th>
-                            <th className="py-2.5 px-4">Instrutor</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-[#f1f5f9]">
-                          {treinamentos.map(t => (
-                            <tr key={t.id} className="hover:bg-[#f8fafc] transition-colors">
-                              <td className="py-2.5 px-4 font-bold text-[#0f172a]">{t.nomeColaborador || (t as any).nomeOperador}</td>
-                              <td className="py-2.5 px-4 font-mono text-[#64748b]">{t.re}</td>
-                              <td className="py-2.5 px-4 font-mono text-[#64748b]">{formatDateBR(t.dataTreinamento)}</td>
-                              <td className="py-2.5 px-4 text-[#334155]">{t.responsavel || (t as any).instrutor}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+
+                    <div className="flex-1 overflow-hidden flex flex-col">
+                      {treinamentos.length === 0 ? (
+                        <div className="p-6 text-center text-xs text-[#64748b] my-auto">
+                          Nenhum operador registrado até o momento. Clique em "+ Novo Treinamento" para registrar a capacitação da equipe.
+                        </div>
+                      ) : (
+                        <div className="overflow-x-auto max-h-56 sm:max-h-64 overflow-y-auto">
+                          <table className="w-full text-left text-xs">
+                            <thead className="sticky top-0 bg-[#f8fafc] z-10">
+                              <tr className="border-b border-[#e2e8f0] text-[#64748b] font-semibold">
+                                <th className="py-2.5 px-3">Operador</th>
+                                <th className="py-2.5 px-3">RE</th>
+                                <th className="py-2.5 px-3">Data</th>
+                                <th className="py-2.5 px-3">Instrutor</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-[#f1f5f9]">
+                              {treinamentos.map(t => (
+                                <tr key={t.id} className="hover:bg-[#f8fafc] transition-colors">
+                                  <td className="py-2 px-3 font-bold text-[#0f172a]">{t.nomeColaborador || (t as any).nomeOperador}</td>
+                                  <td className="py-2 px-3 font-mono text-[#64748b]">{t.re}</td>
+                                  <td className="py-2 px-3 font-mono text-[#64748b]">{formatDateBR(t.dataTreinamento)}</td>
+                                  <td className="py-2 px-3 text-[#334155]">{t.responsavel || (t as any).instrutor}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </div>
                 </div>
 
                 {/* Histórico de Reincidências Registradas */}
@@ -1461,8 +1477,8 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4.5 items-stretch">
                 
                 {/* COLUNA ESQUERDA: DISPOSIÇÃO INTERNA & AÇÕES DE CONTENÇÃO */}
-                <div className="p-4 rounded-2xl bg-slate-50/60 border border-slate-200 flex flex-col gap-3.5">
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-200/80">
+                <div className="p-4 rounded-2xl bg-slate-50/60 border border-slate-200 flex flex-col gap-3.5 h-full">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-200/80 shrink-0">
                     <div className="flex items-center gap-2">
                       <div className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-800 flex items-center justify-center font-bold">
                         <Wrench className="w-4 h-4" />
@@ -1473,9 +1489,9 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-3 flex-1 h-full">
                     {/* Contenção */}
-                    <div className="p-3 bg-blue-50/80 rounded-xl border border-blue-200/80 flex flex-col gap-1">
+                    <div className="p-3 bg-blue-50/80 rounded-xl border border-blue-200/80 flex flex-col justify-center gap-1 flex-1">
                       <span className="text-[10px] font-bold text-[#0b5796] uppercase flex items-center gap-1">
                         <ShieldCheck className="w-3.5 h-3.5 text-[#0b5796]" />
                         Contenção:
@@ -1486,7 +1502,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                     </div>
 
                     {/* Recomendações / Providências */}
-                    <div className="p-3 bg-amber-50/50 rounded-xl border border-amber-200/80 flex flex-col gap-1">
+                    <div className="p-3 bg-amber-50/50 rounded-xl border border-amber-200/80 flex flex-col justify-center gap-1 flex-1">
                       <span className="text-[10px] font-bold text-amber-800 uppercase flex items-center gap-1">
                         <Info className="w-3.5 h-3.5 text-amber-700" />
                         Recomendações / Providências:
@@ -1497,7 +1513,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                     </div>
 
                     {/* Descrição do Problema */}
-                    <div className="p-3 bg-white rounded-xl border border-slate-200 flex flex-col gap-1">
+                    <div className="p-3 bg-white rounded-xl border border-slate-200 flex flex-col justify-center gap-1 flex-1">
                       <span className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1">
                         <FileText className="w-3.5 h-3.5 text-slate-500" />
                         Descrição do problema:
@@ -1509,15 +1525,15 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                   </div>
                 </div>
 
-                {/* COLUNA DIREITA: PLANO 5W2H (O QUE FAZER, COMO FAZER, PORQUE FAZER, ETC.) */}
-                <div className="p-4 rounded-2xl bg-slate-50/60 border border-slate-200 flex flex-col gap-3.5">
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-200/80">
+                {/* COLUNA DIREITA: AÇÕES INTERNAS DE CONTENÇÃO (5W2H) */}
+                <div className="p-4 rounded-2xl bg-slate-50/60 border border-slate-200 flex flex-col gap-3.5 h-full">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-200/80 shrink-0">
                     <div className="flex items-center gap-2">
                       <div className="w-7 h-7 rounded-lg bg-sky-100 text-sky-800 flex items-center justify-center font-bold">
                         <ShieldAlert className="w-4 h-4 text-[#0b5796]" />
                       </div>
                       <h4 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wide">
-                        Plano 5W2H da Contenção
+                        Ações Internas de Contenção
                       </h4>
                     </div>
                     <span className="text-[10px] font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">

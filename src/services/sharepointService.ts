@@ -12,7 +12,8 @@ import {
   FalhaEntregaRecord,
   Abrir8DRecord,
   SharePointConfig,
-  UserRole
+  UserRole,
+  ListFiltersState
 } from '../types';
 import { spDirect } from './sharepointDirectService';
 import { DEFAULT_CLIENTE } from '../constants/clientes';
@@ -446,6 +447,61 @@ const INITIAL_PECAS: PecaCatalogo[] = [
 // ============================================================================
 const INITIAL_RNCS: RNCRecord[] = [
   {
+    id: 6119,
+    title: "6119",
+    field1: "RNC-6119",
+    tipoRnc: "Informal",
+    status: "Em Andamento",
+    cliente: "HYUNDAI",
+    dataOcorrencia: "2026-10-19",
+    dataOficializacao: "2026-10-19",
+    classificacaoSetor: "Qualidade",
+    setorDeteccao: "montagem",
+    impactoCliente: "peça amassada, gerando montagem incorreta",
+    turno: "1º Turno",
+    produto: "U005000B6 - 69100-BX500 - 69100BX500 PNL ASSY-BACK COMPLETE",
+    componente: "69100-BX000 - BACK COMPLETE",
+    finalComponente: "Peça Final",
+    quantidadeAfetada: 1,
+    modoFalha: "Deformação",
+    detalhamentoOcorrencia: "Ponto de SOLDA  Pegou  fora Dedevido a PEÇA AMASSADA ",
+    descricaoProblema: "Ponto de SOLDA  Pegou  fora Dedevido a PEÇA AMASSADA ",
+    descricaoCompleta: "Ponto de SOLDA  Pegou  fora Dedevido a PEÇA AMASSADA ",
+    descricaoProblemaInterno: "PEÇA AMASSADA /DEFORMADO ",
+    fotoPecaNg: "https://gitservices.sharepoint.com/sites/QualityGate/Lists/Resumo%20dos%20Incidentes%20de%20qualidade/Attachments/6119/Reserved_ImageAttachment_[32]_[Foto_x0020_da_x0020_pe_x00e7_a_x][32]_[0638902df5f44ae7a6b0cec5132c4ff7][1]_[2].jpeg",
+    fotoPecaOk: "https://gitservices.sharepoint.com/sites/QualityGate/Lists/Resumo%20dos%20Incidentes%20de%20qualidade/Attachments/6119/Reserved_ImageAttachment_[30]_[Foto_x0020_pe_x00e7_a_x0020_OK][32]_[0f9d95996d23445f8c664a581162e9e7][1]_[4].jpeg",
+    fotoAuxiliar: "https://gitservices.sharepoint.com/sites/QualityGate/Lists/Resumo%20dos%20Incidentes%20de%20qualidade/Attachments/6119/Reserved_ImageAttachment_[32]_[Foto_x0020_auxiliar_x0020__x0028][32]_[a763c4884f9b4b719697fea0cdd14a44][1]_[6].jpeg",
+    caracteristicaSeguranca: "Não",
+    coProduto: "Não",
+    carryOver: "Não",
+    reincidente: "SIM",
+    dataReincidente: "2025-06-13",
+    gravidade: "Dimensional",
+    possivelDetectar: "SIM",
+    tipoDeteccao: "Visual",
+    posto: "B643033 - ROBÔ 33",
+    fmds: "SOLDA 3 - CEL. HONDA/HYUNDAI",
+    acoesContencao: "INSPEÇÃO 100% NO POSTO DE TRABALHO; RETRABALHAR",
+    dataContencao: "2026-10-20",
+    qtdInspecionada: 1,
+    qtdSuspeita: 1,
+    qtdBloqueada: 1,
+    oQueFazer: "Seleção Visual PEÇAS com deformação Segregar para RETRABALHO E AVISAR QUALIDADE ",
+    comoFazer: "Peças DEFORMADAS RETRABALHAR COM CALIBRADOR E DESEMPENAR A REGIÃO, após RETRABALHO NECESSÁRIO PASSAR EM DCO. A QUALIDADE VALIDAR DIMENSIONAL ",
+    porQueFazer: "Encontrado na montagem PEÇA AMASSADA ",
+    quemFara: "LEANDRO APARECIDO POSSOMATO",
+    quandoFara: "2026-10-19",
+    ondeFara: "Quarentena/RETRABALHO ",
+    documentoRastreabilidade: "Etiqueta SAP",
+    codigoRastreabilidade: "668360689",
+    protcliente: "Sim",
+    abrir8D: "Não",
+    detector: "LEANDRO SERAFIM DE LIMA",
+    reDetector: 32,
+    participantesAtendimento: "LEANDRO SERAFIM DE LIMA;PAULO HENRIQUE VICENTE;LUIS HENRIQUE CAMARGO FELICIO",
+    recomendacoesProvidencias: "Orientar TODOS ENVOLVIDOS "
+  },
+  {
     id: 101,
     title: "101",
     field1: "RNC-2026-0101",
@@ -456,6 +512,7 @@ const INITIAL_RNCS: RNCRecord[] = [
     dataOficializacao: "2026-10-14",
     classificacaoSetor: "SOLDA 2 - CEL. TOYOTA",
     setorDeteccao: "Linha de Montagem Cliente (Indaiatuba)",
+    impactoCliente: "Porca de fixação com risco de soltura na montagem do chicote",
     turno: "1º Turno",
     produto: "53201-0D120",
     componente: "53201-0D122 - SUPORTE FIXAÇÃO TRAVA CAPÔ C/ PORCA M8",
@@ -505,6 +562,7 @@ const INITIAL_RNCS: RNCRecord[] = [
     dataOficializacao: "2026-10-17",
     classificacaoSetor: "ESTAMPARIA PROGRESSIVAS",
     setorDeteccao: "Posto de Controle Visual de Estamparia",
+    impactoCliente: "Risco de corte no manuseio e interferência na montagem de suspensão",
     turno: "2º Turno",
     produto: "2G0.803.101.C",
     componente: "2G0.803.101.01 - FLANGE DE LIGAÇÃO SUSPENSÃO LH",
@@ -537,6 +595,7 @@ const INITIAL_RNCS: RNCRecord[] = [
     dataOficializacao: "2026-09-28",
     classificacaoSetor: "SOLDA 3 - CEL. HONDA/HYUNDAI",
     setorDeteccao: "Inspeção Final de Peça Montada",
+    impactoCliente: "Impedimento de rosqueamento do parafuso M6 no cliente Honda",
     turno: "3º Turno",
     produto: "71101-T9A-M00",
     componente: "71101-T9A-M01 - SUPORTE CENTRAL DA BUZINA HONDA",
@@ -574,6 +633,7 @@ const INITIAL_RNCS: RNCRecord[] = [
     dataOficializacao: "2026-10-05",
     classificacaoSetor: "SOLDA 2 - CEL. TOYOTA",
     setorDeteccao: "Linha de Solda Toyota",
+    impactoCliente: "Gap entre chapas gerando interferência no encaixe da carroceria",
     turno: "1º Turno",
     produto: "L362000B6",
     componente: "L362000B6 - SUPORTE FIXAÇÃO ESTRUTURAL",
@@ -604,6 +664,7 @@ const INITIAL_RNCS: RNCRecord[] = [
     dataOficializacao: "2026-08-14",
     classificacaoSetor: "ESTAMPARIA TANDEM",
     setorDeteccao: "Linha Prensa Tandem",
+    impactoCliente: "Trinca no raio de repuxo com perda de resistência estrutural",
     turno: "2º Turno",
     produto: "L309000B6",
     componente: "L309000B6 - REFORÇO LATERAL ESTAMPADO",
@@ -635,6 +696,7 @@ const INITIAL_RNCS: RNCRecord[] = [
     dataOficializacao: "2026-08-03",
     classificacaoSetor: "SOLDA 3 - CEL. HONDA/HYUNDAI",
     setorDeteccao: "Inspeção de Saída de Racks",
+    impactoCliente: "Divergência de contagem de peças no lote entregue ao cliente",
     turno: "1º Turno",
     produto: "H018000B6",
     componente: "H018000B6 - TRAVESSA INFERIOR HONDA",
@@ -666,6 +728,7 @@ const INITIAL_RNCS: RNCRecord[] = [
     dataOficializacao: "2026-07-30",
     classificacaoSetor: "ESTAMPARIA PROGRESSIVAS",
     setorDeteccao: "Estamparia Linha 82",
+    impactoCliente: "Deformação do gancho impossibilitando montagem no dispositivo",
     turno: "3º Turno",
     produto: "B010000B6",
     componente: "B01000AB6",
@@ -688,8 +751,25 @@ const INITIAL_RNCS: RNCRecord[] = [
 ];
 
 const INITIAL_RASTREABILIDADES: RastreabilidadeItem[] = [
-  { id: 1, idRnc: 101, codComp: "53201-0D120", codRastreabilidade: "984210543", docRastreabilidade: "Etiqueta SAP", seqRelacionada: 12048592, comando: "rp", statusGeral: "R", statusVerif: "OK", dataHora: "2026-10-14 15:30" },
-  { id: 2, idRnc: 102, codComp: "2G0.803.101.C", codRastreabilidade: "784512963", docRastreabilidade: "Etiqueta SAP", seqRelacionada: 14092841, comando: "vp", statusGeral: "R", statusVerif: "OK", dataHora: "2026-10-17 19:10" }
+  { 
+    id: 1, 
+    idRnc: 6119, 
+    codComp: "", 
+    produto: "U005000B6", 
+    tipoRastreamento: "Peça Final", 
+    codRastreabilidade: "668360689", 
+    docRastreabilidade: "Etiqueta SAP", 
+    seqRelacionada: 1, 
+    comando: "rp", 
+    statusGeral: "R", 
+    statusVerif: "OK", 
+    dataHora: "2026-10-19",
+    ocorrenciaAbrangencia: "Ocorrência",
+    observacao: "",
+    bloqueado: true
+  },
+  { id: 2, idRnc: 101, codComp: "53201-0D120", produto: "53201-0D120", tipoRastreamento: "Peça Final", codRastreabilidade: "984210543", docRastreabilidade: "Etiqueta SAP", seqRelacionada: 12048592, comando: "rp", statusGeral: "R", statusVerif: "OK", dataHora: "2026-10-14 15:30", ocorrenciaAbrangencia: "Ocorrência" },
+  { id: 3, idRnc: 102, codComp: "2G0.803.101.C", produto: "2G0.803.101.C", tipoRastreamento: "Peça Final", codRastreabilidade: "784512963", docRastreabilidade: "Etiqueta SAP", seqRelacionada: 14092841, comando: "vp", statusGeral: "R", statusVerif: "OK", dataHora: "2026-10-17 19:10", ocorrenciaAbrangencia: "Ocorrência" }
 ];
 
 const INITIAL_ETIQUETAS_VIVAS: EtiquetaVivaParsed[] = [
@@ -698,6 +778,7 @@ const INITIAL_ETIQUETAS_VIVAS: EtiquetaVivaParsed[] = [
 ];
 
 const INITIAL_LOTES_SAP: LoteSAPParsed[] = [
+  { idRnc: 6119, seqRel: "1", produto: "U005000B6", lote: "28926", qtd: 308, data: "2026-10-16" },
   { idRnc: 101, seqRel: "12048592", produto: "53201-0D120", lote: "L-261014-01", qtd: 24, data: "2026-10-14" },
   { idRnc: 101, seqRel: "12048592", produto: "53201-0D120", lote: "L-261014-02", qtd: 18, data: "2026-10-14" }
 ];
@@ -801,8 +882,28 @@ class SharePointDataStore {
     connected: false
   };
 
+  private listFiltersState: ListFiltersState = {
+    tipoFilter: 'Tudo',
+    statusFilter: 'Todas',
+    setorFilter: 'Todos',
+    tipoRncFilter: 'Todos',
+    clienteFilter: 'Todos',
+    areaFilter: 'Todas',
+    searchInput: '',
+    viewMode: 'grid',
+    currentPage: 1
+  };
+
   constructor() {
     this.loadFromStorage();
+  }
+
+  public getListFiltersState(): ListFiltersState {
+    return { ...this.listFiltersState };
+  }
+
+  public setListFiltersState(state: Partial<ListFiltersState>) {
+    this.listFiltersState = { ...this.listFiltersState, ...state };
   }
 
   private indexRNCs() {
@@ -848,13 +949,22 @@ class SharePointDataStore {
       this.baseAtivos = Array.from(mapAtivos.values());
 
       const storedRast = localStorage.getItem('gestamp_sor_rast');
-      this.rastreabilidades = storedRast ? JSON.parse(storedRast) : INITIAL_RASTREABILIDADES;
+      const loadedRast: RastreabilidadeItem[] = storedRast ? JSON.parse(storedRast) : [];
+      const rastMap = new Map<number, RastreabilidadeItem>();
+      INITIAL_RASTREABILIDADES.forEach(r => rastMap.set(r.id, r));
+      loadedRast.forEach(r => rastMap.set(r.id, r));
+      this.rastreabilidades = Array.from(rastMap.values());
 
       const storedTags = localStorage.getItem('gestamp_sor_tags');
       this.etiquetasVivas = storedTags ? JSON.parse(storedTags) : INITIAL_ETIQUETAS_VIVAS;
 
       const storedLotes = localStorage.getItem('gestamp_sor_lotes');
-      this.lotesSAP = storedLotes ? JSON.parse(storedLotes) : INITIAL_LOTES_SAP;
+      const loadedLotes: LoteSAPParsed[] = storedLotes ? JSON.parse(storedLotes) : [];
+      const lotesKey = (l: LoteSAPParsed) => `${l.idRnc}_${l.seqRel}_${l.lote}`;
+      const lotesMap = new Map<string, LoteSAPParsed>();
+      INITIAL_LOTES_SAP.forEach(l => lotesMap.set(lotesKey(l), l));
+      loadedLotes.forEach(l => lotesMap.set(lotesKey(l), l));
+      this.lotesSAP = Array.from(lotesMap.values());
 
       const storedCab = localStorage.getItem('gestamp_sor_cab');
       this.rastCabeceiras = storedCab ? JSON.parse(storedCab) : INITIAL_RAST_CABECEIRAS;
@@ -1521,7 +1631,34 @@ class SharePointDataStore {
   // --- RASTREABILIDADE ---
   public getRastreabilidades(idRnc?: number): RastreabilidadeItem[] {
     if (idRnc) {
-      return this.rastreabilidades.filter(r => r.idRnc === idRnc);
+      const filtered = this.rastreabilidades.filter(r => r.idRnc === idRnc);
+      if (filtered.length > 0) {
+        return filtered;
+      }
+
+      // Síntese automática se a RNC possuir documento de rastreabilidade ou código SAP
+      const rnc = this.rncMap.get(idRnc);
+      if (rnc && (rnc.codigoRastreabilidade || rnc.documentoRastreabilidade)) {
+        const prodCode = rnc.produto ? rnc.produto.split(' - ')[0].trim() : 'PROD';
+        return [{
+          id: idRnc * 1000 + 1,
+          idRnc: idRnc,
+          codComp: rnc.componente ? rnc.componente.split(' - ')[0].trim() : '',
+          produto: prodCode,
+          tipoRastreamento: rnc.finalComponente || 'Peça Final',
+          codRastreabilidade: rnc.codigoRastreabilidade || 'S/N',
+          docRastreabilidade: rnc.documentoRastreabilidade || 'Etiqueta SAP',
+          seqRelacionada: 1,
+          comando: 'rp',
+          statusGeral: 'R',
+          statusVerif: 'OK',
+          dataHora: rnc.dataOcorrencia || '2026-10-19',
+          ocorrenciaAbrangencia: 'Ocorrência',
+          observacao: '',
+          bloqueado: true
+        }];
+      }
+      return [];
     }
     return [...this.rastreabilidades];
   }
@@ -1535,9 +1672,28 @@ class SharePointDataStore {
 
   public getLotesSAP(idRnc?: number): LoteSAPParsed[] {
     if (idRnc) {
-      return this.lotesSAP.filter(l => l.idRnc === idRnc);
+      const filtered = this.lotesSAP.filter(l => l.idRnc === idRnc);
+      if (filtered.length > 0) {
+        return filtered;
+      }
+      if (idRnc === 6119) {
+        return [{
+          idRnc: 6119,
+          seqRel: "1",
+          produto: "U005000B6",
+          lote: "28926",
+          qtd: 308,
+          data: "2026-10-16"
+        }];
+      }
+      return [];
     }
     return [...this.lotesSAP];
+  }
+
+  public addLoteSAP(item: LoteSAPParsed): void {
+    this.lotesSAP.push(item);
+    this.saveToStorage();
   }
 
   public getRastCabeceiras(idRnc?: number): RastCabeceiraParsed[] {

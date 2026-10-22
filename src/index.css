@@ -74,6 +74,13 @@
   *, ::before, ::after {
     box-sizing: border-box;
   }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+    letter-spacing: -0.025em;
+    text-wrap: balance;
+    color: inherit;
+  }
 }
 
 html {
@@ -93,13 +100,6 @@ html, body {
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-}
-
-h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-display);
-  letter-spacing: -0.025em;
-  text-wrap: balance;
-  color: var(--text-main);
 }
 
 /* Números tabulares para tabelas, datas e quantidades */
@@ -220,6 +220,16 @@ h1, h2, h3, h4, h5, h6 {
   opacity: 0.55;
   cursor: not-allowed;
   transform: none;
+}
+
+/* Permitir que utilitários explícitos como h-8, h-9 governem a altura exata */
+.btn-primary[class*="h-"],
+.btn-secondary[class*="h-"],
+.btn-subtle[class*="h-"],
+.btn-danger[class*="h-"] {
+  min-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
 /* Botão Terciário / Discreto */
@@ -508,6 +518,37 @@ h1, h2, h3, h4, h5, h6 {
   white-space: nowrap;
 }
 
+/* Indicador de Etapas 8D (D0 a D8) */
+.step-8d-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: var(--radius-md);
+  font-size: 11px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  white-space: nowrap;
+  transition: all 0.2s var(--ease-spring);
+}
+.step-8d-completed {
+  background-color: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+.step-8d-active {
+  background-color: #eff6fc;
+  color: #0b5796;
+  border: 1px solid #93c5fd;
+  box-shadow: 0 0 0 1px rgba(11, 87, 150, 0.15);
+}
+.step-8d-pending {
+  background-color: #f8fafc;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+}
+
 /* Banners e Alertas Semânticos Padronizados com Espaçamento Saudável */
 .alert-box-warning {
   padding: 16px 20px;
@@ -556,6 +597,23 @@ h1, h2, h3, h4, h5, h6 {
   .card-saas {
     padding: 16px;
   }
+}
+
+/* Barra de Rolagem Customizada para Cards de Dashboards */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
 /* Estilos de Impressão */

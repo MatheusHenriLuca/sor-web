@@ -12,9 +12,10 @@ function sharepointDirectProxyPlugin(env: Record<string, string>): Plugin {
   let tokenExpiresAt = 0;
 
   async function getAccessToken(): Promise<string> {
-    const tenantId = env.AZURE_TENANT_ID || process.env.AZURE_TENANT_ID || "79998224-6a43-4048-97e9-4cc9f028deb7";
-    const clientId = env.AZURE_CLIENT_ID || process.env.AZURE_CLIENT_ID || "734d0dba-e499-4502-b9b5-e001654496ad";
-    const clientSecret = env.AZURE_CLIENT_SECRET || process.env.AZURE_CLIENT_SECRET || "s3Y8Q~B2oOVvmpSs_yK2qQ.V4xYse4FP~NOcHakP";
+    const isPlaceholder = (val?: string) => !val || val.startsWith('your-') || val === 'undefined';
+    const tenantId = !isPlaceholder(env.AZURE_TENANT_ID) ? env.AZURE_TENANT_ID : (!isPlaceholder(process.env.AZURE_TENANT_ID) ? process.env.AZURE_TENANT_ID! : "79998224-6a43-4048-97e9-4cc9f028deb7");
+    const clientId = !isPlaceholder(env.AZURE_CLIENT_ID) ? env.AZURE_CLIENT_ID : (!isPlaceholder(process.env.AZURE_CLIENT_ID) ? process.env.AZURE_CLIENT_ID! : "734d0dba-e499-4502-b9b5-e001654496ad");
+    const clientSecret = !isPlaceholder(env.AZURE_CLIENT_SECRET) ? env.AZURE_CLIENT_SECRET : (!isPlaceholder(process.env.AZURE_CLIENT_SECRET) ? process.env.AZURE_CLIENT_SECRET! : "s3Y8Q~B2oOVvmpSs_yK2qQ.V4xYse4FP~NOcHakP");
 
     if (!tenantId || !clientId || !clientSecret) {
       throw new Error("Credenciais do Azure não configuradas no .env (AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET).");
@@ -340,7 +341,10 @@ export default defineConfig(({ mode }) => {
       sharepointDirectProxyPlugin(env)
     ],
     server: {
-      port: 5173
+      host: '0.0.0.0',
+      port: 3000,
+      allowedHosts: true
     }
   };
 });
+

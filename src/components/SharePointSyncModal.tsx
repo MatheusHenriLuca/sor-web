@@ -30,6 +30,7 @@ export const SharePointSyncModal: React.FC<SharePointSyncModalProps> = ({
   const [siteUrl, setSiteUrl] = useState(connState.siteUrl);
   const [token, setToken] = useState(connState.accessToken);
   const [loading, setLoading] = useState(false);
+  const [syncingAll, setSyncingAll] = useState(false);
   const [statusMsg, setStatusMsg] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [importText, setImportText] = useState('');
   const [showImportBox, setShowImportBox] = useState(false);
@@ -42,7 +43,6 @@ export const SharePointSyncModal: React.FC<SharePointSyncModalProps> = ({
   const rncsCount = spStore.getRNCs().length;
   const treinCount = spStore.getTreinamentos().length;
 
-  const [syncingAll, setSyncingAll] = useState(false);
 
   const handleSyncAllSharePoint = async () => {
     setSyncingAll(true);

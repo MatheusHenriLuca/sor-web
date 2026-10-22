@@ -24,14 +24,36 @@ export function App() {
   const [currentUser, setCurrentUser] = useState<UsuarioQualidade>(spStore.getCurrentUser());
   const [currentScreen, setCurrentScreen] = useState<ActiveScreen>(initialScreenParam || 'app-on-start');
   const [screenParams, setScreenParams] = useState<any>({ rncId: initialRncId });
+  const [lastListParams, setLastListParams] = useState<any>({ tipo: 'Tudo' });
   const [refreshKey, setRefreshKey] = useState(0);
   const [syncModalOpen, setSyncModalOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleNavigate = (screen: any, params?: any) => {
     const targetScreen = screen === 'dashboard' ? 'menu-2' : screen;
+
+    // Se estiver saindo da tela lista-8d, memoriza os filtros e parâmetros ativos da lista
+    if (currentScreen === 'lista-8d') {
+      const activeTipo = screenParams?.tipo || spStore.getListFiltersState().tipoFilter || 'Tudo';
+      setLastListParams({ ...screenParams, tipo: activeTipo });
+    }
+
+    // Se estiver voltando para a lista sem parâmetros específicos, restaura o estado anterior da lista
+    let resolvedParams: any = {
+      fromScreen: params?.fromScreen || currentScreen,
+      ...(params || {})
+    };
+
+    if (targetScreen === 'lista-8d') {
+      if (!params || Object.keys(params).length === 0) {
+        resolvedParams = { ...(lastListParams || { tipo: spStore.getListFiltersState().tipoFilter || 'Tudo' }), fromScreen: currentScreen };
+      } else {
+        setLastListParams(resolvedParams);
+      }
+    }
+
     setCurrentScreen(targetScreen as ActiveScreen);
-    setScreenParams(params || {});
+    setScreenParams(resolvedParams);
     setMobileMenuOpen(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -101,12 +123,9 @@ export function App() {
           onCloseMobile={() => setMobileMenuOpen(false)}
         />
 
-        {/* Canvas de Conteúdo da Página: 16px padronizado nas laterais e espaçamento uniforme */}
-        <main 
-          className="flex-1 overflow-y-auto bg-[#f8fafc] !p-4 !pb-20"
-          style={{ padding: '16px', paddingBottom: '80px' }}
-        >
-          <div className="w-full flex flex-col gap-4">
+        {/* Canvas de Conteúdo da Página: Espaçamento responsivo e largura máxima confortável */}
+        <main className="flex-1 overflow-y-auto overflow-x-hidden min-w-0 bg-[#f8fafc] p-3 sm:p-6 pb-24">
+          <div className="w-full max-w-[1600px] mx-auto flex flex-col gap-5 min-w-0">
             {currentScreen === 'menu-2' && (
               <Menu2View 
                 currentUser={currentUser}
@@ -117,12 +136,13 @@ export function App() {
 
             {currentScreen === 'lista-8d' && (
               <Lista8DView 
-                key={`${screenParams?.tipo || 'all'}-${screenParams?.status || 'all'}-${screenParams?.search || ''}`}
                 onNavigate={handleNavigate} 
                 currentUser={currentUser}
-                initialTipo={screenParams.tipo}
-                initialStatus={screenParams.status}
-                initialSearch={screenParams.search}
+                initialTipo={screenParams?.tipo}
+                initialStatus={screenParams?.status}
+                initialSearch={screenParams?.search}
+                initialCliente={screenParams?.cliente}
+                initialSetor={screenParams?.setor}
               />
             )}
 
@@ -133,6 +153,7 @@ export function App() {
                 currentUser={currentUser}
                 rncId={screenParams.rncId}
                 edicao={screenParams.edicao}
+                fromScreen={screenParams?.fromScreen}
               />
             )}
 
@@ -155,6 +176,7 @@ export function App() {
               <RegistroProtCliView 
                 onNavigate={handleNavigate}
                 currentUser={currentUser}
+                fromScreen={screenParams?.fromScreen}
               />
             )}
 

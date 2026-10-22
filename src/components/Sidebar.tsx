@@ -20,9 +20,7 @@ export type ActiveScreen =
   | 'lista-8d'
   | 'registro-8d'
   | 'detalhes-8d'
-  | 'registro-protcli'
   | 'rastreabilidade'
-  | 'falha-entrega'
   | 'cadastro-usuarios'
   | 'impressao-8d';
 
@@ -40,7 +38,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   // Acordeons espelhando as variáveis de Menu_2.pa.yaml:
   // varocultarOcorr, varocultarprotcli, varocultarfalhaentrega, varocultarconfig
   const [openOcorr, setOpenOcorr] = useState(true);
-  const [openProtCli, setOpenProtCli] = useState(false);
   const [openConfig, setOpenConfig] = useState(false);
 
   const role = currentUser.perfil;
@@ -137,41 +134,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         )}
 
-        {/* 2. SEÇÃO: PROTEÇÃO AO CLIENTE */}
-        <div className="nav-section-title">Contenção e Risco</div>
-        <div 
-          className="nav-item" 
-          onClick={() => setOpenProtCli(!openProtCli)}
-          style={{ justifyContent: 'space-between' }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <ShieldAlert size={18} />
-            <span>Proteção ao Cliente</span>
-          </div>
-          {openProtCli ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-        </div>
-
-        {openProtCli && (
-          <div style={{ paddingLeft: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-            <div 
-              className="nav-item"
-              onClick={() => onNavigate('lista-8d', { tipo: 'protcliente' })}
-            >
-              <span>Ver Proteções</span>
-            </div>
-
-            <div 
-              className="nav-item"
-              onClick={() => onNavigate('registro-protcli')}
-            >
-              <PlusCircle size={16} />
-              <span>Registrar Proteção</span>
-            </div>
-
-          </div>
-        )}
-
-        {/* 3. SEÇÃO: RASTREABILIDADE SAP */}
+        {/* 2. SEÇÃO: RASTREABILIDADE SAP */}
         <div 
           className={`nav-item ${currentScreen === 'rastreabilidade' ? 'active' : ''}`}
           onClick={() => onNavigate('rastreabilidade')}
@@ -180,18 +143,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <span>Rastreabilidade SAP</span>
         </div>
 
-        {/* 4. SEÇÃO: FALHA DE ENTREGA (Restrita ao Admin) */}
-        {isAdmin && (
-          <div 
-            className={`nav-item ${currentScreen === 'falha-entrega' ? 'active' : ''}`}
-            onClick={() => onNavigate('falha-entrega')}
-          >
-            <Truck size={18} />
-            <span>Falhas de Entrega</span>
-          </div>
-        )}
-
-        {/* 5. SEÇÃO: CONFIGURAÇÕES & ADMIN (Admin / Adminqual) */}
+        {/* 3. SEÇÃO: CONFIGURAÇÕES & ADMIN (Admin / Adminqual) */}
         {isAdminQual && (
           <>
             <div className="nav-section-title">Administração</div>

@@ -2,18 +2,18 @@ import React, { useState } from 'react';
 import { 
   Plus, 
   LayoutGrid, 
-  Truck, 
   Users, 
   UserCheck, 
   ChevronDown, 
   Layers,
   Building2,
   Factory,
-  ShieldPlus,
-  List,
-  X
+  X,
+  Palette,
+  Shield
 } from 'lucide-react';
 import { ActiveScreen, UsuarioQualidade } from '../types';
+import { tenantService } from '../services/tenantService';
 
 interface AppSidebarProps {
   currentScreen: ActiveScreen;
@@ -37,13 +37,13 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
 
   // Estados dos grupos expansíveis (iniciam abertos conforme especificação)
   const [openOcorr, setOpenOcorr] = useState(true);
-  const [openProtCli, setOpenProtCli] = useState(true);
-  const [openFalha, setOpenFalha] = useState(true);
   const [openConfig, setOpenConfig] = useState(true);
+
+  const activeTenant = tenantService.getActiveTenant();
+  const brandColor = activeTenant.customizacao.cor_primaria || '#0b5796';
 
   // Permissões conforme perfil do usuário
   const canSeeOcorrClienteInterna = role !== 'User';
-  const canSeeFalha = ['Admin', 'Adminqual'].includes(role);
   const canSeeConfig = ['Admin', 'Adminqual'].includes(role);
 
   const handleItemClick = (screen: ActiveScreen, params?: any) => {
@@ -76,11 +76,11 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
           <div className="flex items-center justify-between !pb-3 border-b border-[#e2e8f0]">
             <div className="flex items-center !gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#0e67b0] to-[#09477d] text-white flex items-center justify-center font-display font-bold text-xs shadow-xs border border-white/20">
-                G
+                {activeTenant.nome.substring(0, 2).toUpperCase()}
               </div>
               <div className="flex flex-col">
-                <span className="font-display font-bold text-sm text-[#0f172a] leading-tight">SOR Qualidade</span>
-                <span className="text-[11px] text-[#64748b]">Gestamp Sorocaba</span>
+                <span className="font-display font-bold text-sm text-[#0f172a] leading-tight">{activeTenant.nome}</span>
+                <span className="text-[11px] text-[#64748b]">MH Qualidade • MH Lean &amp; Soluções</span>
               </div>
             </div>
             <button
@@ -94,12 +94,13 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
           </div>
         )}
 
-        {/* 1. BOTÃO DE AÇÃO PRINCIPAL: + Nova RNC / 8D */}
+        {/* 1. BOTÃO DE AÇÃO PRINCIPAL: + Nova ocorrência */}
         <div>
           <button
             type="button"
             onClick={() => handleItemClick('registro-8d', { edicao: false, rncId: undefined, timestamp: Date.now() })}
-            className={`btn-primary w-full !h-10.5 text-[13px] font-semibold !justify-center shadow-sm hover:shadow ${
+            style={{ backgroundColor: brandColor }}
+            className={`btn-primary w-full !h-10.5 text-[13px] font-semibold !justify-center shadow-sm hover:opacity-95 ${
               currentScreen === 'registro-8d' ? 'ring-2 ring-[#0f6cbd] ring-offset-2' : ''
             }`}
           >
@@ -206,90 +207,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
           )}
         </div>
 
-        {/* 4. CATEGORIA: PROTEÇÃO AO CLIENTE */}
-        <div>
-          <button
-            type="button"
-            onClick={() => setOpenProtCli(!openProtCli)}
-            className="w-full flex items-center justify-between !px-3 !py-1.5 text-[11px] font-display font-semibold tracking-wider uppercase text-[#94a3b8] hover:text-[#0f172a] rounded-lg hover:bg-slate-100/60 transition-colors select-none group cursor-pointer"
-          >
-            <span>Proteção ao cliente</span>
-            <ChevronDown 
-              className={`w-3.5 h-3.5 text-[#94a3b8] group-hover:text-[#64748b] ml-auto transition-transform duration-200 ${
-                !openProtCli ? '-rotate-90' : ''
-              }`} 
-            />
-          </button>
-
-          {openProtCli && (
-            <div className="flex flex-col !gap-1 !mt-1.5">
-              <button
-                type="button"
-                onClick={() => handleItemClick('registro-protcli')}
-                className={getLinkClasses(currentScreen === 'registro-protcli')}
-              >
-                {currentScreen === 'registro-protcli' && (
-                  <span className="absolute left-0 top-2 bottom-2 w-1.25 bg-[#0f6cbd] rounded-r-full shadow-[0_0_8px_rgba(15,108,189,0.5)]" />
-                )}
-                <ShieldPlus className={getIconClasses(currentScreen === 'registro-protcli')} />
-                <span className="truncate">Nova Proteção ao Cliente</span>
-              </button>
-
-              {(() => {
-                const isActive = currentScreen === 'lista-8d' && screenParams?.tipo === 'protcliente';
-                return (
-                  <button
-                    type="button"
-                    onClick={() => handleItemClick('lista-8d', { tipo: 'protcliente' })}
-                    className={getLinkClasses(isActive)}
-                  >
-                    {isActive && (
-                      <span className="absolute left-0 top-2 bottom-2 w-1.25 bg-[#0f6cbd] rounded-r-full shadow-[0_0_8px_rgba(15,108,189,0.5)]" />
-                    )}
-                    <List className={getIconClasses(isActive)} />
-                    <span className="truncate">Lista Proteção ao Cliente</span>
-                  </button>
-                );
-              })()}
-            </div>
-          )}
-        </div>
-
-        {/* 5. CATEGORIA: FALHA DE ENTREGA */}
-        {canSeeFalha && (
-          <div>
-            <button
-              type="button"
-              onClick={() => setOpenFalha(!openFalha)}
-              className="w-full flex items-center justify-between !px-3 !py-1.5 text-[11px] font-display font-semibold tracking-wider uppercase text-[#94a3b8] hover:text-[#0f172a] rounded-lg hover:bg-slate-100/60 transition-colors select-none group cursor-pointer"
-            >
-              <span>Falha de entrega</span>
-              <ChevronDown 
-                className={`w-3.5 h-3.5 text-[#94a3b8] group-hover:text-[#64748b] ml-auto transition-transform duration-200 ${
-                  !openFalha ? '-rotate-90' : ''
-                }`} 
-              />
-            </button>
-
-            {openFalha && (
-              <div className="flex flex-col !gap-1 !mt-1.5">
-                <button
-                  type="button"
-                  onClick={() => handleItemClick('falha-entrega')}
-                  className={getLinkClasses(currentScreen === 'falha-entrega')}
-                >
-                  {currentScreen === 'falha-entrega' && (
-                    <span className="absolute left-0 top-2 bottom-2 w-1.25 bg-[#0f6cbd] rounded-r-full shadow-[0_0_8px_rgba(15,108,189,0.5)]" />
-                  )}
-                  <Truck className={getIconClasses(currentScreen === 'falha-entrega')} />
-                  <span className="truncate">Incluir falha de entrega</span>
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* 6. CATEGORIA: CONFIGURAÇÕES */}
+        {/* 4. CATEGORIA: CONFIGURAÇÕES */}
         {canSeeConfig && (
           <div>
             <button
@@ -309,6 +227,18 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
               <div className="flex flex-col !gap-1 !mt-1.5">
                 <button
                   type="button"
+                  onClick={() => handleItemClick('configuracoes-empresa')}
+                  className={getLinkClasses(currentScreen === 'configuracoes-empresa')}
+                >
+                  {currentScreen === 'configuracoes-empresa' && (
+                    <span className="absolute left-0 top-2 bottom-2 w-1.25 bg-[#0f6cbd] rounded-r-full shadow-[0_0_8px_rgba(15,108,189,0.5)]" />
+                  )}
+                  <Palette className={getIconClasses(currentScreen === 'configuracoes-empresa')} />
+                  <span className="truncate">Campos, Opções &amp; Marca</span>
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => handleItemClick('cadastro-usuarios')}
                   className={getLinkClasses(currentScreen === 'cadastro-usuarios')}
                 >
@@ -321,14 +251,26 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
 
                 <button
                   type="button"
-                  onClick={() => handleItemClick('verif-user')}
-                  className={getLinkClasses(currentScreen === 'verif-user')}
+                  onClick={() => handleItemClick('super-admin')}
+                  className={getLinkClasses(currentScreen === 'super-admin')}
                 >
-                  {currentScreen === 'verif-user' && (
+                  {currentScreen === 'super-admin' && (
                     <span className="absolute left-0 top-2 bottom-2 w-1.25 bg-[#0f6cbd] rounded-r-full shadow-[0_0_8px_rgba(15,108,189,0.5)]" />
                   )}
-                  <UserCheck className={getIconClasses(currentScreen === 'verif-user')} />
-                  <span className="truncate">Trocar usuário</span>
+                  <Shield className={getIconClasses(currentScreen === 'super-admin')} />
+                  <span className="truncate">Console Super Admin</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleItemClick('saas-login')}
+                  className={getLinkClasses(currentScreen === 'saas-login')}
+                >
+                  {currentScreen === 'saas-login' && (
+                    <span className="absolute left-0 top-2 bottom-2 w-1.25 bg-[#0f6cbd] rounded-r-full shadow-[0_0_8px_rgba(15,108,189,0.5)]" />
+                  )}
+                  <UserCheck className={getIconClasses(currentScreen === 'saas-login')} />
+                  <span className="truncate">Trocar usuário / Empresa</span>
                 </button>
               </div>
             )}
@@ -337,13 +279,15 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
 
       </div>
 
-      {/* Rodapé Corporativo Discreto */}
+      {/* Rodapé Corporativo Discreto Dinâmico por Tenant */}
       <div className="!p-4 border-t border-[#e2e8f0] text-xs text-[#64748b] bg-[#f8fafc]/80 backdrop-blur-xs">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.6)]" />
-          <span className="font-display font-bold text-[#0f172a]">Gestamp Sorocaba</span>
+        <div className="flex items-center justify-between">
+          <span className="font-display font-bold text-[#0f172a] truncate">{activeTenant.nome}</span>
+          <span className="font-mono text-[10px] text-slate-500">/{activeTenant.slug}</span>
         </div>
-        <div className="text-[11px] text-[#64748b] mt-0.5 pl-4">Planta Sorocaba • Qualidade</div>
+        <div className="text-[11px] text-[#64748b] mt-0.5 truncate">
+          {activeTenant.customizacao.subtitulo_relatorio || 'Gestão da Qualidade 8D'}
+        </div>
       </div>
 
     </div>

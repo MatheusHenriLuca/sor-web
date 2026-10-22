@@ -6,7 +6,6 @@ import {
   ChevronRight, 
   ChevronLeft, 
   RotateCw, 
-  ShieldCheck,
   CheckCircle2, 
   Clock, 
   AlertTriangle, 
@@ -165,10 +164,9 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
     return Array.from(set).sort();
   }, [rncs]);
 
-  // Contadores ao vivo para cada aba da foto do Power Apps
+  // Contadores ao vivo para cada aba
   const tabCounts = useMemo(() => {
     let todas = rncs.length;
-    let protCli = 0;
     let relInicial = 0;
     let rncEmitida = 0;
     let emAndamento = 0;
@@ -178,7 +176,6 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
 
     for (let i = 0; i < rncs.length; i++) {
       const r = rncs[i];
-      if (r.protcliente && r.protcliente !== 'Não') protCli++;
       if (r.status === 'Relatório Inicial') relInicial++;
       else if (r.status === 'RNC Emitida') rncEmitida++;
       else if (r.status === 'Em Andamento') emAndamento++;
@@ -189,7 +186,6 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
 
     return {
       'Todas': todas,
-      'Proteção ao cliente': protCli,
       'Relatório Inicial': relInicial,
       'RNC Emitida': rncEmitida,
       'Em Andamento': emAndamento,
@@ -199,10 +195,9 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
     };
   }, [rncs]);
 
-  // Abas de Status exatamente como na foto do Power Apps
+  // Abas de Status
   const filterTabs = [
     { id: 'Todas', label: 'Todas' },
-    { id: 'Proteção ao cliente', label: 'Proteção ao cliente' },
     { id: 'Relatório Inicial', label: 'Relatório Inicial' },
     { id: 'RNC Emitida', label: 'RNC Emitida' },
     { id: 'Em Andamento', label: 'Em Andamento' },
@@ -224,17 +219,11 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
         if (r.tipoRnc !== 'Interno') {
           return false;
         }
-      } else if (tipoFilter === 'protcliente') {
-        if (!r.protcliente || r.protcliente === 'Não') {
-          return false;
-        }
       }
 
       // 2. Filtro das Abas de Status
       if (statusFilter === 'Reincidente') {
         if (r.reincidente !== 'SIM') return false;
-      } else if (statusFilter === 'Proteção ao cliente') {
-        if (!r.protcliente || r.protcliente === 'Não') return false;
       } else if (statusFilter !== 'Todas') {
         if (r.status !== statusFilter) return false;
       }
@@ -336,15 +325,9 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
     }
   };
 
-  const getStatusBadge = (status: string, prot?: string) => {
-    const isProtCliente = prot && prot !== 'Não';
+  const getStatusBadge = (status: string) => {
     return (
       <div className="flex items-center gap-1.5 whitespace-nowrap">
-        {isProtCliente && (
-          <span title="Proteção ao Cliente Ativa" className="text-emerald-600 shrink-0 inline-flex items-center">
-            <ShieldCheck className="w-4 h-4 stroke-[2.2]" />
-          </span>
-        )}
         {status === 'Concluído' ? (
           <span className="badge-status bg-emerald-100 text-emerald-800 border border-emerald-300">
             <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-emerald-600" />
@@ -796,7 +779,6 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
                   <div className="flex flex-col justify-between gap-2 w-full sm:w-[175px] h-full">
                     {/* Linha 1: Status */}
                     {(() => {
-                      const isProt = r.protcliente && r.protcliente !== 'Não';
                       let statusStyle = 'bg-slate-50 text-slate-700 border-slate-200';
                       let StatusIcon = Clock;
                       let iconColor = 'text-slate-500';
@@ -829,11 +811,6 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
                             <StatusIcon className={`w-4 h-4 shrink-0 ${iconColor}`} />
                             <span className="truncate">{r.status}</span>
                           </div>
-                          {isProt && (
-                            <span title="Proteção ao Cliente Ativa" className="text-emerald-600 shrink-0">
-                              <ShieldCheck className="w-4 h-4 stroke-[2.2]" />
-                            </span>
-                          )}
                         </div>
                       );
                     })()}
@@ -1007,7 +984,7 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
                         {formatDateBR(r.dataOcorrencia)}
                       </td>
                       <td className="py-2.5 px-3 whitespace-nowrap">
-                        {getStatusBadge(r.status, r.protcliente)}
+                        {getStatusBadge(r.status)}
                       </td>
                       <td className="py-2.5 px-3 whitespace-nowrap">
                         {getTipoRncBadge(r.tipoRnc)}

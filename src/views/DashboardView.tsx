@@ -31,7 +31,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, curren
   const emAndamento = rncs.filter(r => r.status === 'Em Andamento').length;
   const concluidos = rncs.filter(r => r.status === 'Concluído').length;
   const relInicial = rncs.filter(r => r.status === 'Relatório Inicial').length;
-  const protecoesPendentes = rncs.filter(r => r.protcliente === 'Sim').length;
 
   const isOperator = currentUser.perfil === 'User';
 
@@ -63,7 +62,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, curren
       </header>
 
       {/* KPI Stats Grid */}
-      <section className="grid grid-cols-2 lg:grid-cols-5 gap-3.5 sm:gap-4">
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
         
         <div 
           onClick={() => onNavigate('lista-8d', { tipo: 'Tudo' })}
@@ -135,24 +134,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, curren
             {concluidos.toLocaleString('pt-BR')}
           </div>
           <span className="text-[10px] text-emerald-700/80 font-bold mt-1 block">Eficácia validada</span>
-        </div>
-
-        <div 
-          onClick={() => onNavigate('lista-8d', { tipo: 'protcliente' })}
-          className="card-saas p-4 sm:p-5 flex flex-col justify-between hover:border-rose-300 transition-all cursor-pointer group col-span-2 lg:col-span-1"
-        >
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 group-hover:text-rose-700 transition">
-              Proteção Cliente
-            </span>
-            <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-700 flex items-center justify-center">
-              <ShieldAlert size={18} />
-            </div>
-          </div>
-          <div className="text-2xl sm:text-3xl font-black text-rose-600 font-mono tracking-tight">
-            {protecoesPendentes.toLocaleString('pt-BR')}
-          </div>
-          <span className="text-[10px] text-rose-700/80 font-bold mt-1 block">Bloqueios SAP ativos</span>
         </div>
 
       </section>
@@ -294,22 +275,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, curren
                   </div>
                 </div>
                 <ArrowRight size={14} className="text-slate-400 group-hover:text-slate-700 transition" />
-              </button>
-
-              <button 
-                onClick={() => onNavigate('registro-protcli')}
-                className="w-full flex items-center justify-between p-3 rounded-xl bg-rose-50/50 hover:bg-rose-50 border border-rose-200 text-left transition group cursor-pointer"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-rose-100 text-rose-800 flex items-center justify-center">
-                    <ShieldAlert size={16} />
-                  </div>
-                  <div>
-                    <span className="block text-xs font-bold text-rose-950">Proteção ao Cliente</span>
-                    <span className="text-[10px] text-rose-700/80">Validação 9 dígitos SAP</span>
-                  </div>
-                </div>
-                <ArrowRight size={14} className="text-rose-400 group-hover:text-rose-700 transition" />
               </button>
 
               <button 

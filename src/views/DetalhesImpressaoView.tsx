@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ArrowLeft, Printer, CheckCircle2, ShieldAlert, FileText, Check } from 'lucide-react';
 import { RNCRecord, RegistroTreinamento } from '../types';
 import { spStore } from '../services/sharepointService';
+import { tenantService } from '../services/tenantService';
 import { ImageWithFallback } from '../components/ImageWithFallback';
 import { formatDateBR } from '../utils/date';
 
@@ -13,6 +14,13 @@ interface DetalhesImpressaoViewProps {
 export const DetalhesImpressaoView: React.FC<DetalhesImpressaoViewProps> = ({ rncId, onNavigate }) => {
   const [rnc, setRnc] = useState<RNCRecord | undefined>(undefined);
   const [treinamentos, setTreinamentos] = useState<RegistroTreinamento[]>([]);
+  const activeTenant = tenantService.getActiveTenant();
+  const brandColor = activeTenant.customizacao.cor_primaria || '#0b5796';
+  const brandName = activeTenant.customizacao.nome_exibicao || activeTenant.nome;
+  const brandLogo = activeTenant.customizacao.logo_url;
+  const brandSubtitle =
+    activeTenant.customizacao.subtitulo_relatorio ||
+    `${activeTenant.nome.toUpperCase()} • DIVISÃO DE QUALIDADE ASSEGURADA`;
 
   useEffect(() => {
     const item = spStore.getRNCById(rncId);
@@ -71,7 +79,7 @@ export const DetalhesImpressaoView: React.FC<DetalhesImpressaoViewProps> = ({ rn
             <span>Voltar para Detalhes da Ocorrência</span>
           </button>
           <span className="text-xs text-slate-500 font-medium hidden sm:inline">
-            Visualização de Ficha Física de Posto de Trabalho (A4)
+            Visualização de Ficha Física de Posto de Trabalho (A4) — {brandName}
           </span>
         </div>
 
@@ -79,6 +87,7 @@ export const DetalhesImpressaoView: React.FC<DetalhesImpressaoViewProps> = ({ rn
           type="button"
           onClick={handlePrint}
           className="btn-primary"
+          style={{ backgroundColor: brandColor }}
         >
           <Printer size={15} />
           <span>Imprimir Ficha A4</span>
@@ -95,18 +104,36 @@ export const DetalhesImpressaoView: React.FC<DetalhesImpressaoViewProps> = ({ rn
           lineHeight: 1.3
         }}
       >
-        {/* Header Gestamp */}
-        <div className="flex items-center justify-between border-b-2 border-[#092162] pb-2.5 mb-3">
+        {/* Header White-Label da Empresa */}
+        <div
+          className="flex items-center justify-between border-b-2 pb-2.5 mb-3"
+          style={{ borderColor: brandColor }}
+        >
           <div className="flex items-center gap-3">
-            <div className="bg-[#092162] text-white px-3.5 py-1.5 font-black text-base tracking-wider rounded">
-              GESTAMP
-            </div>
+            {brandLogo ? (
+              <img
+                src={brandLogo}
+                alt={brandName}
+                referrerPolicy="no-referrer"
+                className="h-9 w-auto max-w-[140px] object-contain"
+              />
+            ) : (
+              <div
+                className="text-white px-3.5 py-1.5 font-black text-base tracking-wider rounded uppercase"
+                style={{ backgroundColor: brandColor }}
+              >
+                {brandName}
+              </div>
+            )}
             <div>
-              <h2 className="text-base font-black text-[#092162] leading-tight">
+              <h2
+                className="text-base font-black leading-tight"
+                style={{ color: brandColor }}
+              >
                 ALERTA DA QUALIDADE & RASTREABILIDADE
               </h2>
-              <span className="text-[10px] text-slate-500 font-semibold tracking-wide">
-                DIVISÃO DE QUALIDADE ASSEGURADA • PLANTA SOROCABA
+              <span className="text-[10px] text-slate-500 font-semibold tracking-wide uppercase">
+                {brandSubtitle}
               </span>
             </div>
           </div>

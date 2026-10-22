@@ -17,22 +17,141 @@ export type TipoRNC = 'Formal' | 'Informal' | 'Improcedente' | 'Interno';
 export type StatusRNC = 'Relatório Inicial' | 'RNC Emitida' | 'Em Andamento' | 'Concluído' | 'Reprovado';
 export type StatusProtecaoCliente = 'Sim' | 'Não' | 'Aprovado' | 'Reprovado' | 'Registro Pago';
 
+export type SaaSUserRole = 'super_admin' | 'admin_empresa' | 'qualidade' | 'operador';
+export type TenantStatus = 'ativo' | 'suspenso' | 'cancelado';
+
+export interface TenantCustomizacao {
+  logo_url: string;
+  cor_primaria: string;
+  nome_exibicao: string;
+  subtitulo_relatorio?: string;
+}
+
+export interface TenantLimites {
+  max_usuarios: number;
+  max_storage_mb: number;
+  storage_usado_mb: number;
+}
+
+export interface TenantRecord {
+  id: string;
+  nome: string;
+  slug: string;
+  cnpj_contato: string;
+  status: TenantStatus;
+  customizacao: TenantCustomizacao;
+  limites: TenantLimites;
+  ultimo_sequencial_rnc?: number;
+  created_at: string;
+}
+
+export type MasterDataCategory =
+  | 'cliente_montadora'
+  | 'area_fabril'
+  | 'posto_trabalho'
+  | 'cat_defeito'
+  | 'tipo_rnc'
+  | 'turno'
+  | 'tipo_componente'
+  | 'impacto_cliente'
+  | 'setor_deteccao'
+  | 'doc_rastreabilidade'
+  | 'acoes_contencao'
+  | 'gravidade'
+  | 'possivel_detectar'
+  | 'abrir_8d'
+  | 'status_rnc'
+  | 'criticidade'
+  | 'origem_fornecedor'
+  | 'disposicao_lote'
+  | string;
+
+export interface MasterDataItem {
+  id: string;
+  tenant_id: string;
+  tipo: MasterDataCategory;
+  nome: string;
+  codigo?: string;
+  detalhe?: string;
+  ativo: boolean;
+}
+
+export interface OptionCategoryMeta {
+  id: MasterDataCategory;
+  tenant_id: string;
+  nome: string;
+  descricao: string;
+  usadoNoFormulario: boolean;
+  campoVinculado?: string;
+  isSystem?: boolean;
+  // Aliases de compatibilidade
+  title?: string;
+  description?: string;
+  usedInForm?: boolean;
+  formFieldTarget?: string;
+}
+
+export type FormSectionId = 'secao_1' | 'secao_2' | 'secao_3' | 'secao_4' | 'secao_5';
+
+export type FormFieldType =
+  | 'text'
+  | 'textarea'
+  | 'number'
+  | 'date'
+  | 'select'
+  | 'multiselect'
+  | 'yesno'
+  | 'photo';
+
+export interface FormFieldConfig {
+  id: string;
+  key: string;
+  fieldKey: string;
+  tenant_id: string;
+  label: string;
+  section: FormSectionId;
+  type: FormFieldType;
+  required: boolean;
+  visible: boolean;
+  deleted?: boolean;
+  order: number;
+  isSystem: boolean;
+  optionCategory?: MasterDataCategory;
+  customOptions?: string[];
+  placeholder?: string;
+  helperText?: string;
+  colSpan?: 1 | 2 | 3 | 4;
+}
+
+export interface HistoricoAcaoRecord {
+  id: number;
+  tenant_id: string;
+  rnc_id: number;
+  usuario_nome: string;
+  acao: string;
+  detalhes: string;
+  created_at: string;
+}
+
 export type ActiveScreen = 
   | 'app-on-start'
   | 'verif-user'
+  | 'saas-login'
+  | 'super-admin'
+  | 'configuracoes-empresa'
   | 'menu-2'
   | 'lista-8d'
   | 'registro-8d'
   | 'detalhes-8d'
   | 'impressao-8d'
-  | 'registro-protcli'
   | 'rastreabilidade'
-  | 'falha-entrega'
-  | 'pagamento-protcli'
   | 'cadastro-usuarios';
 
 export interface UsuarioQualidade {
   id: number;
+  tenant_id?: string;
+  papel?: SaaSUserRole;
+  ativo?: boolean;
   nome: string;
   reAcesso: number;
   perfil: UserRole;
@@ -81,6 +200,7 @@ export interface SharePointConfig {
 
 export interface RNCRecord {
   id: number;
+  tenant_id?: string;
   title: string; // Sequencial
   field1?: string; // Código Ocorrência (ex: RNC-2026-0042)
   tipoRnc: TipoRNC;
@@ -93,11 +213,11 @@ export interface RNCRecord {
   detalhamentoOcorrencia?: string; // Detalhes adicionais do cliente
   classificacaoSetor: string; // ex: SOLDA 1 - ESTACIONÁRIAS
   setorDeteccao: string;
-  turno: '1º Turno' | '2º Turno' | '3º Turno' | 'Central';
+  turno: '1º Turno' | '2º Turno' | '3º Turno' | 'Central' | string;
   produto: string; // Veículo / Projeto
   componente: string; // Peça estampada / montada
   subcomponente?: string;
-  finalComponente?: 'Peça Final' | 'Componente' | 'Peça Final + Componente' | 'SubComponente + Componente';
+  finalComponente?: 'Peça Final' | 'Componente' | 'Peça Final + Componente' | 'SubComponente + Componente' | string;
   quantidadeAfetada: number;
   modoFalha?: string; // Modo de Falha / Classificação Padronizada
   descricaoProblema: string;
@@ -109,10 +229,10 @@ export interface RNCRecord {
   fotoAuxiliar?: string; // Base64 ou URL
   
   // Análise e Severidade
-  caracteristicaSeguranca: 'Sim' | 'Não';
-  coProduto: 'Sim' | 'Não';
-  carryOver: 'Sim' | 'Não';
-  reincidente: 'SIM' | 'NÃO';
+  caracteristicaSeguranca: 'Sim' | 'Não' | string;
+  coProduto: 'Sim' | 'Não' | string;
+  carryOver: 'Sim' | 'Não' | string;
+  reincidente: 'SIM' | 'NÃO' | string;
   dataReincidente?: string;
   gravidade?: string;
   possivelDetectar?: string;
@@ -147,13 +267,16 @@ export interface RNCRecord {
   dataFimRastreabilidade?: string;
   protcliente?: StatusProtecaoCliente;
   dataPagamento?: string;
-  abrir8D?: 'Sim' | 'Não';
+  abrir8D?: 'Sim' | 'Não' | string;
   local8d?: string;
   
   // Avaliação da Qualidade (Produção / Cliente)
   criticidade?: 'A' | 'B' | 'C' | string;
   abrirRnc?: string; // "Sim - Realizar Análise / Contenção / Rastreabilidade" | "Não - Não realizar Análise / Contenção / Rastreabilidade"
   comentarioGestor?: string;
+
+  // Campos Personalizados configurados pelo Admin da Empresa
+  camposPersonalizados?: Record<string, any>;
 
   // Responsáveis e Auditoria
   detector: string;
@@ -165,6 +288,7 @@ export interface RNCRecord {
 
 export interface RastreabilidadeItem {
   id: number;
+  tenant_id?: string;
   idRnc: number;
   codComp: string;
   codRastreabilidade: string;
@@ -182,6 +306,7 @@ export interface RastreabilidadeItem {
 }
 
 export interface LoteSAPParsed {
+  tenant_id?: string;
   idRnc: number;
   seqRel: string;
   produto: string;
@@ -191,6 +316,7 @@ export interface LoteSAPParsed {
 }
 
 export interface EtiquetaVivaParsed {
+  tenant_id?: string;
   idRnc: number;
   seqRel: string;
   produto: string;
@@ -204,6 +330,7 @@ export interface EtiquetaVivaParsed {
 }
 
 export interface RastCabeceiraParsed {
+  tenant_id?: string;
   idRnc: number;
   seqRel: string;
   produto: string;
@@ -214,6 +341,7 @@ export interface RastCabeceiraParsed {
 
 export interface RegistroTreinamento {
   id: number;
+  tenant_id?: string;
   idRnc: number;
   re: number;
   nomeColaborador: string;
@@ -225,6 +353,7 @@ export interface RegistroTreinamento {
 
 export interface AlertaQualidadeRegistro {
   id: number;
+  tenant_id?: string;
   idRnc: number;
   produto: string;
   componente: string;
@@ -234,18 +363,6 @@ export interface AlertaQualidadeRegistro {
   postosDivulgados: string;
 }
 
-export interface FalhaEntregaRecord {
-  id: number;
-  data: string;
-  cliente: string;
-  produto: string;
-  turno: string;
-  qtdFalha: number;
-  motivoFalha: string;
-  areaFmds: string;
-  observacao?: string;
-  anexos?: string[];
-}
 
 export interface Abrir8DRecord {
   id: number;

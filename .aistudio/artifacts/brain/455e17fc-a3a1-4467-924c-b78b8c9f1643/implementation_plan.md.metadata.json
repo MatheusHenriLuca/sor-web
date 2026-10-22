@@ -1,6 +1,6 @@
 {
-  "summary":  "Plano de Auditoria Geral e Padronização Completa de Interface, Usabilidade, Responsividade e Performance para o Gestamp 8D Manager, cobrindo os 13 eixos de melhoria técnica e visual em 4 etapas graduais sem alteração de regras de negócio.",
-  "updatedAt":  "2026-10-21T22:12:33.550052564Z",
+  "summary":  "Plano Estratégico de Implementação da Arquitetura SaaS Multi-Tenant (SOR Web) consolidado com as decisões do usuário: camada híbrida Supabase + fallback local, isolamento multi-tenant para RNCs, Treinamentos e Cadastros Mestres, Login Global inteligente por e-mail com roteamento por slug (:empresa-slug), console Super Admin (/super-admin) com Impersonation, personalização White-Label, compressão de fotos WebP client-side e carga piloto de 10 ocorrências para a empresa GPM Serviços.",
+  "updatedAt":  "2026-10-22T17:56:14.994174462Z",
   "requestFeedback":  true,
   "userFacing":  true
 }

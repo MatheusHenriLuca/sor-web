@@ -34,14 +34,14 @@ interface RastreabilidadeViewProps {
 export const RastreabilidadeView: React.FC<RastreabilidadeViewProps> = ({ onNavigate, currentUser, rncId }) => {
   const rncs = useMemo(() => spStore.getRNCs(), []);
   
-  // Resolve o ID da ocorrência ativa vindo de Detalhes8DView (com fallback robusto para 6119 ou primeira RNC)
+  // Resolve o ID da ocorrência ativa vindo de Detalhes8DView (com fallback para a RNC #1 da empresa ativa)
   const targetRncId = useMemo(() => {
     if (rncId) {
       const parsed = Number(rncId);
       if (!isNaN(parsed) && parsed > 0) return parsed;
     }
-    const found6119 = rncs.find(r => r.id === 6119);
-    return found6119 ? 6119 : (rncs[0]?.id || 6119);
+    const foundFirst = rncs.find(r => r.id === 1);
+    return foundFirst ? 1 : (rncs[0]?.id || 1);
   }, [rncId, rncs]);
 
   const currentRnc = useMemo(() => {

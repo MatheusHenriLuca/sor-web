@@ -1,190 +1,136 @@
-# Auditoria Geral de Interface, Usabilidade, Responsividade e Performance
+# Arquitetura SaaS Multi-Tenant — SOR Web (Gestão de RNCs e Qualidade)
 
-Plano de modernização, padronização visual e otimização de performance para o sistema **Gestamp Sorocaba — 8D Quality Manager**, preservando integralmente todas as regras de negócio, integrações do SharePoint Online, campos dos 25 cards originais do Power Apps e fluxos operacionais existentes.
+Transformação do sistema SOR em uma plataforma **SaaS Multi-Tenant escalável**, com isolamento estrito de dados por empresa (`tenant_id`), console gerencial de Super Administrador (`/super-admin`) com recurso de *Impersonation*, customização White-Label por cliente, compressão automática de fotos em WebP no navegador e carga inicial do tenant piloto **GPM Serviços** com 10 ocorrências formais realistas.
 
-## Decisões Críticas e Preferências Confirmadas
+---
+
+## Decisões Críticas e Alinhamento Confirmado
 
 > [!IMPORTANT]
-> As diretrizes abaixo foram confirmadas na fase de alinhamento com o usuário e regem toda a execução técnica deste plano:
+> As diretrizes abaixo foram confirmadas diretamente com você e regem toda a implementação arquitetural deste plano:
 
-- **Escopo Priorizado**: Todas as telas do aplicativo com prioridade máxima nos fluxos operacionais centrais (`Menu2View`, `Lista8DView`, `Detalhes8DView`, `Registro8DView`).
-- **Linguagem Visual e Densidade**: **Industrial clean com alta densidade e excelente contraste**, com tokens de design automotivo Gestamp (`#0b5796`), tipografia nítida (`Plus Jakarta Sans` / `Outfit` / `JetBrains Mono`), números tabulares (`tabular-nums`) e superfícies organizadas sem poluição visual.
-- **Estratégia de Execução**: **Padronização gradual em 4 etapas**, validando e compilando a cada fase para garantir 100% de integridade dos dados, sem quebras nem regressões.
+- **Camada de Banco de Dados Híbrida (Supabase + Fallback Local)**: Fornecimento do script SQL completo (DDL + políticas de Row Level Security + Storage Bucket) pronto para o Supabase PostgreSQL, aliado a um repositório híbrido que conecta automaticamente ao Supabase quando as credenciais estão presentes ou opera em armazenamento local multi-tenant isolado para homologação imediata a custo zero.
+- **Escopo Focado do Modelo Relacional Multi-Tenant**: Isolamento multi-tenant concentrado nas entidades essenciais do produto: **Tenants (Empresas)**, **Usuários**, **RNCs**, **Treinamentos**, **Histórico de Ações** e **Cadastros Mestres por Empresa** (Clientes/Montadoras, Áreas Fabris/FMDS, Postos de Trabalho e Catálogo de Defeitos).
+- **Rota Raiz com Login Global Inteligente por E-mail**: Ao acessar a raiz do sistema, o usuário encontra a **Tela de Login Global SaaS**, que identifica automaticamente a empresa vinculada ao e-mail informado (ou a credencial de Super Admin) e redireciona para o ambiente correspondente (`/:empresa-slug/dashboard` ou `/super-admin`), mantendo também o suporte ao login direto personalizado em `/:empresa-slug/login`.
+- **Atalhos Rápidos de Demonstração por Perfil**: A tela de login combina autenticação por e-mail e senha com botões de acesso rápido de 1 clique para testar imediatamente os papéis de **Super Admin do SaaS**, **Admin da Empresa (GPM Serviços)**, **Engenharia/Qualidade** e **Operador Fabril**.
 
 ---
 
 ## 1. Visão Geral e Conceito Central
 
-- **Objetivo**: Elevar o sistema ao padrão de software industrial automotivo de classe mundial (World Class Manufacturing), eliminando desalinhamentos, inconsistências de fontes e botões, poluição de bordas/sombras, e gargalos de renderização, ao mesmo tempo em que aprimora o contraste e a usabilidade em postos de fábrica e escritórios de qualidade.
-- **Público-Alvo**: Inspetores de Qualidade de Linha, Engenheiros de Qualidade Assegurada, Supervisores de Estamparia/Montagem e Auditores de Clientes (Toyota, Honda, Renault, Hyundai, Stellantis, VW).
-- **Compromisso de Não-Regressão**: Nenhuma regra de negócio, validação de campo, vínculo de chave primária/secundária ou integração com o Microsoft Graph/SharePoint será removida ou alterada.
+- **O Que Entrega**: Uma plataforma B2B pronta para comercialização, onde múltiplas indústrias utilizam a mesma infraestrutura de código com dados 100% isolados, identidade visual própria (logotipo e cor primária aplicada dinamicamente) e administração centralizada pelo proprietário do SaaS.
+- **Público-Alvo e Personas**:
+  - **Super Administrador do SaaS**: Gerencia empresas clientes (onboarding, limites de usuários/armazenamento, suspensão por inadimplência, métricas globais e suporte via *Impersonation*).
+  - **Administrador da Empresa (Tenant Admin)**: Personaliza a marca da sua fábrica (White-Label), gerencia cadastros mestres locais (montadoras, linhas, postos, modos de falha) e administra sua equipe.
+  - **Analistas da Qualidade e Operadores**: Registram ocorrências, anexam evidências fotográficas otimizadas em WebP, acompanham tratativas, gerenciam treinamentos e imprimem relatórios padronizados com o timbre da própria empresa.
+- **Proposta de Valor**: Operação inicial a custo zero (R$ 0,00/mês no Free Tier do Supabase + Cloudflare Pages/Vercel), reduzindo em ~95% o consumo de armazenamento de imagens via compressão client-side para WebP.
 
 ---
 
-## 2. Diagnóstico e Diretrizes nos 13 Eixos de Auditoria
+## 2. Experiência do Usuário e Design Visual
 
-### 1. Tipografia
-- **Diagnóstico**: Mistura pontual de pesos de fontes, tamanhos de textos variando arbitrariamente entre componentes criados em fases distintas.
-- **Padronização**:
-  - Títulos de Nível 1 (Telas): `font-display text-xl font-bold text-slate-900 tracking-tight`.
-  - Títulos de Seção / Cards: `font-display text-sm font-semibold text-slate-800`.
-  - Corpo / Labels: `font-sans text-xs font-medium text-slate-600` e valores `text-sm font-semibold text-slate-900`.
-  - Dados Numéricos / Códigos SAP / RNC IDs: `font-mono tabular-nums text-slate-800`.
-  - Garantia de conformidade com contraste WCAG 2.2 AA (mínimo de 4.5:1 para texto normal e 3:1 para textos grandes).
+### Fluxos Principais de Navegação e Roteamento
+1. **Login Global Inteligente (`/` ou `/login`)**:
+   - O usuário insere seu e-mail e senha (ou aciona um dos botões de acesso rápido de homologação).
+   - O motor de autenticação resolve o `tenant_id` e o `papel` do usuário:
+     - Se `papel === 'super_admin'`, redireciona para `/super-admin`.
+     - Se vinculado a uma empresa ativa (ex.: `gpm-servicos`), injeta o contexto do tenant e redireciona para `/gpm-servicos/dashboard`.
+     - Se a empresa estiver com status `suspenso` ou `cancelado`, exibe aviso claro de bloqueio administrativo.
+2. **Login Contextualizado por Slug (`/:empresa-slug/login`)**:
+   - Consulta os metadados públicos do tenant a partir do slug na URL e renderiza a tela de acesso já com o logotipo, nome da empresa e cor primária da marca.
+3. **Console do Super Administrador (`/super-admin`)**:
+   - Visão executiva com indicadores globais (Total de Empresas Ativas, Total de Usuários, RNCs Registradas e Consumo Estimado de Storage em MB).
+   - Tabela de gestão de empresas com criação de novo tenant + primeiro administrador, edição de limites (`max_usuarios`, `max_storage_mb`), alternância de status (`ativo`, `suspenso`, `cancelado`) e botão **"Acessar como Empresa" (Impersonation)**.
+   - Quando em modo *Impersonation*, uma barra superior discreta e de alto contraste informa que o Super Admin está visualizando o ambiente da empresa selecionada, permitindo retornar ao console `/super-admin` com 1 clique.
+4. **Ambiente Operacional e Configurações White-Label (`/:empresa-slug/*`)**:
+   - Cabeçalho e barra lateral exibem o logotipo e a cor primária (`--brand-primary`) configurados pela empresa, mantendo a navegação limpa e sem poluição visual.
+   - Nova área de **Configurações da Empresa & Cadastros Mestres** acessível a administradores da empresa para atualizar logotipo, paleta de cor primária, clientes/montadoras, áreas fabris, postos de trabalho, catálogo de defeitos e usuários internos.
 
-### 2. Botões e Ações
-- **Diagnóstico**: Botões com alturas díspares (32px, 36px, 42px), paddings irregulares e ausência de padrão uniforme para botões de ação destrutiva vs neutra.
-- **Padronização**:
-  - **Ação Primária**: `.btn-primary` (Azul Gestamp `#0b5796`, altura 38px desktop / 44px mobile, peso semi-bold, cantos `rounded-lg`).
-  - **Ação Secundária**: `.btn-secondary` (Fundo branco, borda `slate-200`, texto `slate-700`, hover `bg-slate-50`).
-  - **Ação Terciária / Ghost**: `.btn-subtle` (Sem borda de repouso, fundo transparente).
-  - **Ação Destrutiva**: `.btn-danger` (Vermelho semântico `#e11d48`, reservado para cancelamentos/rejeições).
-  - **Estados Desabilitados**: Opacidade 50%, `cursor-not-allowed`, sem hover styling.
-  - Alinhamento uniforme via `inline-flex items-center justify-center gap-2`.
-
-### 3. Espaçamentos e Alinhamentos
-- **Diagnóstico**: Telas com margens verticais e horizontais inconsistentes (algumas com `p-4`, outras com `p-8` ou sem padding responsivo).
-- **Padronização**:
-  - Escala modular de espaçamentos: 4px, 8px, 12px, 16px, 20px, 24px, 32px.
-  - Grid de conteúdo padronizado em todas as telas principais com `max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6`.
-  - Gaps de formulários unificados em `gap-4 sm:gap-6`.
-
-### 4. Bordas, Cards e Fundos
-- **Diagnóstico**: Concorrência entre múltiplos níveis de sombra e contornos duplicados (card dentro de card com bordas escuras).
-- **Padronização**:
-  - Eliminação de sombras excessivas; adoção de elevação sutil única: `box-shadow: 0 1px 3px rgba(15,23,42,0.03)`.
-  - Bordas padrão uniformes: `border border-slate-200` com hover sutil `border-slate-300`.
-  - Fundo do app consolidado em `--bg-app: #f8fafc` e superfícies de cards em `#ffffff`.
-  - Raio de arredondamento consistente: `rounded-xl` para containers principais e `rounded-lg` para sub-cards e controles.
-
-### 5. Ícones e Elementos Visuais
-- **Diagnóstico**: Variação de tamanhos nos ícones da biblioteca Lucide (14px, 15px, 18px, 24px) e falta de alinhamento vertical com rótulos.
-- **Padronização**:
-  - Escala de ícones: Ações/Botões (16px `w-4 h-4`), Headers de Cards (18px `w-[18px] h-[18px]`), Destaques Principais (20px `w-5 h-5`).
-  - `shrink-0` em todos os ícones para impedir deformações durante redução de viewport.
-  - Remoção de ícones puramente decorativos sem valor funcional.
-
-### 6. Campos e Formulários
-- **Diagnóstico**: Alturas distintas entre inputs de texto, selects e date-pickers; mensagens de obrigatoriedade não padronizadas.
-- **Padronização**:
-  - Classe unificada `.form-input` em todos os inputs com altura de 38px (desktop) e 44px (touch).
-  - Rótulos consistentes com indicador visual `text-rose-500 font-bold ml-0.5 *` para campos obrigatórios.
-  - Alinhamento de foco acessível com anel `focus:ring-2 focus:ring-blue-500/20 focus:border-[#0b5796]`.
-  - Componente `SearchableSelect` harmonizado esteticamente com os inputs nativos.
-
-### 7. Tabelas, Listas e Galerias
-- **Diagnóstico**: A Galeria do `Lista8DView` agora é a visualização padrão. Necessita de densidade visual refinada para facilitar a leitura rápida de 20 a 50 cards por página.
-- **Padronização**:
-  - Grid responsivo de 1 coluna (mobile), 2 colunas (tablet/laptop) e 3 colunas (desktop ultrawide).
-  - Metadados sem enquadramentos redundantes (zero-pill discipline para informações estáticas; pílulas apenas para status interativos/semânticos).
-  - Rolagem vertical fluida sem cortes de conteúdo ou quebras forçadas de texto.
-
-### 8. Padronização entre Telas
-- **Diagnóstico**: Diferenças de estrutura entre o cabeçalho de `Menu2View`, `Lista8DView` e `Detalhes8DView`.
-- **Padronização**:
-  - Cabeçalho padronizado em todas as telas: Breadcrumb de localização à esquerda + Título e Subtítulo + Grupo de Ações Primárias/Secundárias à direita.
-  - Barra de navegação `AppHeader` e `AppSidebar` com estados ativos e badges alinhados com o mesmo padrão visual.
-
-### 9. Responsividade
-- **Diagnóstico**: Alguns grids quebram ou comprimem colunas em telas de tablets industriais (1024x768).
-- **Padronização**:
-  - Ajuste minucioso de breakpoints (`sm:`, `md:`, `lg:`, `xl:`).
-  - Wrappers horizontais flexíveis com `flex-wrap` defensivo e `min-w-0` para prevenir transbordamento de texto (`overflow-x-hidden`).
-  - Alvos de clique móveis com altura mínima de 44px para operação com luvas fabris ou touch.
-
-### 10. Usabilidade e Ergonomia Fabril
-- **Diagnóstico**: Dificuldade de identificar em que etapa do 8D um chamado se encontra ao abrir a listagem rápida.
-- **Padronização**:
-  - Indicador visual progressivo unificado para os passos 8D (D0 a D8) com cores de progresso semânticas.
-  - Acesso imediato às ações mais frequentes: "Ver Ocorrência", "Imprimir Relatório", "Atualizar Ação".
-
-### 11. Performance e Otimizações de Renderização
-- **Diagnóstico**: Recálculos de filtragem ocorrendo em cada render do componente `Lista8DView` e `Menu2View`.
-- **Padronização**:
-  - Aplicação estrita de `useMemo` para listas filtradas e agrupamentos de montadoras.
-  - Redução de chamadas repetidas a seletores de array no corpo de renderização.
-  - Carregamento de imagens com `loading="lazy"` e fallbacks leves via `ImageWithFallback`.
-
-### 12. Estados e Feedbacks
-- **Diagnóstico**: Estados de "Nenhum resultado encontrado" eram genéricos ou desprovidos de ação clara para limpar filtros.
-- **Padronização**:
-  - Empty states informativos com ícone sutil, descrição clara do filtro aplicado e botão imediato "Limpar Filtros".
-  - Toasts e alertas consistentes para operações de salvamento e sincronização com o SharePoint.
-
-### 13. Acessibilidade (A11y)
-- **Diagnóstico**: Falta de rótulos acessíveis (`aria-label`) em botões de apenas ícone e foco indistinto em navegadores baseados em Chromium.
-- **Padronização**:
-  - Inclusão de `aria-label` e `title` descritivos em todos os botões de ícone.
-  - Foco visível `:focus-visible` com anel duplo em alto contraste para navegação por teclado fabril.
+### Identidade Visual, Tipografia e Ergonomia (Padrão SaaS Industrial)
+- **Direção Estética**: *Industrial Clean de Alta Densidade*, com superfícies planas de elevação única (`border border-slate-200`, sem cards aninhados com sombras pesadas) e hierarquia visual clara para uso tanto em escritórios quanto em tablets de chão de fábrica.
+- **Paleta de Cores & White-Label Dinâmico (60-30-10)**:
+  - **60% Canvas Neutro**: Fundo principal `#f8fafc` com containers brancos puros `#ffffff`.
+  - **30% Superfícies Estruturais**: Bordas sutis `#e2e8f0` e tipografia secundária `#475569`.
+  - **10% Orçamento de Destaque (`--brand-primary`)**: Cor primária dinâmica injetada pelo Tenant ativo (ex.: `#0b5796` ou `#0f766e` para GPM Serviços), acompanhada de cores semânticas fixas para estados operacionais: Verde (`#16a34a` Ativo/Concluído), Âmbar (`#d97706` Em Análise/Alerta) e Vermelho (`#dc2626` Crítico/Suspenso) sempre pareadas com rótulos textuais claros.
+- **Tipografia e Disciplina Tabular**:
+  - Títulos e Navegação em `Outfit` / `Plus Jakarta Sans`; corpo de alta legibilidade em `Plus Jakarta Sans`.
+  - Todos os códigos de RNC, contadores de ocorrências, cotas de armazenamento (MB), datas e quantidades utilizam obrigatoriamente `font-mono tabular-nums` (`JetBrains Mono`) para alinhamento vertical perfeito nas tabelas e KPIs.
+- **Completude de Estados**:
+  - Todas as listagens (Tenants, RNCs, Treinamentos e Cadastros Mestres) possuem estados populados, empty states orientativos com ação primária imediata, feedback de carregamento e filtragem instantânea em memória.
 
 ---
 
-## 3. Plano de Implementação em 4 Fases
+## 3. Decisões de Produto e Trade-Offs Arquiteturais
+
+- **Decisão 1: Arquitetura Shared Database, Shared Schema com RLS + Repositório Híbrido**
+  - *Abordagem Escolhida*: Todas as tabelas de domínio possuem a coluna obrigatória `tenant_id`. No PostgreSQL (Supabase), políticas de Row Level Security validam `tenant_id = auth.jwt() -> 'app_metadata' ->> 'tenant_id'` ou `is_super_admin = true`. No modo local/híbrido, o serviço de dados aplica o mesmo filtro de isolamento por `tenant_id` em todas as leituras e gravações.
+  - *Por quê*: Garante segurança em nível de banco de dados em produção e permite testar 100% dos fluxos multi-tenant, criação de novas empresas e *Impersonation* imediatamente no navegador.
+- **Decisão 2: Compressão Fotográfica Client-Side para WebP (Full HD 1920x1080, Qualidade 80%)**
+  - *Abordagem Escolhida*: Antes de persistir qualquer foto de peça OK, peça NG ou evidência auxiliar, um processador baseado em HTML5 Canvas redimensiona e codifica a imagem em formato WebP, registrando o tamanho final em KB para atualizar o medidor de cota do tenant (`max_storage_mb`).
+  - *Por quê*: Reduz fotos de 8–15 MB para ~250 KB, permitindo armazenar até 4.000 fotos dentro de 1 GB gratuito do Supabase Storage e acelerando o envio em redes móveis industriais.
+- **Decisão 3: Isolamento de Cadastros Mestres por Empresa**
+  - *Abordagem Escolhida*: Em vez de listas fixas no código, os seletores de Clientes/Montadoras, Áreas Fabris, Postos de Trabalho e Catálogo de Defeitos do formulário de RNC passam a ler os cadastros do tenant ativo.
+  - *Por quê*: Permite que a `GPM Serviços` ou qualquer nova indústria cliente configure suas próprias linhas, máquinas e clientes sem interferir nas demais empresas da plataforma.
+
+---
+
+## 4. Arquitetura Técnica e Estratégia de Dados
+
+### Diagrama de Arquitetura e Hierarquia de Componentes
 
 ```
-┌────────────────────────────────────────────────────────────────────────┐
-│                      FASE 1: Design Tokens & Layout                    │
-│   • Atualização de src/index.css (tokens, botões, inputs, foco)        │
-│   • Padronização de AppHeader.tsx e AppSidebar.tsx                     │
-└───────────────────────────────────┬────────────────────────────────────┘
-                                    │
-┌───────────────────────────────────▼────────────────────────────────────┐
-│                  FASE 2: Fluxos Operacionais Centrais                  │
-│   • Lista8DView.tsx: Galeria de alta densidade, filtros e memoização   │
-│   • Detalhes8DView.tsx: Cabeçalho 8D, etapas D0-D8, contraste e grids  │
-│   • Registro8DView.tsx: Formulário padronizado, campos e validações    │
-└───────────────────────────────────┬────────────────────────────────────┘
-                                    │
-┌───────────────────────────────────▼────────────────────────────────────┐
-│                  FASE 3: Telas de Gestão e Auxiliares                  │
-│   • Menu2View.tsx: Dashboard principal, KPIs e busca inteligente      │
-│   • RegistroProtCliView.tsx: Formulário de contenção de cliente        │
-│   • CadastroUsuariosView.tsx & FalhaEntregaView.tsx: Grids e botões    │
-│   • DetalhesImpressaoView.tsx & RastreabilidadeView.tsx                │
-└───────────────────────────────────┬────────────────────────────────────┘
-                                    │
-┌───────────────────────────────────▼────────────────────────────────────┐
-│                 FASE 4: Verificação, Lint & Compilação                 │
-│   • Teste de responsividade (320px, 768px, 1024px, 1440px)             │
-│   • Auditoria de contraste WCAG 2.2 AA                                 │
-│   • Verificação com compile_applet e lint_applet                       │
-└────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│                        ROTEADOR MULTI-TENANT & AUTH GUARD                        │
+│   • / ou /login          ──► Login Global SaaS (Descoberta de Tenant por E-mail) │
+│   • /super-admin         ──► Console Super Admin (Gestão Global + Impersonation) │
+│   • /:empresa-slug/login ──► Login White-Label Contextualizado da Empresa        │
+│   • /:empresa-slug/*     ──► Workspace da Empresa (Injeção CSS --brand-primary)  │
+└───────────────────┬──────────────────────────────────────────┬───────────────────┘
+                    │                                          │
+                    ▼                                          ▼
+┌───────────────────────────────────────┐  ┌───────────────────────────────────────┐
+│        CONSOLE SUPER ADMIN            │  │       WORKSPACE DO TENANT ATIVO       │
+│ • KPIs Globais (Tenants, RNCs, Disco) │  │ • Banner de Impersonation (se ativo)  │
+│ • CRUD de Empresas & Limites de Uso   │  │ • Dashboard, Galeria & Registro RNC   │
+│ • Ativação / Suspensão Instantânea    │  │ • Matriz de Treinamentos & Histórico  │
+│ • Chaveamento Impersonate (1 clique)  │  │ • Configurações White-Label & Mestres │
+└───────────────────┬───────────────────┘  └───────────────────┬───────────────────┘
+                    │                                          │
+                    └───────────────────┬──────────────────────┘
+                                        ▼
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│                CONTEXTO GLOBAL MULTI-TENANT & COMPRESSOR DE MÍDIA                │
+│   • TenantContext: tenantAtivo, usuarioAutenticado, isImpersonating, temaCSS     │
+│   • WebP Image Compressor: Canvas 1920x1080 (q=0.80) + Cálculo de Quota em MB    │
+└───────────────────────────────────────┬──────────────────────────────────────────┘
+                                        ▼
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│              CAMADA DE DADOS HÍBRIDA (SUPABASE CLIENT + LOCAL FALLBACK)          │
+│   • Conector Supabase (PostgreSQL + Auth + Storage /tenants/{tenant_id}/...)     │
+│   • Store Local Multi-Tenant Particionado por tenant_id (Seed: GPM Serviços)     │
+└──────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Detalhamento das Fases
+### Modelo de Dados e Entidades Principais
+1. **`tenants`**: `id` (UUID), `nome`, `slug` (único), `cnpj_contato`, `status` (`ativo` | `suspenso` | `cancelado`), `customizacao` (`logo_url`, `cor_primaria`, `nome_exibicao`), `limites` (`max_usuarios`, `max_storage_mb`, `storage_usado_mb`), `created_at`.
+2. **`users`**: `id` (UUID), `tenant_id` (FK opcional para `super_admin`), `email` (único), `senha`, `nome`, `cargo`, `setor`, `re_acesso`, `papel` (`super_admin` | `admin_empresa` | `qualidade` | `operador`), `ativo`.
+3. **`rncs`**: Registro de ocorrências vinculado a `tenant_id`, preservando compatibilidade com os fluxos de abertura, análise, contenção, evidências fotográficas (`foto_peca_ok`, `foto_peca_ng`, `foto_auxiliar`), status e impressão.
+4. **`treinamentos` & `historico_acoes`**: Registros de eficácia, lições/treinamentos de operadores e log de auditoria vinculados a `tenant_id` e `rnc_id`.
+5. **Cadastros Mestres por Tenant (`clientes_montadoras`, `areas_fabris`, `postos_trabalho`, `cat_defeitos`)**: Coleções isoladas por `tenant_id` que alimentam dinamicamente os filtros e formulários da empresa logada.
 
-#### Fase 1: Fundação de Design e Estrutura Global
-- Consolidar em `src/index.css` as classes de alta densidade: botões primários/secundários/destrutivos, inputs, cards saas, e badges de status.
-- Ajustar `src/components/AppHeader.tsx` e `src/components/AppSidebar.tsx` para garantir alinhamento perfeito, responsividade no mobile (menu gaveta) e contraste impecável.
-
-#### Fase 2: Fluxos Centrais (Lista8D, Detalhes8D e Registro8D)
-- **`Lista8DView.tsx`**:
-  - Aperfeiçoar os cards da Galeria (modo de visualização único definido pelo usuário), com tipografia nítida, badges semânticos de montadora e status, contadores com `tabular-nums` e botões de ação ergonômicos.
-  - Otimizar a filtragem com `useMemo` para garantir resposta instantânea mesmo com milhares de registros em cache.
-- **`Detalhes8DView.tsx`**:
-  - Reestruturar as seções D0 a D8 com cabeçalho de status industrial, navegação suave por abas, cards de contenção e análise de causa raiz com alto contraste.
-- **`Registro8DView.tsx`**:
-  - Padronizar todos os campos dos 25 cards de acordo com as especificações extraídas do Power Apps em `/docs/powerapps-reference/`, preservando regras condicionais e de validação com visual limpo e claro.
-
-#### Fase 3: Telas de Gestão e Suporte
-- **`Menu2View.tsx`**:
-  - Harmonizar os cards de KPI (Total Ocorrências, Em Aberto, Concluídas, Proteção ao Cliente) com micro-bordas `slate-200`, números tabulares grandes e gráficos limpos.
-- **`RegistroProtCliView.tsx`, `CadastroUsuariosView.tsx`, `FalhaEntregaView.tsx`, `RastreabilidadeView.tsx`**:
-  - Aplicar os mesmos tokens de botões, inputs, tabelas e cabeçalhos em todas as telas secundárias para alcançar 100% de consistência em todo o software.
-
-#### Fase 4: Validação e Testes
-- Executar `compile_applet` para assegurar ausência de erros de compilação TypeScript.
-- Executar `lint_applet` para certificar conformidade com boas práticas.
-- Validar visualmente o dev server no navegador para confirmar que nenhum dado, botão ou fluxo foi quebrado.
-
----
-
-## 4. Garantia de Conformidade e Regras de Negócio
-
-| Regra / Componente | Estado Atual | Garantia Pós-Auditoria |
-| :--- | :--- | :--- |
-| **Integração SharePoint** | Serviço `spStore` via Graph API | Preservado 100% sem alterações nos endpoints |
-| **25 Cards Power Apps** | Mapeamento em `/docs/powerapps-reference/` | Todos os campos e validações estritamente mantidos |
-| **Galeria como Listagem** | Modo padrão atual | Mantida como visão principal com densidade aprimorada |
-| **Regras de Validação 8D** | Bloqueios por status e campos obrigatórios | 100% preservadas e visualmente sinalizadas |
-| **Permissões de Usuário** | RBAC baseado no perfil de qualidade | 100% preservado |
+### Mapeamento de Interações e Estados
+- **Descoberta de Empresa no Login Global**: Ao submeter `email` e `senha`, o autenticador localiza o registro em `users`. Se for `super_admin`, navega para `/super-admin` e sincroniza `window.history.pushState`. Se pertencer a um tenant, verifica se `tenant.status === 'ativo'`; caso positivo, carrega o tema White-Label do tenant e navega para `/:slug/dashboard`.
+- **Ciclo de Impersonation do Super Admin**: Ao clicar em *"Acessar como Empresa"* na linha de um tenant no painel `/super-admin`, o sistema preserva a sessão do Super Admin em `impersonatorUser`, define `activeTenant` para a empresa escolhida, navega para `/:slug/dashboard` e exibe uma barra fixa no topo permitindo encerrar a visualização e voltar imediatamente ao `/super-admin`.
+- **Onboarding de Nova Empresa**: Quando o Super Admin cadastra uma nova empresa no modal de criação, o sistema cria o registro do tenant, cria o usuário `admin_empresa` inicial, inicializa o conjunto padrão de cadastros mestres para aquela empresa e disponibiliza imediatamente o acesso via `/:novo-slug/login`.
+- **Upload com Compressão WebP e Controle de Cota**: Ao selecionar uma foto no formulário de RNC ou um logotipo nas configurações White-Label, o utilitário converte a imagem em WebP, verifica se o tamanho somado respeita `limites.max_storage_mb` do tenant, atualiza `storage_usado_mb` e persiste a imagem no bucket/store isolado da empresa.
+- **Carga Piloto Inicial (`GPM Serviços`)**: Na primeira inicialização, o banco/store é populado automaticamente com o tenant piloto **GPM Serviços** (`slug: gpm-servicos`), seus cadastros mestres industriais, usuários de todos os perfis e as **10 ocorrências formais realistas** especificadas no seu plano:
+  1. *Trinca no ponto de solda robotizada* (Item de Segurança - FMEA Crítico)
+  2. *Rebarba excessiva em flange estampada* (Linha de Montagem)
+  3. *Empolamento e contaminação em pintura superficial* (Acabamento)
+  4. *Desvio dimensional em furação de fixação* (Usinagem/Conformação)
+  5. *Falta de torque em parafuso estrutural M10* (Segurança do Produto)
+  6. *Arranhão severo em superfície classe A visível* (Inspeção Final)
+  7. *Inversão de chicote elétrico de comando* (Montagem Elétrica)
+  8. *Porosidade interna detectada em teste de estanqueidade* (Fundição)
+  9. *Deformação por impacto em transporte interno* (Logística/Kitting)
+  10. *Etiqueta de rastreabilidade com código ilegível* (Expedição/Rastreabilidade)

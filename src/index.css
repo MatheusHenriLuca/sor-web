@@ -12,8 +12,9 @@
   --border-subtle: #f1f5f9;
   --border-strong: #cbd5e1;
   
-  /* Brand Primary — Gestamp Automotive Blue */
-  --color-primary: #0b5796;
+  /* Brand Primary — Dinâmico por Tenant (White-Label) */
+  --brand-primary: #0b5796;
+  --color-primary: var(--brand-primary);
   --color-primary-hover: #084375;
   --color-primary-light: #eff6fc;
   --color-primary-dark: #062f54;
@@ -148,7 +149,7 @@ html, body {
   box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.02), inset 0 1px 0 0 rgba(255, 255, 255, 0.8);
 }
 
-/* Botão Primário com Gradiente Sutil e Efeito Tátil */
+/* Botão Primário Dinâmico White-Label (--brand-primary) */
 .btn-primary {
   display: inline-flex;
   align-items: center;
@@ -161,18 +162,16 @@ html, body {
   font-weight: 600;
   letter-spacing: -0.01em;
   color: #ffffff;
-  background: linear-gradient(180deg, #0e67b0 0%, #09477d 100%);
-  border: 1px solid rgba(9, 71, 125, 0.9);
+  background-color: var(--brand-primary, #0b5796);
+  border: 1px solid var(--brand-primary, #0b5796);
   border-radius: var(--radius-md);
   cursor: pointer;
   white-space: nowrap;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.08), inset 0 1px 0 0 rgba(255, 255, 255, 0.2);
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.08);
   transition: all 0.2s var(--ease-spring);
 }
 .btn-primary:hover:not(:disabled) {
-  background: linear-gradient(180deg, #1177cc 0%, #0b5796 100%);
-  border-color: #0b5796;
-  box-shadow: 0 4px 12px 0 rgba(11, 87, 150, 0.25), inset 0 1px 0 0 rgba(255, 255, 255, 0.25);
+  filter: brightness(1.08);
   transform: translateY(-0.5px);
 }
 .btn-primary:active:not(:disabled) {

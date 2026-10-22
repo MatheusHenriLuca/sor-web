@@ -9,7 +9,6 @@ import {
   RastCabeceiraParsed,
   RegistroTreinamento,
   AlertaQualidadeRegistro,
-  FalhaEntregaRecord,
   Abrir8DRecord,
   SharePointConfig,
   UserRole,
@@ -17,6 +16,7 @@ import {
 } from '../types';
 import { spDirect } from './sharepointDirectService';
 import { DEFAULT_CLIENTE } from '../constants/clientes';
+import { tenantService, PILOT_TENANT_ID } from './tenantService';
 
 // ============================================================================
 // CONFIGURAÇÃO DO SHAREPOINT ONLINE
@@ -35,8 +35,8 @@ export interface SharePointConnectionState {
 // (Base SharePoint: 'Usuários ocorrências qualidade')
 // ============================================================================
 const INITIAL_USERS: UsuarioQualidade[] = [
-  { id: 1, nome: "Matheus Henrique de Luca", reAcesso: 104235, perfil: "Admin", senha: "123", email: "mluca@br.gestamp.com", cargo: "Gerente da Qualidade Corporativa", setor: "Qualidade" },
-  { id: 2, nome: "Carlos Eduardo Ferreira", reAcesso: 89452, perfil: "Adminqual", senha: "123", email: "ceduardo@br.gestamp.com", cargo: "Engenheiro da Qualidade Sênior", setor: "Qualidade Assegurada" },
+  { id: 1, nome: "Matheus Henrique de Luca", reAcesso: 104235, perfil: "Admin", senha: "123", email: "mhsolucoes@adimin.com.br", cargo: "Diretor Executivo — MH Lean & Soluções", setor: "Qualidade & Engenharia Lean" },
+  { id: 2, nome: "Carlos Eduardo Ferreira", reAcesso: 89452, perfil: "Adminqual", senha: "123", email: "ceduardo@mhleansolucoes.com.br", cargo: "Engenheiro da Qualidade Sênior", setor: "Qualidade Assegurada" },
   { id: 3, nome: "Mariana Souza Lima", reAcesso: 76512, perfil: "Liderqual", senha: "123", email: "msouza@br.gestamp.com", cargo: "Líder da Qualidade Linhas", setor: "Qualidade Linhas" },
   { id: 4, nome: "Roberto Mendes Silva", reAcesso: 64129, perfil: "Inspqual", senha: "123", email: "rmendes@br.gestamp.com", cargo: "Inspetor da Qualidade Solda", setor: "Inspeção" },
   { id: 5, nome: "André Ferreira Santos", reAcesso: 52187, perfil: "Processos", senha: "123", email: "aferreira@br.gestamp.com", cargo: "Engenheiro de Processos", setor: "Engenharia de Processos" },
@@ -753,7 +753,8 @@ const INITIAL_RNCS: RNCRecord[] = [
 const INITIAL_RASTREABILIDADES: RastreabilidadeItem[] = [
   { 
     id: 1, 
-    idRnc: 6119, 
+    tenant_id: PILOT_TENANT_ID,
+    idRnc: 1, 
     codComp: "", 
     produto: "U005000B6", 
     tipoRastreamento: "Peça Final", 
@@ -768,36 +769,32 @@ const INITIAL_RASTREABILIDADES: RastreabilidadeItem[] = [
     observacao: "",
     bloqueado: true
   },
-  { id: 2, idRnc: 101, codComp: "53201-0D120", produto: "53201-0D120", tipoRastreamento: "Peça Final", codRastreabilidade: "984210543", docRastreabilidade: "Etiqueta SAP", seqRelacionada: 12048592, comando: "rp", statusGeral: "R", statusVerif: "OK", dataHora: "2026-10-14 15:30", ocorrenciaAbrangencia: "Ocorrência" },
-  { id: 3, idRnc: 102, codComp: "2G0.803.101.C", produto: "2G0.803.101.C", tipoRastreamento: "Peça Final", codRastreabilidade: "784512963", docRastreabilidade: "Etiqueta SAP", seqRelacionada: 14092841, comando: "vp", statusGeral: "R", statusVerif: "OK", dataHora: "2026-10-17 19:10", ocorrenciaAbrangencia: "Ocorrência" }
+  { id: 2, tenant_id: PILOT_TENANT_ID, idRnc: 2, codComp: "53201-0D120", produto: "53201-0D120", tipoRastreamento: "Peça Final", codRastreabilidade: "984210543", docRastreabilidade: "Etiqueta SAP", seqRelacionada: 12048592, comando: "rp", statusGeral: "R", statusVerif: "OK", dataHora: "2026-10-14 15:30", ocorrenciaAbrangencia: "Ocorrência" },
+  { id: 3, tenant_id: PILOT_TENANT_ID, idRnc: 3, codComp: "2G0.803.101.C", produto: "2G0.803.101.C", tipoRastreamento: "Peça Final", codRastreabilidade: "784512963", docRastreabilidade: "Etiqueta SAP", seqRelacionada: 14092841, comando: "vp", statusGeral: "R", statusVerif: "OK", dataHora: "2026-10-17 19:10", ocorrenciaAbrangencia: "Ocorrência" }
 ];
 
 const INITIAL_ETIQUETAS_VIVAS: EtiquetaVivaParsed[] = [
-  { idRnc: 101, seqRel: "12048592", produto: "53201-0D120", etiquetasap: "984210543", lote: "L-261014-01", qtd: 24, deposito: "DEP-01", data: "2026-10-14", bloqueio: "Qualidade", statusBloqueio: "desbloq" },
-  { idRnc: 101, seqRel: "12048592", produto: "53201-0D120", etiquetasap: "984210544", lote: "L-261014-02", qtd: 18, deposito: "DEP-01", data: "2026-10-14", bloqueio: "Qualidade", statusBloqueio: "desbloq" }
+  { tenant_id: PILOT_TENANT_ID, idRnc: 2, seqRel: "12048592", produto: "53201-0D120", etiquetasap: "984210543", lote: "L-261014-01", qtd: 24, deposito: "DEP-01", data: "2026-10-14", bloqueio: "Qualidade", statusBloqueio: "desbloq" },
+  { tenant_id: PILOT_TENANT_ID, idRnc: 2, seqRel: "12048592", produto: "53201-0D120", etiquetasap: "984210544", lote: "L-261014-02", qtd: 18, deposito: "DEP-01", data: "2026-10-14", bloqueio: "Qualidade", statusBloqueio: "desbloq" }
 ];
 
 const INITIAL_LOTES_SAP: LoteSAPParsed[] = [
-  { idRnc: 6119, seqRel: "1", produto: "U005000B6", lote: "28926", qtd: 308, data: "2026-10-16" },
-  { idRnc: 101, seqRel: "12048592", produto: "53201-0D120", lote: "L-261014-01", qtd: 24, data: "2026-10-14" },
-  { idRnc: 101, seqRel: "12048592", produto: "53201-0D120", lote: "L-261014-02", qtd: 18, data: "2026-10-14" }
+  { tenant_id: PILOT_TENANT_ID, idRnc: 1, seqRel: "1", produto: "U005000B6", lote: "28926", qtd: 308, data: "2026-10-16" },
+  { tenant_id: PILOT_TENANT_ID, idRnc: 2, seqRel: "12048592", produto: "53201-0D120", lote: "L-261014-01", qtd: 24, data: "2026-10-14" },
+  { tenant_id: PILOT_TENANT_ID, idRnc: 2, seqRel: "12048592", produto: "53201-0D120", lote: "L-261014-02", qtd: 18, data: "2026-10-14" }
 ];
 
 const INITIAL_RAST_CABECEIRAS: RastCabeceiraParsed[] = [
-  { idRnc: 101, seqRel: "12048592", produto: "53201-0D120", lote: "L-261014-01", qtd: 24, estoque: "Em Quarentena" }
+  { tenant_id: PILOT_TENANT_ID, idRnc: 2, seqRel: "12048592", produto: "53201-0D120", lote: "L-261014-01", qtd: 24, estoque: "Em Quarentena" }
 ];
 
 const INITIAL_TREINAMENTOS: RegistroTreinamento[] = [
-  { id: 1, idRnc: 101, re: 30122, nomeColaborador: "Marcos Vinicius Barbosa", produto: "COROLLA (53201-0D120)", defeito: "Falta de fusão em porca M8", dataTreinamento: "2026-10-15", responsavel: "Carlos Eduardo Ferreira" },
-  { id: 2, idRnc: 101, re: 30123, nomeColaborador: "Felipe Almeida Castro", produto: "COROLLA (53201-0D120)", defeito: "Falta de fusão em porca M8", dataTreinamento: "2026-10-15", responsavel: "Carlos Eduardo Ferreira" }
+  { id: 1, tenant_id: PILOT_TENANT_ID, idRnc: 2, re: 30122, nomeColaborador: "Marcos Vinicius Barbosa", produto: "COROLLA (53201-0D120)", defeito: "Falta de fusão em porca M8", dataTreinamento: "2026-10-15", responsavel: "Carlos Eduardo Ferreira" },
+  { id: 2, tenant_id: PILOT_TENANT_ID, idRnc: 2, re: 30123, nomeColaborador: "Felipe Almeida Castro", produto: "COROLLA (53201-0D120)", defeito: "Falta de fusão em porca M8", dataTreinamento: "2026-10-15", responsavel: "Carlos Eduardo Ferreira" }
 ];
 
 const INITIAL_ALERTAS: AlertaQualidadeRegistro[] = [
-  { id: 1, idRnc: 101, produto: "COROLLA", componente: "53201-0D120", defeito: "Porca M8 com solda fria", dataDivulgacao: "2026-10-14", responsavel: "Carlos Eduardo Ferreira", postosDivulgados: "Posto 04, Posto 05, Célula Toyota" }
-];
-
-const INITIAL_FALHAS_ENTREGA: FalhaEntregaRecord[] = [
-  { id: 1, data: "2026-10-16", cliente: "TDB - SOROCABA", produto: "COROLLA", turno: "1º Turno", qtdFalha: 12, motivoFalha: "Atraso no envio do comboio logístico", areaFmds: "FMDS 02", observacao: "Caminhão retido para inspeção de contenção." }
+  { id: 1, tenant_id: PILOT_TENANT_ID, idRnc: 2, produto: "COROLLA", componente: "53201-0D120", defeito: "Porca M8 com solda fria", dataDivulgacao: "2026-10-14", responsavel: "Carlos Eduardo Ferreira", postosDivulgados: "Posto 04, Posto 05, Célula Toyota" }
 ];
 
 // ============================================================================
@@ -856,7 +853,8 @@ async function idbSet(key: string, value: any): Promise<void> {
 // ============================================================================
 class SharePointDataStore {
   private rncs: RNCRecord[] = [];
-  private rncMap: Map<number, RNCRecord> = new Map();
+  // Chave composta "${tenant_id}__${id}" para permitir que cada empresa tenha sua própria contagem 1, 2, 3...
+  private rncMap: Map<string, RNCRecord> = new Map();
   private users: UsuarioQualidade[] = [];
   private baseAtivos: ColaboradorBaseAtivos[] = [];
   private pecas: PecaCatalogo[] = [];
@@ -871,7 +869,6 @@ class SharePointDataStore {
   private rastCabeceiras: RastCabeceiraParsed[] = [];
   private treinamentos: RegistroTreinamento[] = [];
   private alertas: AlertaQualidadeRegistro[] = [];
-  private falhasEntrega: FalhaEntregaRecord[] = [];
   private currentUser: UsuarioQualidade = INITIAL_USERS[0];
   private lastHeartbeat: Date = new Date();
   private lastSyncTime: number = 0;
@@ -898,6 +895,10 @@ class SharePointDataStore {
     this.loadFromStorage();
   }
 
+  private getRncCompositeKey(tenantId: string | undefined, rncId: number | string): string {
+    return `${tenantId || PILOT_TENANT_ID}__${Number(rncId)}`;
+  }
+
   public getListFiltersState(): ListFiltersState {
     return { ...this.listFiltersState };
   }
@@ -911,8 +912,10 @@ class SharePointDataStore {
     this.rncMap.clear();
     for (let i = 0; i < this.rncs.length; i++) {
       const r = this.rncs[i];
-      this.rncMap.set(r.id, r);
-      (r as any)._searchStr = `${r.field1 || ''} ${r.cliente || ''} ${r.produto || ''} ${r.componente || ''} ${r.codigoRastreabilidade || ''} ${r.descricaoProblema || ''} ${r.participantesAtendimento || ''} ${r.setorDeteccao || ''}`.toLowerCase();
+      const tId = r.tenant_id || PILOT_TENANT_ID;
+      r.tenant_id = tId;
+      this.rncMap.set(this.getRncCompositeKey(tId, r.id), r);
+      (r as any)._searchStr = `${r.id} ${r.field1 || ''} ${r.cliente || ''} ${r.produto || ''} ${r.componente || ''} ${r.codigoRastreabilidade || ''} ${r.descricaoProblema || ''} ${r.participantesAtendimento || ''} ${r.setorDeteccao || ''}`.toLowerCase();
     }
   }
 
@@ -933,13 +936,109 @@ class SharePointDataStore {
     this.componentesPorProdutoCache.clear();
   }
 
+  /**
+   * Normaliza RNCs legadas que tinham numeração global (ex: 6119..6128, 8001, 8002...)
+   * para numeração individual por empresa começando de 1 em diante (1, 2, 3...).
+   * Só é executado na migração inicial para v2; após migrado, respeita estritamente
+   * o contador monotônico (se excluiu a 2, a próxima será 3).
+   */
+  private normalizeLegacyGlobalIdsToPerTenant(legacyRncs: RNCRecord[]): RNCRecord[] {
+    const seedRncs = tenantService.getInitialRncsForSeed();
+    const resultMap = new Map<string, RNCRecord>();
+
+    // 1. Insere os seeds oficiais por empresa (GPM Serviços: 1..10, Metalúrgica Vale: 1)
+    seedRncs.forEach(s => {
+      const tId = s.tenant_id || PILOT_TENANT_ID;
+      resultMap.set(this.getRncCompositeKey(tId, s.id), { ...s, tenant_id: tId });
+    });
+
+    // 2. Preserva apenas RNCs criadas em novas empresas (ou extras) re-sequenciando de 1 em diante na migração
+    const customByTenant = new Map<string, RNCRecord[]>();
+    legacyRncs.forEach(r => {
+      const tId = r.tenant_id || PILOT_TENANT_ID;
+      if (tId !== PILOT_TENANT_ID && tId !== 'tenant-metalurgica-vale') {
+        const list = customByTenant.get(tId) || [];
+        list.push(r);
+        customByTenant.set(tId, list);
+      }
+    });
+
+    customByTenant.forEach((list, tId) => {
+      list.sort((a, b) => a.id - b.id);
+      let seq = 0;
+      const year = new Date().getFullYear();
+      list.forEach(item => {
+        seq += 1;
+        const normalized: RNCRecord = {
+          ...item,
+          id: seq,
+          tenant_id: tId,
+          title: String(seq),
+          field1: `RNC-${year}-${String(seq).padStart(4, '0')}`
+        };
+        resultMap.set(this.getRncCompositeKey(tId, seq), normalized);
+      });
+      tenantService.ensureTenantRncSequenceAtLeast(tId, seq, true);
+    });
+
+    tenantService.ensureTenantRncSequenceAtLeast(PILOT_TENANT_ID, 10);
+    tenantService.ensureTenantRncSequenceAtLeast('tenant-metalurgica-vale', 1);
+
+    return Array.from(resultMap.values());
+  }
+
   private loadFromStorage() {
     try {
-      this.rncs = INITIAL_RNCS;
+      const savedRncsV2 = localStorage.getItem('sor_saas_rncs_v2');
+      if (savedRncsV2) {
+        const parsed: RNCRecord[] = JSON.parse(savedRncsV2);
+        this.rncs = parsed;
+        // Garante que o contador monotônico de cada empresa nunca seja menor que o maior ID já existente nela
+        const maxByTenant = new Map<string, number>();
+        this.rncs.forEach(r => {
+          const tId = r.tenant_id || PILOT_TENANT_ID;
+          const prev = maxByTenant.get(tId) || 0;
+          if (r.id > prev) maxByTenant.set(tId, r.id);
+        });
+        maxByTenant.forEach((maxId, tId) => {
+          tenantService.ensureTenantRncSequenceAtLeast(tId, maxId);
+        });
+      } else {
+        // Primeira inicialização do modelo v2 (IDs iniciando em 1 para cada empresa)
+        this.rncs = this.normalizeLegacyGlobalIdsToPerTenant([]);
+        localStorage.setItem('sor_saas_rncs_v2', JSON.stringify(this.rncs));
+
+        // Se havia RNCs de empresas novas salvas no IndexedDB v1, migra-as para 1, 2, 3...
+        idbGet<RNCRecord[]>('rncs').then(legacyCached => {
+          if (legacyCached && legacyCached.length > 0 && !localStorage.getItem('sor_saas_idb_migrated_v2')) {
+            localStorage.setItem('sor_saas_idb_migrated_v2', 'true');
+            const customLegacy = legacyCached.filter(
+              r => r.tenant_id && r.tenant_id !== PILOT_TENANT_ID && r.tenant_id !== 'tenant-metalurgica-vale'
+            );
+            if (customLegacy.length > 0) {
+              this.rncs = this.normalizeLegacyGlobalIdsToPerTenant(customLegacy);
+              this.indexRNCs();
+              this.saveToStorage();
+              tenantService.recalculateTenantStorage(this.rncs);
+            }
+          }
+        });
+      }
+
       this.pecas = INITIAL_PECAS;
 
       const storedUsers = localStorage.getItem('gestamp_sor_users');
-      this.users = storedUsers ? JSON.parse(storedUsers) : INITIAL_USERS;
+      const rawUsers: UsuarioQualidade[] = storedUsers ? JSON.parse(storedUsers) : INITIAL_USERS;
+      this.users = rawUsers.map(u => {
+        if (u.id === 1 || u.reAcesso === 104235 || u.email === 'admin@gpmservicos.com.br' || u.email === 'mluca@br.gestamp.com') {
+          return {
+            ...u,
+            email: 'mhsolucoes@adimin.com.br',
+            cargo: u.cargo === 'Gerente da Qualidade Corporativa' ? 'Diretor Executivo — MH Lean & Soluções' : u.cargo
+          };
+        }
+        return u;
+      });
 
       const storedAtivos = localStorage.getItem('gestamp_sor_ativos');
       const loadedAtivos: ColaboradorBaseAtivos[] = storedAtivos ? JSON.parse(storedAtivos) : [];
@@ -948,50 +1047,50 @@ class SharePointDataStore {
       loadedAtivos.forEach(a => mapAtivos.set(a.numPessoal, a));
       this.baseAtivos = Array.from(mapAtivos.values());
 
-      const storedRast = localStorage.getItem('gestamp_sor_rast');
-      const loadedRast: RastreabilidadeItem[] = storedRast ? JSON.parse(storedRast) : [];
-      const rastMap = new Map<number, RastreabilidadeItem>();
-      INITIAL_RASTREABILIDADES.forEach(r => rastMap.set(r.id, r));
-      loadedRast.forEach(r => rastMap.set(r.id, r));
-      this.rastreabilidades = Array.from(rastMap.values());
+      const storedRast = localStorage.getItem('gestamp_sor_rast_v2');
+      this.rastreabilidades = storedRast ? JSON.parse(storedRast) : [...INITIAL_RASTREABILIDADES];
 
-      const storedTags = localStorage.getItem('gestamp_sor_tags');
-      this.etiquetasVivas = storedTags ? JSON.parse(storedTags) : INITIAL_ETIQUETAS_VIVAS;
+      const storedTags = localStorage.getItem('gestamp_sor_tags_v2');
+      this.etiquetasVivas = storedTags ? JSON.parse(storedTags) : [...INITIAL_ETIQUETAS_VIVAS];
 
-      const storedLotes = localStorage.getItem('gestamp_sor_lotes');
-      const loadedLotes: LoteSAPParsed[] = storedLotes ? JSON.parse(storedLotes) : [];
-      const lotesKey = (l: LoteSAPParsed) => `${l.idRnc}_${l.seqRel}_${l.lote}`;
-      const lotesMap = new Map<string, LoteSAPParsed>();
-      INITIAL_LOTES_SAP.forEach(l => lotesMap.set(lotesKey(l), l));
-      loadedLotes.forEach(l => lotesMap.set(lotesKey(l), l));
-      this.lotesSAP = Array.from(lotesMap.values());
+      const storedLotes = localStorage.getItem('gestamp_sor_lotes_v2');
+      this.lotesSAP = storedLotes ? JSON.parse(storedLotes) : [...INITIAL_LOTES_SAP];
 
-      const storedCab = localStorage.getItem('gestamp_sor_cab');
-      this.rastCabeceiras = storedCab ? JSON.parse(storedCab) : INITIAL_RAST_CABECEIRAS;
+      const storedCab = localStorage.getItem('gestamp_sor_cab_v2');
+      this.rastCabeceiras = storedCab ? JSON.parse(storedCab) : [...INITIAL_RAST_CABECEIRAS];
 
-      const storedTrein = localStorage.getItem('gestamp_sor_trein');
-      this.treinamentos = storedTrein ? JSON.parse(storedTrein) : INITIAL_TREINAMENTOS;
+      const storedTrein = localStorage.getItem('gestamp_sor_trein_v2');
+      if (storedTrein) {
+        this.treinamentos = JSON.parse(storedTrein);
+      } else {
+        const treinMap = new Map<number, RegistroTreinamento>();
+        INITIAL_TREINAMENTOS.forEach(t => treinMap.set(t.id, { ...t, tenant_id: t.tenant_id || PILOT_TENANT_ID }));
+        tenantService.getInitialTreinamentosForSeed().forEach(t => treinMap.set(t.id, t));
+        this.treinamentos = Array.from(treinMap.values());
+      }
 
-      const storedAlertas = localStorage.getItem('gestamp_sor_alertas');
-      this.alertas = storedAlertas ? JSON.parse(storedAlertas) : INITIAL_ALERTAS;
-
-      const storedFalhas = localStorage.getItem('gestamp_sor_falhas');
-      this.falhasEntrega = storedFalhas ? JSON.parse(storedFalhas) : INITIAL_FALHAS_ENTREGA;
+      const storedAlertas = localStorage.getItem('gestamp_sor_alertas_v2');
+      this.alertas = storedAlertas ? JSON.parse(storedAlertas) : [...INITIAL_ALERTAS];
 
       const storedUserRE = localStorage.getItem('gestamp_sor_current_re');
       if (storedUserRE) {
         const found = this.users.find(u => u.reAcesso === Number(storedUserRE));
         if (found) this.currentUser = found;
       }
+      if (this.currentUser.id === 1 || this.currentUser.reAcesso === 104235) {
+        this.currentUser = { ...this.currentUser, email: 'mhsolucoes@adimin.com.br' };
+      }
 
       this.indexRNCs();
       this.indexPecas();
+      tenantService.recalculateTenantStorage(this.rncs);
 
-      // Restaura dados do IndexedDB em background de forma assíncrona
-      idbGet<RNCRecord[]>('rncs').then(cachedRncs => {
-        if (cachedRncs && cachedRncs.length > 0) {
-          this.rncs = cachedRncs;
+      // Caso o localStorage de RNCs tenha excedido limite de tamanho por fotos, recupera do IndexedDB v2
+      idbGet<RNCRecord[]>('rncs_v2').then(cachedRncsV2 => {
+        if (cachedRncsV2 && cachedRncsV2.length > 0 && !localStorage.getItem('sor_saas_rncs_v2')) {
+          this.rncs = cachedRncsV2;
           this.indexRNCs();
+          tenantService.recalculateTenantStorage(this.rncs);
         }
       });
 
@@ -1009,28 +1108,33 @@ class SharePointDataStore {
 
   private saveToStorage() {
     try {
+      localStorage.setItem('sor_saas_rncs_v2', JSON.stringify(this.rncs));
+    } catch (e) {
+      console.warn("RNCs excederam cota de localStorage, persistindo via IndexedDB:", e);
+    }
+
+    try {
       localStorage.setItem('gestamp_sor_users', JSON.stringify(this.users));
       localStorage.setItem('gestamp_sor_ativos', JSON.stringify(this.baseAtivos));
-      localStorage.setItem('gestamp_sor_rast', JSON.stringify(this.rastreabilidades));
-      localStorage.setItem('gestamp_sor_tags', JSON.stringify(this.etiquetasVivas));
-      localStorage.setItem('gestamp_sor_lotes', JSON.stringify(this.lotesSAP));
-      localStorage.setItem('gestamp_sor_cab', JSON.stringify(this.rastCabeceiras));
-      localStorage.setItem('gestamp_sor_trein', JSON.stringify(this.treinamentos));
-      localStorage.setItem('gestamp_sor_alertas', JSON.stringify(this.alertas));
-      localStorage.setItem('gestamp_sor_falhas', JSON.stringify(this.falhasEntrega));
+      localStorage.setItem('gestamp_sor_rast_v2', JSON.stringify(this.rastreabilidades));
+      localStorage.setItem('gestamp_sor_tags_v2', JSON.stringify(this.etiquetasVivas));
+      localStorage.setItem('gestamp_sor_lotes_v2', JSON.stringify(this.lotesSAP));
+      localStorage.setItem('gestamp_sor_cab_v2', JSON.stringify(this.rastCabeceiras));
+      localStorage.setItem('gestamp_sor_trein_v2', JSON.stringify(this.treinamentos));
+      localStorage.setItem('gestamp_sor_alertas_v2', JSON.stringify(this.alertas));
       localStorage.setItem('gestamp_sor_current_re', String(this.currentUser.reAcesso));
       localStorage.setItem('gestamp_sor_last_sync', this.connectionState.lastSync || '');
     } catch (e) {
       console.warn("Storage warning:", e);
     }
 
-    // Para RNCs e Peças volumosas (>5MB), salva no IndexedDB assíncrono para zero overhead de UI
-    idbSet('rncs', this.rncs);
+    // Salva também no IndexedDB v2 assíncrono para suportar evidências fotográficas volumosas
+    idbSet('rncs_v2', this.rncs);
     idbSet('pecas', this.pecas);
   }
 
   public resetToDefaults() {
-    this.rncs = [...INITIAL_RNCS];
+    this.rncs = [...tenantService.getInitialRncsForSeed()];
     this.users = [...INITIAL_USERS];
     this.baseAtivos = [...INITIAL_BASE_ATIVOS];
     this.pecas = [...INITIAL_PECAS];
@@ -1038,9 +1142,8 @@ class SharePointDataStore {
     this.etiquetasVivas = [...INITIAL_ETIQUETAS_VIVAS];
     this.lotesSAP = [...INITIAL_LOTES_SAP];
     this.rastCabeceiras = [...INITIAL_RAST_CABECEIRAS];
-    this.treinamentos = [...INITIAL_TREINAMENTOS];
+    this.treinamentos = [...tenantService.getInitialTreinamentosForSeed()];
     this.alertas = [...INITIAL_ALERTAS];
-    this.falhasEntrega = [...INITIAL_FALHAS_ENTREGA];
     this.currentUser = INITIAL_USERS[0];
     this.indexRNCs();
     this.indexPecas();
@@ -1351,18 +1454,49 @@ class SharePointDataStore {
     return res;
   }
 
-  // Distinct(colpecasgerais_AA3, Posto)
+  // Distinct(colpecasgerais_AA3, Posto) + Postos do Tenant Ativo
   public getDistinctPostos(): string[] {
-    return this.cachedPostos;
+    const tenantPostos = tenantService
+      .getMasterData('posto_trabalho')
+      .filter(m => m.ativo)
+      .map(m => m.nome);
+    const activeTenantId = tenantService.getActiveTenantId();
+    if (activeTenantId !== PILOT_TENANT_ID && tenantPostos.length > 0) {
+      return Array.from(new Set(tenantPostos)).sort();
+    }
+    return Array.from(new Set([...tenantPostos, ...this.cachedPostos])).sort();
   }
 
-  // Distinct(colpecasgerais_AA3, FMDS)
+  // Distinct(colpecasgerais_AA3, FMDS) + Áreas Fabris do Tenant Ativo
   public getDistinctFMDS(): string[] {
-    return this.cachedFMDS;
+    const tenantAreas = tenantService
+      .getMasterData('area_fabril')
+      .filter(m => m.ativo)
+      .map(m => m.nome);
+    const activeTenantId = tenantService.getActiveTenantId();
+    if (activeTenantId !== PILOT_TENANT_ID && tenantAreas.length > 0) {
+      return Array.from(new Set(tenantAreas)).sort();
+    }
+    return Array.from(new Set([...tenantAreas, ...this.cachedFMDS])).sort();
   }
 
   public getDistinctClientes(): string[] {
-    return this.cachedClientes;
+    const tenantClientes = tenantService
+      .getMasterData('cliente_montadora')
+      .filter(m => m.ativo)
+      .map(m => m.nome);
+    const activeTenantId = tenantService.getActiveTenantId();
+    if (activeTenantId !== PILOT_TENANT_ID && tenantClientes.length > 0) {
+      return Array.from(new Set(tenantClientes)).sort();
+    }
+    return Array.from(new Set([...tenantClientes, ...this.cachedClientes])).sort();
+  }
+
+  public getDistinctDefeitos(): string[] {
+    return tenantService
+      .getMasterData('cat_defeito')
+      .filter(m => m.ativo)
+      .map(m => m.nome);
   }
 
   // BASE_ATIVOS (varPessoas)
@@ -1371,6 +1505,10 @@ class SharePointDataStore {
   }
 
   public getUsuarios(): UsuarioQualidade[] {
+    const tenantUsers = tenantService.getUsersForTenant();
+    if (tenantUsers.length > 0) {
+      return tenantUsers;
+    }
     return this.users;
   }
 
@@ -1390,39 +1528,68 @@ class SharePointDataStore {
   }
 
   // ============================================================================
-  // OPERAÇÕES RNC ('Resumo dos Incidentes de qualidade')
+  // OPERAÇÕES RNC ('Resumo dos Incidentes de qualidade') — ISOLADAS POR TENANT_ID
   // ============================================================================
-  public getRNCs(): RNCRecord[] {
-    return this.rncs;
+  public getRNCs(tenantIdOverride?: string): RNCRecord[] {
+    const targetTenantId = tenantIdOverride || tenantService.getActiveTenantId();
+    return this.rncs.filter(r => (r.tenant_id || PILOT_TENANT_ID) === targetTenantId);
   }
 
-  public getRNCById(id: number | string): RNCRecord | undefined {
+  public getAllRNCsGlobal(): RNCRecord[] {
+    return [...this.rncs];
+  }
+
+  public getRNCById(id: number | string, tenantIdOverride?: string): RNCRecord | undefined {
     const numId = Number(id);
-    return this.rncMap.get(numId) || this.rncs.find(r => r.id === numId || String(r.id) === String(id));
+    const activeTenantId = tenantIdOverride || tenantService.getActiveTenantId();
+    const compositeKey = this.getRncCompositeKey(activeTenantId, numId);
+    const exactMatch = this.rncMap.get(compositeKey);
+    if (exactMatch) {
+      return exactMatch;
+    }
+    return this.rncs.find(
+      r => (r.tenant_id || PILOT_TENANT_ID) === activeTenantId && (r.id === numId || String(r.id) === String(id))
+    );
   }
 
   public saveRNC(rnc: Partial<RNCRecord>): RNCRecord & { success: boolean; message: string } {
+    const activeTenantId = rnc.tenant_id || tenantService.getActiveTenantId();
     if (rnc.id) {
-      // Edição
-      const idx = this.rncs.findIndex(r => r.id === rnc.id);
+      // Edição restrita ao tenant ativo
+      const idx = this.rncs.findIndex(
+        r => (r.tenant_id || PILOT_TENANT_ID) === activeTenantId && r.id === Number(rnc.id)
+      );
       if (idx >= 0) {
-        this.rncs[idx] = { ...this.rncs[idx], ...rnc } as RNCRecord;
+        this.rncs[idx] = {
+          ...this.rncs[idx],
+          ...rnc,
+          tenant_id: activeTenantId
+        } as RNCRecord;
         this.indexRNCs();
         this.saveToStorage();
+        tenantService.recalculateTenantStorage(this.rncs, activeTenantId);
+        tenantService.addHistoricoAcao(
+          Number(rnc.id),
+          this.currentUser.nome,
+          'Atualização de RNC',
+          `Status: ${this.rncs[idx].status}`
+        );
         // Sincroniza diretamente no SharePoint Online via Microsoft Graph API
         spDirect.updateRNC(rnc.id, rnc).catch(err => {
           console.error("Falha ao atualizar no SharePoint:", err);
         });
-        return { ...this.rncs[idx], success: true, message: "Ocorrência atualizada com sucesso no SharePoint!" };
+        return { ...this.rncs[idx], success: true, message: "Ocorrência atualizada com sucesso!" };
       }
     }
 
-    // Criação
-    const maxExistingId = this.rncs.reduce((max, r) => r.id > max ? r.id : max, 100);
-    const nextId = maxExistingId + 1;
+    // Criação com contador sequencial monotônico exclusivo da empresa (1, 2, 3... nunca retrocede após exclusão)
+    const tenantRncs = this.rncs.filter(r => (r.tenant_id || PILOT_TENANT_ID) === activeTenantId);
+    const currentTenantMaxId = tenantRncs.reduce((max, r) => (r.id > max ? r.id : max), 0);
+    const nextId = tenantService.getNextRncIdForTenant(activeTenantId, currentTenantMaxId);
     const year = new Date().getFullYear();
     const newRecord: RNCRecord = {
       id: nextId,
+      tenant_id: activeTenantId,
       title: String(nextId),
       field1: `RNC-${year}-${String(nextId).padStart(4, '0')}`,
       tipoRnc: rnc.tipoRnc || "Formal",
@@ -1481,22 +1648,20 @@ class SharePointDataStore {
     this.rncs.unshift(newRecord);
     this.indexRNCs();
     this.saveToStorage();
+    tenantService.recalculateTenantStorage(this.rncs, activeTenantId);
+    tenantService.addHistoricoAcao(
+      newRecord.id,
+      this.currentUser.nome,
+      'Abertura de RNC',
+      `${newRecord.field1} • ${newRecord.descricaoProblema}`
+    );
 
-    // Sincroniza criação diretamente no SharePoint Online via Microsoft Graph API
-    spDirect.createRNC(newRecord).then(created => {
-      const itemIdx = this.rncs.findIndex(r => r.id === newRecord.id);
-      if (itemIdx >= 0 && created.id) {
-        this.rncs[itemIdx].id = created.id;
-        this.rncs[itemIdx].title = String(created.id);
-        this.rncs[itemIdx].field1 = `RNC-${created.id}`;
-        this.indexRNCs();
-        this.saveToStorage();
-      }
-    }).catch(err => {
+    // Sincroniza criação diretamente no SharePoint Online via Microsoft Graph API mantendo o ID monotônico da empresa
+    spDirect.createRNC(newRecord).catch(err => {
       console.error("Falha ao registrar novo item no SharePoint:", err);
     });
 
-    return { ...newRecord, success: true, message: "Nova ocorrência registrada diretamente no SharePoint!" };
+    return { ...newRecord, success: true, message: `Nova ocorrência RNC #${newRecord.id} registrada com sucesso!` };
   }
 
   public updateRNC(id: number, rnc: Partial<RNCRecord>): RNCRecord & { success: boolean; message: string } {
@@ -1508,13 +1673,8 @@ class SharePointDataStore {
   }
 
   /**
-   * Consulta histórico de reincidências para a peça/componente selecionado,
+   * Consulta histórico de reincidências para a peça/componente selecionado (isolado por empresa/tenant),
    * espelhando a fórmula exata do Power Apps (Registro de 8D linhas 2450 e 2636):
-   * Filter(varReincidente, 
-   *    classificacao_ocorrencia.Value = DataCardValue20.Selected.Value,
-   *    ID <> ThisItem.ID,
-   *    Left(produto,9) = cxproduto_1.Selected.Material || Left(componente,9) = cxcomp_1.Selected.Componente
-   * )
    */
   public getHistoricoReincidencias(
     produtoOuCodCli?: string, 
@@ -1522,15 +1682,16 @@ class SharePointDataStore {
     rncAtualId?: number,
     componente?: string
   ): RNCRecord[] {
-    // Se o modo de falha / defeito não estiver selecionado ainda, não há como apurar reincidência
     if (!modoFalha || !modoFalha.trim()) return [];
     if (!produtoOuCodCli && !componente) return [];
 
+    const activeTenantId = tenantService.getActiveTenantId();
     const defectTerm = modoFalha.trim().toUpperCase();
     const prodPrefix = (produtoOuCodCli || '').trim().substring(0, 9).toUpperCase();
     const compPrefix = (componente || '').trim().substring(0, 9).toUpperCase();
 
     return this.rncs.filter(r => {
+      if ((r.tenant_id || PILOT_TENANT_ID) !== activeTenantId) return false;
       if (rncAtualId && r.id === rncAtualId) return false;
 
       // 1. O defeito DEVE coincidir exatamente com a classificação selecionada
@@ -1561,9 +1722,12 @@ class SharePointDataStore {
     }).sort((a, b) => b.id - a.id);
   }
 
-  // Double Closure Guard do Power Apps: BtnCocluirrnc
+  // Double Closure Guard do Power Apps: BtnCocluirrnc (restrito ao tenant ativo)
   public concluirRNC(id: number, responsavel: string, obs?: string): { success: boolean; message: string } {
-    const idx = this.rncs.findIndex(r => r.id === id);
+    const activeTenantId = tenantService.getActiveTenantId();
+    const idx = this.rncs.findIndex(
+      r => (r.tenant_id || PILOT_TENANT_ID) === activeTenantId && r.id === id
+    );
     if (idx === -1) return { success: false, message: "Ocorrência não encontrada." };
     this.rncs[idx].status = "Concluído";
     this.rncs[idx].responsavelConclusao = responsavel;
@@ -1582,17 +1746,30 @@ class SharePointDataStore {
       console.error("Erro ao concluir no SharePoint:", err);
     });
 
-    return { success: true, message: `RNC ${this.rncs[idx].field1 || id} concluída com sucesso no SharePoint!` };
+    return { success: true, message: `RNC ${this.rncs[idx].field1 || id} concluída com sucesso!` };
   }
 
-  // Exclusão em cascata: Button2_2
+  // Exclusão em cascata restrita à empresa ativa (NÃO decrementa o contador sequencial da empresa)
   public deleteRNCCascade(id: number): boolean {
-    this.rncs = this.rncs.filter(r => r.id !== id);
-    this.rastreabilidades = this.rastreabilidades.filter(r => r.idRnc !== id);
-    this.treinamentos = this.treinamentos.filter(t => t.idRnc !== id);
-    this.alertas = this.alertas.filter(a => a.idRnc !== id);
+    const activeTenantId = tenantService.getActiveTenantId();
+    // Garante que o maior ID já atingido pela empresa fique registrado antes de excluir
+    tenantService.ensureTenantRncSequenceAtLeast(activeTenantId, id);
+
+    this.rncs = this.rncs.filter(
+      r => !((r.tenant_id || PILOT_TENANT_ID) === activeTenantId && r.id === id)
+    );
+    this.rastreabilidades = this.rastreabilidades.filter(
+      r => !((r.tenant_id || PILOT_TENANT_ID) === activeTenantId && r.idRnc === id)
+    );
+    this.treinamentos = this.treinamentos.filter(
+      t => !((t.tenant_id || PILOT_TENANT_ID) === activeTenantId && t.idRnc === id)
+    );
+    this.alertas = this.alertas.filter(
+      a => !((a.tenant_id || PILOT_TENANT_ID) === activeTenantId && a.idRnc === id)
+    );
     this.indexRNCs();
     this.saveToStorage();
+    tenantService.recalculateTenantStorage(this.rncs, activeTenantId);
 
     // Exclui diretamente no SharePoint
     spDirect.deleteRNC(id).catch(err => {
@@ -1601,12 +1778,17 @@ class SharePointDataStore {
     return true;
   }
 
-  // Liquidação de Pagamento Proteção ao Cliente
-  public liquidarProtecoesCliente(ids?: number[], responsavel?: string): number {
+  // Liquidação de Pagamento Proteção ao Cliente (isolada por tenant)
+  public liquidarProtecoesCliente(ids?: number[], _responsavel?: string): number {
+    const activeTenantId = tenantService.getActiveTenantId();
     let count = 0;
     const today = new Date().toISOString().split('T')[0];
     this.rncs.forEach(r => {
-      if ((!ids || ids.length === 0 || ids.includes(r.id)) && r.protcliente !== 'Registro Pago') {
+      if (
+        (r.tenant_id || PILOT_TENANT_ID) === activeTenantId &&
+        (!ids || ids.length === 0 || ids.includes(r.id)) &&
+        r.protcliente !== 'Registro Pago'
+      ) {
         r.protcliente = 'Registro Pago';
         r.dataPagamento = today;
         count++;
@@ -1616,11 +1798,13 @@ class SharePointDataStore {
     return count;
   }
 
-  // --- RASTREABILIDADE ---
+  // --- RASTREABILIDADE (ISOLADA POR TENANT) ---
   public addRastreabilidade(item: Omit<RastreabilidadeItem, 'id'>): RastreabilidadeItem {
+    const activeTenantId = tenantService.getActiveTenantId();
     const nextId = this.rastreabilidades.length > 0 ? Math.max(...this.rastreabilidades.map(r => r.id)) + 1 : 1;
     const newRast: RastreabilidadeItem = {
       id: nextId,
+      tenant_id: item.tenant_id || activeTenantId,
       ...item
     };
     this.rastreabilidades.push(newRast);
@@ -1628,20 +1812,24 @@ class SharePointDataStore {
     return newRast;
   }
 
-  // --- RASTREABILIDADE ---
   public getRastreabilidades(idRnc?: number): RastreabilidadeItem[] {
+    const activeTenantId = tenantService.getActiveTenantId();
+    const tenantItems = this.rastreabilidades.filter(
+      r => (r.tenant_id || PILOT_TENANT_ID) === activeTenantId
+    );
     if (idRnc) {
-      const filtered = this.rastreabilidades.filter(r => r.idRnc === idRnc);
+      const filtered = tenantItems.filter(r => r.idRnc === idRnc);
       if (filtered.length > 0) {
         return filtered;
       }
 
       // Síntese automática se a RNC possuir documento de rastreabilidade ou código SAP
-      const rnc = this.rncMap.get(idRnc);
+      const rnc = this.getRNCById(idRnc, activeTenantId);
       if (rnc && (rnc.codigoRastreabilidade || rnc.documentoRastreabilidade)) {
         const prodCode = rnc.produto ? rnc.produto.split(' - ')[0].trim() : 'PROD';
         return [{
           id: idRnc * 1000 + 1,
+          tenant_id: activeTenantId,
           idRnc: idRnc,
           codComp: rnc.componente ? rnc.componente.split(' - ')[0].trim() : '',
           produto: prodCode,
@@ -1660,25 +1848,34 @@ class SharePointDataStore {
       }
       return [];
     }
-    return [...this.rastreabilidades];
+    return tenantItems;
   }
 
   public getEtiquetasVivas(idRnc?: number): EtiquetaVivaParsed[] {
+    const activeTenantId = tenantService.getActiveTenantId();
+    const tenantItems = this.etiquetasVivas.filter(
+      e => (e.tenant_id || PILOT_TENANT_ID) === activeTenantId
+    );
     if (idRnc) {
-      return this.etiquetasVivas.filter(e => e.idRnc === idRnc);
+      return tenantItems.filter(e => e.idRnc === idRnc);
     }
-    return [...this.etiquetasVivas];
+    return tenantItems;
   }
 
   public getLotesSAP(idRnc?: number): LoteSAPParsed[] {
+    const activeTenantId = tenantService.getActiveTenantId();
+    const tenantItems = this.lotesSAP.filter(
+      l => (l.tenant_id || PILOT_TENANT_ID) === activeTenantId
+    );
     if (idRnc) {
-      const filtered = this.lotesSAP.filter(l => l.idRnc === idRnc);
+      const filtered = tenantItems.filter(l => l.idRnc === idRnc);
       if (filtered.length > 0) {
         return filtered;
       }
-      if (idRnc === 6119) {
+      if (activeTenantId === PILOT_TENANT_ID && idRnc === 1) {
         return [{
-          idRnc: 6119,
+          tenant_id: PILOT_TENANT_ID,
+          idRnc: 1,
           seqRel: "1",
           produto: "U005000B6",
           lote: "28926",
@@ -1688,26 +1885,39 @@ class SharePointDataStore {
       }
       return [];
     }
-    return [...this.lotesSAP];
+    return tenantItems;
   }
 
   public addLoteSAP(item: LoteSAPParsed): void {
-    this.lotesSAP.push(item);
+    const activeTenantId = tenantService.getActiveTenantId();
+    this.lotesSAP.push({ ...item, tenant_id: item.tenant_id || activeTenantId });
     this.saveToStorage();
   }
 
   public getRastCabeceiras(idRnc?: number): RastCabeceiraParsed[] {
+    const activeTenantId = tenantService.getActiveTenantId();
+    const tenantItems = this.rastCabeceiras.filter(
+      c => (c.tenant_id || PILOT_TENANT_ID) === activeTenantId
+    );
     if (idRnc) {
-      return this.rastCabeceiras.filter(c => c.idRnc === idRnc);
+      return tenantItems.filter(c => c.idRnc === idRnc);
     }
-    return [...this.rastCabeceiras];
+    return tenantItems;
   }
 
-  // --- TREINAMENTOS ---
-  public getTreinamentos(idRnc?: number): RegistroTreinamento[] {
+  // --- TREINAMENTOS (ISOLADOS POR TENANT_ID) ---
+  public getTreinamentos(idRnc?: number, tenantIdOverride?: string): RegistroTreinamento[] {
+    const targetTenantId = tenantIdOverride || tenantService.getActiveTenantId();
+    const tenantFiltered = this.treinamentos.filter(
+      t => (t.tenant_id || PILOT_TENANT_ID) === targetTenantId
+    );
     if (idRnc) {
-      return this.treinamentos.filter(t => t.idRnc === idRnc);
+      return tenantFiltered.filter(t => t.idRnc === idRnc);
     }
+    return tenantFiltered;
+  }
+
+  public getAllTreinamentosGlobal(): RegistroTreinamento[] {
     return [...this.treinamentos];
   }
 
@@ -1716,25 +1926,29 @@ class SharePointDataStore {
     maybeRe?: number,
     maybeResp?: string
   ): { success: boolean; message: string; record?: RegistroTreinamento } {
+    const activeTenantId = tenantService.getActiveTenantId();
     let item: Omit<RegistroTreinamento, 'id'>;
 
     if (typeof idRncOrTrein === 'object') {
-      item = idRncOrTrein;
+      item = { ...idRncOrTrein, tenant_id: idRncOrTrein.tenant_id || activeTenantId };
     } else {
       const idRnc = idRncOrTrein;
       const re = maybeRe || 0;
       const responsavel = maybeResp || this.currentUser.nome;
 
       // Trava de duplicidade (Col_Treinamentos)
-      const exists = this.treinamentos.some(t => t.idRnc === idRnc && t.re === re);
+      const exists = this.treinamentos.some(
+        t => (t.tenant_id || PILOT_TENANT_ID) === activeTenantId && t.idRnc === idRnc && t.re === re
+      );
       if (exists) {
         return { success: false, message: `Colaborador com RE ${re} já possui registro de treinamento para esta RNC!` };
       }
 
       const pessoa = this.baseAtivos.find(a => a.numPessoal === re);
-      const rnc = this.getRNCById(idRnc);
+      const rnc = this.getRNCById(idRnc, activeTenantId);
 
       item = {
+        tenant_id: activeTenantId,
         idRnc,
         re,
         nomeColaborador: pessoa ? pessoa.nome : `Colaborador RE ${re}`,
@@ -1748,6 +1962,7 @@ class SharePointDataStore {
     const nextId = this.treinamentos.length > 0 ? Math.max(...this.treinamentos.map(t => t.id)) + 1 : 1;
     const newTrein: RegistroTreinamento = {
       id: nextId,
+      tenant_id: activeTenantId,
       ...item
     };
     this.treinamentos.push(newTrein);
@@ -1759,17 +1974,23 @@ class SharePointDataStore {
     };
   }
 
-  // --- ALERTAS DE QUALIDADE ---
+  // --- ALERTAS DE QUALIDADE (ISOLADOS POR TENANT) ---
   public getAlertas(idRnc?: number): AlertaQualidadeRegistro[] {
+    const activeTenantId = tenantService.getActiveTenantId();
+    const tenantItems = this.alertas.filter(
+      a => (a.tenant_id || PILOT_TENANT_ID) === activeTenantId
+    );
     if (idRnc) {
-      return this.alertas.filter(a => a.idRnc === idRnc);
+      return tenantItems.filter(a => a.idRnc === idRnc);
     }
-    return [...this.alertas];
+    return tenantItems;
   }
 
   public addAlerta(alerta: Omit<AlertaQualidadeRegistro, 'id'>): AlertaQualidadeRegistro {
+    const activeTenantId = tenantService.getActiveTenantId();
     const newAlerta: AlertaQualidadeRegistro = {
       id: Date.now(),
+      tenant_id: alerta.tenant_id || activeTenantId,
       ...alerta
     };
     this.alertas.push(newAlerta);
@@ -1777,46 +1998,12 @@ class SharePointDataStore {
     return newAlerta;
   }
 
-  // --- FALHAS DE ENTREGA ---
-  public getFalhasEntrega(): FalhaEntregaRecord[] {
-    return [...this.falhasEntrega].sort((a, b) => b.id - a.id);
-  }
-
-  public saveFalhaEntrega(falha: Partial<FalhaEntregaRecord>): FalhaEntregaRecord {
-    if (falha.id) {
-      const idx = this.falhasEntrega.findIndex(f => f.id === falha.id);
-      if (idx >= 0) {
-        this.falhasEntrega[idx] = { ...this.falhasEntrega[idx], ...falha } as FalhaEntregaRecord;
-        this.saveToStorage();
-        return this.falhasEntrega[idx];
-      }
-    }
-
-    const nextId = this.falhasEntrega.length > 0 ? Math.max(...this.falhasEntrega.map(f => f.id)) + 1 : 1;
-    const newRecord: FalhaEntregaRecord = {
-      id: nextId,
-      data: falha.data || new Date().toISOString().split('T')[0],
-      cliente: falha.cliente || DEFAULT_CLIENTE,
-      produto: falha.produto || "COROLLA",
-      turno: falha.turno || "1º Turno",
-      qtdFalha: falha.qtdFalha || 1,
-      motivoFalha: falha.motivoFalha || "Atraso Logístico",
-      areaFmds: falha.areaFmds || "SOLDA 2 - CEL. TOYOTA",
-      observacao: falha.observacao || ""
-    };
-    this.falhasEntrega.unshift(newRecord);
-    this.saveToStorage();
-    return newRecord;
-  }
-
-  public deleteFalhaEntrega(id: number): boolean {
-    this.falhasEntrega = this.falhasEntrega.filter(f => f.id !== id);
-    this.saveToStorage();
-    return true;
-  }
-
-  // --- USUÁRIOS E PERMISSÕES ---
+  // --- USUÁRIOS E PERMISSÕES (SINCRONIZADO COM TENANT ATIVO) ---
   public saveUsuario(user: Partial<UsuarioQualidade>): UsuarioQualidade {
+    const savedInTenant = tenantService.saveUserForTenant(user);
+    if (savedInTenant.user) {
+      return savedInTenant.user;
+    }
     if (user.id) {
       const idx = this.users.findIndex(u => u.id === user.id);
       if (idx >= 0) {
@@ -1842,6 +2029,7 @@ class SharePointDataStore {
   }
 
   public deleteUsuario(id: number): boolean {
+    tenantService.deleteUserForTenant(id);
     this.users = this.users.filter(u => u.id !== id);
     this.saveToStorage();
     return true;

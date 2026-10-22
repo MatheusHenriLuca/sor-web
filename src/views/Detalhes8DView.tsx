@@ -32,7 +32,8 @@ import {
   Car,
   Bot,
   MoreHorizontal,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Sliders
 } from 'lucide-react';
 import { RNCRecord, UsuarioQualidade, RegistroTreinamento } from '../types';
 import { spStore } from '../services/sharepointService';
@@ -65,7 +66,6 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
   const [modalTreinOpen, setModalTreinOpen] = useState(false);
   const [modalConcluirOpen, setModalConcluirOpen] = useState(false);
   const [modalDeleteOpen, setModalDeleteOpen] = useState(false);
-  const [modalAvaliacaoOpen, setModalAvaliacaoOpen] = useState(false);
   const [rncPopupVisualizar, setRncPopupVisualizar] = useState<RNCRecord | null>(null);
 
   // Pop-up menu de ações
@@ -90,26 +90,10 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
   const [treinRe, setTreinRe] = useState<string>('');
   const [obsConclusao, setObsConclusao] = useState('');
 
-  // Estados da Avaliação da Qualidade (Produção / Cliente)
-  const [evalCriticidade, setEvalCriticidade] = useState<'A' | 'B' | 'C'>('A');
-  const [evalAbrirRnc, setEvalAbrirRnc] = useState<string>('Sim - Realizar Análise / Contenção / Rastreabilidade');
-  const [evalComentario, setEvalComentario] = useState<string>('');
-
   const reloadData = () => {
     const item = spStore.getRNCById(rncId);
     setRnc(item);
     setTreinamentos(spStore.getTreinamentos(rncId));
-    if (item) {
-      if (item.criticidade === 'A' || item.criticidade === 'B' || item.criticidade === 'C') {
-        setEvalCriticidade(item.criticidade);
-      }
-      if (item.abrirRnc) {
-        setEvalAbrirRnc(item.abrirRnc);
-      }
-      if (item.comentarioGestor) {
-        setEvalComentario(item.comentarioGestor);
-      }
-    }
   };
 
   useEffect(() => {
@@ -221,53 +205,6 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
     }, 1000);
   };
 
-  const handleAprovarAvaliacao = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!evalComentario.trim()) {
-      setNotification({ type: 'warning', message: 'Favor preencher o feedback / parecer técnico do aprovador da Qualidade.' });
-      return;
-    }
-    const isAbrirRncSim = evalAbrirRnc.startsWith('Sim');
-    const newStatus = isAbrirRncSim ? 'Relatório Inicial' : 'Concluído';
-    const updated = spStore.saveRNC({
-      id: rnc.id,
-      protcliente: 'Aprovado',
-      status: newStatus,
-      criticidade: evalCriticidade,
-      abrirRnc: evalAbrirRnc,
-      comentarioGestor: evalComentario.trim()
-    });
-    setRnc(updated);
-    setModalAvaliacaoOpen(false);
-    setNotification({
-      type: 'success',
-      message: isAbrirRncSim 
-        ? 'Avaliação aprovada! Ocorrência liberada para preenchimento de contenção e rastreabilidade pela equipe de Qualidade.' 
-        : 'Avaliação aprovada! Registro concluído diretamente com sucesso.'
-    });
-    reloadData();
-  };
-
-  const handleReprovarAvaliacao = () => {
-    if (!evalComentario.trim()) {
-      setNotification({ type: 'warning', message: 'Favor preencher o motivo da reprovação no parecer do aprovador.' });
-      return;
-    }
-    const updated = spStore.saveRNC({
-      id: rnc.id,
-      protcliente: 'Reprovado',
-      status: 'Reprovado',
-      criticidade: evalCriticidade,
-      abrirRnc: 'Não - Não realizar Análise / Contenção / Rastreabilidade',
-      comentarioGestor: evalComentario.trim()
-    });
-    setRnc(updated);
-    setModalAvaliacaoOpen(false);
-    setNotification({ type: 'warning', message: 'Ocorrência do Programa Proteção ao Cliente reprovada.' });
-    reloadData();
-  };
-
-  const isProtecaoAtiva = rnc.protcliente && rnc.protcliente !== 'Não';
   const isFormal = rnc.tipoRnc === 'Formal';
   // Código oficial/cliente para reclamação formal. Oculta se for informal ou se for mera repetição do ID
   const codigoClienteOuFormal = isFormal
@@ -453,19 +390,6 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                       </button>
                     </>
                   )}
-                  {isProtecaoAtiva && (
-                    <>
-                      <div className="border-t border-slate-100 my-1" />
-                      <button
-                        type="button"
-                        onClick={() => { setModalAvaliacaoOpen(true); setActionsMenuOpen(false); }}
-                        className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-medium text-emerald-800 hover:bg-emerald-50 transition text-left"
-                      >
-                        <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                        <span>Avaliação da Qualidade</span>
-                      </button>
-                    </>
-                  )}
                   {isAdminOrQual && (
                     <>
                       <div className="border-t border-slate-100 my-1" />
@@ -593,27 +517,6 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
             </div>
           )}
         </div>
-
-        {/* Notificação Programa Produção / Cliente (Quando Ativo) */}
-        {isProtecaoAtiva && (
-          <div className="rounded-xl p-3 bg-emerald-50/90 border border-emerald-300 text-emerald-950 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 mt-1">
-            <div className="flex items-center gap-2.5">
-              <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0" />
-              <div className="text-xs text-emerald-900 leading-snug">
-                <strong>Programa Proteção ao Cliente:</strong> Etiqueta SAP <code className="font-mono font-bold bg-white px-1.5 py-0.5 rounded border border-emerald-300 text-emerald-950">{rnc.codigoRastreabilidade || 'Não informada'}</code>. Detecção no chão de fábrica.
-              </div>
-            </div>
-            {isLiderOrAbove && (
-              <button
-                type="button"
-                onClick={() => setModalAvaliacaoOpen(true)}
-                className="btn-primary h-7 px-3 text-xs font-bold shrink-0 bg-emerald-700 hover:bg-emerald-800 text-white"
-              >
-                {rnc.protcliente === 'Sim' ? 'Avaliar Ocorrência' : 'Revisar Avaliação'}
-              </button>
-            )}
-          </div>
-        )}
 
       </div>
 
@@ -1608,6 +1511,40 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
 
           </div>
 
+          {/* SEÇÃO DE CAMPOS PERSONALIZADOS (SE HOUVER PREENCHIDOS PELO ADMIN / USUÁRIO) */}
+          {rnc.camposPersonalizados && Object.keys(rnc.camposPersonalizados).filter(k => rnc.camposPersonalizados?.[k] !== undefined && rnc.camposPersonalizados?.[k] !== '').length > 0 && (
+            <div className="card-saas p-4 sm:p-5 flex flex-col gap-3">
+              <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <Sliders className="w-4 h-4 text-[#0b5796]" />
+                  <h3 className="text-sm font-bold text-slate-900">
+                    Campos Personalizados da Empresa ({Object.keys(rnc.camposPersonalizados).filter(k => rnc.camposPersonalizados?.[k] !== undefined && rnc.camposPersonalizados?.[k] !== '').length})
+                  </h3>
+                </div>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-50 text-[#0b5796] border border-blue-200">
+                  Dados Complementares
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                {Object.entries(rnc.camposPersonalizados)
+                  .filter(([, val]) => val !== undefined && val !== '')
+                  .map(([key, val]) => {
+                    const cleanLabel = key.replace(/^custom_/, '').replace(/_/g, ' ');
+                    return (
+                      <div key={key} className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 flex flex-col gap-1">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                          {cleanLabel}
+                        </span>
+                        <span className="text-xs font-bold text-slate-900 break-words">
+                          {String(val)}
+                        </span>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
+
           {/* SEÇÃO INFERIOR: OPERADORES TREINADOS NESTA CONTENÇÃO */}
           <div className="card-saas p-0 overflow-hidden">
             <div className="p-4 sm:p-5 border-b border-[#e2e8f0] flex items-center justify-between bg-white">
@@ -1797,268 +1734,6 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
         </div>
       )}
 
-      {/* Modal Avaliação da Qualidade (Produção / Cliente) */}
-      {modalAvaliacaoOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-[#e2e8f0] flex flex-col overflow-hidden animate-in fade-in my-auto max-h-[90vh]">
-            
-            {/* Header Modal com Gradiente Verde */}
-            <div className="bg-gradient-to-r from-emerald-800 to-emerald-700 text-white p-5 flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center shrink-0">
-                  <ShieldCheck className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-white">Classificação Proteção ao Cliente</h3>
-                  <p className="text-xs text-emerald-100">Avaliação técnica da Qualidade para peças reportadas na fábrica</p>
-                </div>
-              </div>
-              <button 
-                type="button" 
-                onClick={() => setModalAvaliacaoOpen(false)}
-                className="w-8 h-8 rounded-lg text-white/80 hover:text-white hover:bg-white/10 flex items-center justify-center transition"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Conteúdo com Scroll */}
-            <form onSubmit={handleAprovarAvaliacao} className="p-5 sm:p-6 overflow-y-auto flex flex-col gap-5 text-xs sm:text-sm">
-              
-              {/* Resumo da Ocorrência Registrada pelo Operador */}
-              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl flex gap-3.5 items-start">
-                {rnc.fotoPecaNg ? (
-                  <div className="w-16 h-16 rounded-lg overflow-hidden bg-white border border-slate-200 shrink-0 shadow-2xs">
-                    <img src={rnc.fotoPecaNg} alt="Peça NG" className="w-full h-full object-cover" />
-                  </div>
-                ) : (
-                  <div className="w-12 h-12 rounded-lg bg-emerald-100/60 border border-emerald-200 text-emerald-800 flex items-center justify-center shrink-0 font-bold text-xs">
-                    SAP
-                  </div>
-                )}
-                <div className="flex-1 min-w-0 flex flex-col gap-1">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="font-bold text-[#0f172a] text-sm truncate">
-                      {rnc.field1 || `RNC #${rnc.id}`} • {rnc.componente || rnc.produto}
-                    </span>
-                    <span className="font-mono text-xs font-semibold bg-white px-2 py-0.5 rounded border border-slate-200 text-slate-700">
-                      SAP: {rnc.codigoRastreabilidade || 'N/A'}
-                    </span>
-                  </div>
-                  <div className="text-xs text-[#64748b]">
-                    <strong>Detector:</strong> {rnc.detector || 'Operador da Linha'} • <strong>Montadora:</strong> {rnc.cliente} • <strong>Qtd:</strong> {rnc.quantidadeAfetada} pç
-                  </div>
-                  <div className="text-xs text-[#334155] italic bg-white p-2 rounded border border-slate-200 mt-1">
-                    "{rnc.descricaoProblema || 'Não Conformidade registrada na linha'}"
-                  </div>
-                </div>
-              </div>
-
-              {/* 1. Seleção de Criticidade (A, B, C) */}
-              <div className="flex flex-col gap-2">
-                <label className="font-bold text-[#0f172a] text-xs flex items-center gap-1.5">
-                  <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold flex items-center justify-center">1</span>
-                  <span>Criticidade da detecção *</span>
-                </label>
-
-                <div className="grid grid-cols-1 gap-2.5">
-                  {/* Opção A */}
-                  <label 
-                    onClick={() => {
-                      setEvalCriticidade('A');
-                      setEvalAbrirRnc('Sim - Realizar Análise / Contenção / Rastreabilidade');
-                    }}
-                    className={`p-3 rounded-xl border transition cursor-pointer flex items-start gap-3 ${
-                      evalCriticidade === 'A' 
-                        ? 'bg-rose-50/80 border-rose-300 ring-2 ring-rose-500/20' 
-                        : 'bg-white border-slate-200 hover:bg-slate-50'
-                    }`}
-                  >
-                    <input 
-                      type="radio" 
-                      name="criticidade" 
-                      value="A" 
-                      checked={evalCriticidade === 'A'} 
-                      onChange={() => {
-                        setEvalCriticidade('A');
-                        setEvalAbrirRnc('Sim - Realizar Análise / Contenção / Rastreabilidade');
-                      }}
-                      className="mt-1 text-rose-600 focus:ring-rose-500"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-rose-900 text-xs sm:text-sm">A • Crítico (Impacto Direto no Cliente)</span>
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-200 text-rose-900">RNC Mandatória</span>
-                      </div>
-                      <p className="text-xs text-[#475569] mt-0.5 leading-relaxed">
-                        Peças com defeitos que <strong>não são detectadas</strong> em nenhuma etapa posterior do nosso processo, com grande impacto no cliente (parada de linha ou perda de montagem).
-                      </p>
-                    </div>
-                  </label>
-
-                  {/* Opção B */}
-                  <label 
-                    onClick={() => setEvalCriticidade('B')}
-                    className={`p-3 rounded-xl border transition cursor-pointer flex items-start gap-3 ${
-                      evalCriticidade === 'B' 
-                        ? 'bg-amber-50/80 border-amber-300 ring-2 ring-amber-500/20' 
-                        : 'bg-white border-slate-200 hover:bg-slate-50'
-                    }`}
-                  >
-                    <input 
-                      type="radio" 
-                      name="criticidade" 
-                      value="B" 
-                      checked={evalCriticidade === 'B'} 
-                      onChange={() => setEvalCriticidade('B')}
-                      className="mt-1 text-amber-600 focus:ring-amber-500"
-                    />
-                    <div className="flex-1">
-                      <span className="font-bold text-amber-950 text-xs sm:text-sm">B • Médio (Gerado pelo Processo)</span>
-                      <p className="text-xs text-[#475569] mt-0.5 leading-relaxed">
-                        Peças geradas pelo processo com impacto no cliente, porém passíveis de contenção e retrabalho interno controlado.
-                      </p>
-                    </div>
-                  </label>
-
-                  {/* Opção C */}
-                  <label 
-                    onClick={() => setEvalCriticidade('C')}
-                    className={`p-3 rounded-xl border transition cursor-pointer flex items-start gap-3 ${
-                      evalCriticidade === 'C' 
-                        ? 'bg-slate-100 border-slate-400 ring-2 ring-slate-400/20' 
-                        : 'bg-white border-slate-200 hover:bg-slate-50'
-                    }`}
-                  >
-                    <input 
-                      type="radio" 
-                      name="criticidade" 
-                      value="C" 
-                      checked={evalCriticidade === 'C'} 
-                      onChange={() => setEvalCriticidade('C')}
-                      className="mt-1 text-slate-700 focus:ring-slate-500"
-                    />
-                    <div className="flex-1">
-                      <span className="font-bold text-slate-900 text-xs sm:text-sm">C • Baixo (Fora do Processo / Leve)</span>
-                      <p className="text-xs text-[#475569] mt-0.5 leading-relaxed">
-                        Desvios gerados fora do processo padrão ou com baixo impacto no cliente.
-                      </p>
-                    </div>
-                  </label>
-                </div>
-              </div>
-
-              {/* 2. Decisão de Abertura de RNC Completa */}
-              <div className="flex flex-col gap-2">
-                <label className="font-bold text-[#0f172a] text-xs flex items-center gap-1.5">
-                  <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold flex items-center justify-center">2</span>
-                  <span>Abrir RNC e Tratativa? *</span>
-                </label>
-
-                {evalCriticidade === 'A' ? (
-                  <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-900 flex items-center gap-2.5">
-                    <ShieldAlert className="w-4 h-4 text-rose-600 shrink-0" />
-                    <span><strong>Bloqueado em 'Sim':</strong> Para Criticidade A, a abertura da RNC e contenção é mandatória pelas diretrizes de qualidade.</span>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    <label 
-                      onClick={() => setEvalAbrirRnc('Sim - Realizar Análise / Contenção / Rastreabilidade')}
-                      className={`p-3 rounded-xl border transition cursor-pointer flex items-center gap-2.5 ${
-                        evalAbrirRnc.startsWith('Sim')
-                          ? 'bg-blue-50 border-blue-300 ring-2 ring-blue-500/20 font-bold text-blue-900'
-                          : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-700'
-                      }`}
-                    >
-                      <input 
-                        type="radio" 
-                        name="abrirRnc" 
-                        value="Sim" 
-                        checked={evalAbrirRnc.startsWith('Sim')} 
-                        onChange={() => setEvalAbrirRnc('Sim - Realizar Análise / Contenção / Rastreabilidade')}
-                        className="text-blue-600 focus:ring-blue-500"
-                      />
-                      <div className="text-xs">
-                        <strong>Sim</strong> • Realizar Análise / Contenção
-                        <span className="block text-[11px] font-normal text-slate-500 mt-0.5">Envia para complementação de contenção e rastreabilidade</span>
-                      </div>
-                    </label>
-
-                    <label 
-                      onClick={() => setEvalAbrirRnc('Não - Não realizar Análise / Contenção / Rastreabilidade')}
-                      className={`p-3 rounded-xl border transition cursor-pointer flex items-center gap-2.5 ${
-                        evalAbrirRnc.startsWith('Não')
-                          ? 'bg-slate-100 border-slate-400 ring-2 ring-slate-400/20 font-bold text-slate-900'
-                          : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-700'
-                      }`}
-                    >
-                      <input 
-                        type="radio" 
-                        name="abrirRnc" 
-                        value="Não" 
-                        checked={evalAbrirRnc.startsWith('Não')} 
-                        onChange={() => setEvalAbrirRnc('Não - Não realizar Análise / Contenção / Rastreabilidade')}
-                        className="text-slate-600 focus:ring-slate-500"
-                      />
-                      <div className="text-xs">
-                        <strong>Não</strong> • Concluir Diretamente
-                        <span className="block text-[11px] font-normal text-slate-500 mt-0.5">Aprova o apontamento e fecha o registro</span>
-                      </div>
-                    </label>
-                  </div>
-                )}
-              </div>
-
-              {/* 3. Feedback / Parecer do Aprovador */}
-              <div className="flex flex-col gap-1.5">
-                <label className="font-bold text-[#0f172a] text-xs flex items-center gap-1.5">
-                  <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold flex items-center justify-center">3</span>
-                  <span>Feedback do Gestor / Parecer da Qualidade *</span>
-                </label>
-                <textarea 
-                  required
-                  rows={3}
-                  className="w-full p-3 rounded-xl border border-slate-200 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/20 outline-none text-xs sm:text-sm text-slate-800 placeholder-slate-400 transition"
-                  placeholder="Insira as orientações técnicas para a linha, confirmação do lote contido ou justifique a decisão tomada..."
-                  value={evalComentario}
-                  onChange={e => setEvalComentario(e.target.value)}
-                />
-              </div>
-
-              {/* Rodapé de Ações do Modal */}
-              <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-200 shrink-0">
-                <button 
-                  type="button"
-                  onClick={handleReprovarAvaliacao}
-                  className="btn-secondary h-9 px-3.5 text-xs font-semibold text-rose-700 border-rose-200 hover:bg-rose-50"
-                  title="Reprovar este apontamento da produção"
-                >
-                  <X className="w-4 h-4 mr-1 text-rose-600 inline" />
-                  Reprovar Registro
-                </button>
-
-                <div className="flex items-center gap-2">
-                  <button 
-                    type="button" 
-                    onClick={() => setModalAvaliacaoOpen(false)} 
-                    className="btn-secondary h-9 px-4 text-xs font-medium"
-                  >
-                    Cancelar
-                  </button>
-                  <button 
-                    type="submit" 
-                    className="btn-primary h-9 px-5 text-xs font-bold bg-emerald-700 hover:bg-emerald-800 border-emerald-700 text-white shadow-sm flex items-center gap-1.5"
-                  >
-                    <Check className="w-4 h-4" />
-                    <span>Aprovar Avaliação</span>
-                  </button>
-                </div>
-              </div>
-
-            </form>
-          </div>
-        </div>
-      )}
       {modalDeleteOpen && (
         <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-[#e2e8f0] flex flex-col gap-4 animate-in fade-in">

@@ -103,18 +103,18 @@ export const VerifUserView: React.FC<VerifUserViewProps> = ({ onLoginSuccess }) 
       <header className="h-14 px-6 flex items-center justify-between border-b border-[#e2e8f0] bg-white">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-xl bg-blue-50 text-[#0f6cbd] flex items-center justify-center font-display font-bold text-xs border border-blue-100 shadow-xs">
-            G
+            MH
           </div>
           <div>
             <span className="text-xs sm:text-sm font-display font-bold text-[#0f172a]">
-              SOR • Gestão da Qualidade Automotiva
+              MH Qualidade • Gestão da Qualidade Automotiva
             </span>
           </div>
         </div>
 
         <div className="flex items-center gap-2 text-xs text-[#64748b]">
           <Building2 size={15} />
-          <span className="hidden sm:inline">Gestamp Sorocaba • Planta Sorocaba</span>
+          <span className="hidden sm:inline">MH Lean &amp; Soluções</span>
         </div>
       </header>
 

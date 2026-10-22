@@ -30,10 +30,12 @@ import {
   Calendar,
   CalendarDays,
   Search,
-  Plus
+  Plus,
+  Sliders
 } from 'lucide-react';
-import { RNCRecord, UsuarioQualidade, PecaCatalogo, TipoRNC } from '../types';
+import { RNCRecord, UsuarioQualidade, PecaCatalogo, TipoRNC, FormFieldConfig, FormSectionId } from '../types';
 import { spStore } from '../services/sharepointService';
+import { tenantService } from '../services/tenantService';
 import { CLIENTES_LIST, DEFAULT_CLIENTE, getClientBadgeInfo } from '../constants/clientes';
 import { MODOS_FALHA_LIST, IMPACTOS_CLIENTE_LIST, GRAVIDADE_LIST, ACOES_CONTENCAO_LIST } from '../constants/defeitos';
 import { SearchableSelect } from '../components/SearchableSelect';
@@ -162,13 +164,195 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
     dataFimRastreabilidade: '',
     participantesAtendimento: currentUser.nome,
     abrir8D: 'Sim',
-    protcliente: 'Não',
     detector: currentUser.nome,
     reDetector: currentUser.reAcesso,
     fotoPecaNg: '',
     fotoPecaOk: '',
-    fotoAuxiliar: ''
+    fotoAuxiliar: '',
+    camposPersonalizados: {}
   });
+
+  const activeTenant = tenantService.getActiveTenant();
+  const isAdminUser = currentUser.perfil === 'Admin' || currentUser.perfil === 'Adminqual' || currentUser.papel === 'admin_empresa' || currentUser.papel === 'super_admin';
+
+  // Configuração de todos os campos do formulário (visibilidade, sequência, obrigatoriedade e campos personalizados)
+  const allFormFields = useMemo(
+    () => tenantService.getFormFields(activeTenant.id, false),
+    [activeTenant.id]
+  );
+
+  const fieldConfigMap = useMemo(() => {
+    const map = new Map<string, FormFieldConfig>();
+    allFormFields.forEach(f => map.set(f.fieldKey, f));
+    return map;
+  }, [allFormFields]);
+
+  const isFieldVisible = (fieldKey: string): boolean => {
+    const cfg = fieldConfigMap.get(fieldKey);
+    if (!cfg) return false;
+    return cfg.visible && !cfg.deleted;
+  };
+
+  const getFieldLabel = (fieldKey: string, fallback: string): string => {
+    return fieldConfigMap.get(fieldKey)?.label || fallback;
+  };
+
+  const getFieldPlaceholder = (fieldKey: string, fallback: string): string => {
+    return fieldConfigMap.get(fieldKey)?.placeholder || fallback;
+  };
+
+  const isFieldRequired = (fieldKey: string, fallback: boolean): boolean => {
+    const cfg = fieldConfigMap.get(fieldKey);
+    if (!cfg || !cfg.visible || cfg.deleted) return false;
+    return cfg.required ?? fallback;
+  };
+
+  const getFieldOrder = (fieldKey: string, fallback: number): number => {
+    return fieldConfigMap.get(fieldKey)?.order ?? fallback;
+  };
+
+  const setCustomFieldValue = (fieldKey: string, val: any) => {
+    clearFieldError(fieldKey);
+    setForm(prev => ({
+      ...prev,
+      camposPersonalizados: {
+        ...(prev.camposPersonalizados || {}),
+        [fieldKey]: val
+      }
+    }));
+  };
+
+  const renderCustomFieldsForSection = (sectionId: FormSectionId) => {
+    const customFields = allFormFields
+      .filter(f => !f.isSystem && f.section === sectionId && f.visible && !f.deleted)
+      .sort((a, b) => a.order - b.order);
+
+    return customFields.map(cf => {
+      const val = form.camposPersonalizados?.[cf.fieldKey] ?? '';
+      const err = errors[cf.fieldKey];
+      const colSpanClass =
+        cf.colSpan === 4
+          ? 'sm:col-span-2 lg:col-span-4 md:col-span-3'
+          : cf.colSpan === 3
+          ? 'sm:col-span-2 lg:col-span-3'
+          : cf.colSpan === 2
+          ? 'sm:col-span-2'
+          : '';
+
+      const optionsFromCat = cf.optionCategory
+        ? tenantService.getActiveOptions(cf.optionCategory, activeTenant.id).map(o => ({
+            value: o.nome,
+            label: o.nome,
+            badge: o.codigo
+          }))
+        : (cf.customOptions || []).map(o => ({ value: o, label: o }));
+
+      return (
+        <div
+          key={cf.id}
+          style={{ order: cf.order }}
+          className={`flex flex-col gap-1.5 ${colSpanClass}`}
+        >
+          <label className="text-xs font-semibold text-slate-700 h-5 flex items-center justify-between">
+            <span>
+              {cf.label} {cf.required && <strong className="text-rose-500">*</strong>}
+            </span>
+            <span className="text-[10px] font-semibold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded">
+              Campo Configurado
+            </span>
+          </label>
+
+          {cf.type === 'textarea' ? (
+            <textarea
+              rows={2}
+              value={val}
+              onChange={e => setCustomFieldValue(cf.fieldKey, e.target.value)}
+              placeholder={cf.placeholder || `Informe ${cf.label.toLowerCase()}...`}
+              className={`w-full p-2.5 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border outline-none resize-y ${
+                err ? 'border-rose-500' : 'border-slate-200 focus:border-[#0b5796]'
+              }`}
+            />
+          ) : cf.type === 'number' ? (
+            <input
+              type="number"
+              value={val}
+              onChange={e => setCustomFieldValue(cf.fieldKey, e.target.value)}
+              placeholder={cf.placeholder || '0'}
+              className={`w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border outline-none ${
+                err ? 'border-rose-500' : 'border-slate-200 focus:border-[#0b5796]'
+              }`}
+            />
+          ) : cf.type === 'date' ? (
+            <input
+              type="date"
+              value={val}
+              onChange={e => setCustomFieldValue(cf.fieldKey, e.target.value)}
+              className={`w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border outline-none ${
+                err ? 'border-rose-500' : 'border-slate-200 focus:border-[#0b5796]'
+              }`}
+            />
+          ) : cf.type === 'yesno' ? (
+            <SearchableSelect
+              value={val}
+              onChange={v => setCustomFieldValue(cf.fieldKey, v)}
+              placeholder={cf.placeholder || 'Selecione Sim ou Não...'}
+              options={[
+                { value: 'Sim', label: 'Sim' },
+                { value: 'Não', label: 'Não' }
+              ]}
+            />
+          ) : cf.type === 'select' ? (
+            <SearchableSelect
+              value={val}
+              onChange={v => setCustomFieldValue(cf.fieldKey, v)}
+              placeholder={cf.placeholder || `-- Selecione ${cf.label} --`}
+              options={optionsFromCat}
+            />
+          ) : cf.type === 'multiselect' ? (
+            <div className="flex flex-wrap gap-1.5 p-2 rounded-xl border border-slate-200 bg-slate-50/60">
+              {optionsFromCat.map(opt => {
+                const selectedArr = String(val || '')
+                  .split(';')
+                  .map(s => s.trim())
+                  .filter(Boolean);
+                const isSel = selectedArr.includes(opt.value);
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => {
+                      const next = isSel
+                        ? selectedArr.filter(x => x !== opt.value)
+                        : [...selectedArr, opt.value];
+                      setCustomFieldValue(cf.fieldKey, next.join('; '));
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold border cursor-pointer ${
+                      isSel
+                        ? 'bg-[#0b5796] text-white border-[#0b5796]'
+                        : 'bg-white text-slate-700 border-slate-200'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <input
+              type="text"
+              value={val}
+              onChange={e => setCustomFieldValue(cf.fieldKey, e.target.value)}
+              placeholder={cf.placeholder || `Informe ${cf.label.toLowerCase()}...`}
+              className={`w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border outline-none ${
+                err ? 'border-rose-500' : 'border-slate-200 focus:border-[#0b5796]'
+              }`}
+            />
+          )}
+          {err && <span className="text-[11px] text-rose-500 font-medium">{err}</span>}
+        </div>
+      );
+    });
+  };
 
   // Fecha dropdown de participantes ao clicar fora
   useEffect(() => {
@@ -256,7 +440,6 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
         dataFimRastreabilidade: '',
         participantesAtendimento: currentUser.nome,
         abrir8D: 'Sim',
-        protcliente: 'Não',
         detector: currentUser.nome,
         reDetector: currentUser.reAcesso,
         fotoPecaNg: '',
@@ -368,14 +551,30 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
   const postosDisponiveis = useMemo(() => spStore.getDistinctPostos(), []);
   const fmdsDisponiveis = useMemo(() => spStore.getDistinctFMDS(), []);
 
-  // Opções para SearchableSelect de Clientes (Montadoras)
+  // Opções para SearchableSelect de Clientes (Montadoras) — lê diretamente da lista de opções administrada pela empresa
   const optionsClientes = useMemo(() => {
-    return CLIENTES_LIST.map(cli => ({
-      value: cli,
-      label: cli,
-      badge: getClientBadgeInfo(cli).code
-    }));
-  }, []);
+    const activeItems = tenantService.getActiveOptions('cliente_montadora', activeTenant.id);
+    const list =
+      activeItems.length > 0
+        ? activeItems.map(i => ({
+            value: i.nome,
+            label: i.nome,
+            badge: i.codigo || getClientBadgeInfo(i.nome).code
+          }))
+        : CLIENTES_LIST.map(cli => ({
+            value: cli,
+            label: cli,
+            badge: getClientBadgeInfo(cli).code
+          }));
+    if (form.cliente && !list.some(o => o.value === form.cliente)) {
+      list.unshift({
+        value: form.cliente,
+        label: form.cliente,
+        badge: getClientBadgeInfo(form.cliente).code
+      });
+    }
+    return list;
+  }, [activeTenant.id, form.cliente]);
 
   // Opções para SearchableSelect de Produto / Conjunto (Catálogo de Peças)
   const optionsProduto = useMemo(() => {
@@ -459,20 +658,21 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
     return opts;
   }, [form.finalComponente, form.componente, todosComponentesCatalogo, componentesDoProduto]);
 
-  // Opções para SearchableSelect de Modos de Falha Padronizados (SharePoint field_12)
+  // Opções para SearchableSelect de Modos de Falha Padronizados (Catálogo administrado pela empresa)
   const optionsModosFalha = useMemo(() => {
-    const opts: Array<{ value: string; label: string }> = MODOS_FALHA_LIST.map(m => ({
-      value: m,
-      label: m
-    }));
-    if (form.modoFalha && !opts.some(o => o.value.toLowerCase() === form.modoFalha!.toLowerCase())) {
-      opts.unshift({
+    const activeItems = tenantService.getActiveOptions('cat_defeito', activeTenant.id);
+    const list: { value: string; label: string; badge?: string }[] =
+      activeItems.length > 0
+        ? activeItems.map(m => ({ value: m.nome, label: m.nome, badge: m.codigo }))
+        : MODOS_FALHA_LIST.map(m => ({ value: m as string, label: m as string }));
+    if (form.modoFalha && !list.some(o => o.value.toLowerCase() === form.modoFalha!.toLowerCase())) {
+      list.unshift({
         value: form.modoFalha,
         label: form.modoFalha
       });
     }
-    return opts;
-  }, [form.modoFalha]);
+    return list;
+  }, [activeTenant.id, form.modoFalha]);
 
   // Opções para SearchableSelect de Equipe Responsável pelo 8D (Foto 4)
   const optionsEquipe8D = useMemo(() => {
@@ -491,84 +691,152 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
     return list;
   }, [baseAtivos, form.quemFara]);
 
-  // Opções para SearchableSelect de Abrir 8D (Foto 4)
-  const optionsAbrir8D = useMemo(() => [
-    { value: 'Sim', label: 'Sim' },
-    { value: 'Não', label: 'Não' }
-  ], []);
+  // Opções para SearchableSelect de Abrir 8D
+  const optionsAbrir8D = useMemo(() => {
+    const activeItems = tenantService.getActiveOptions('abrir_8d', activeTenant.id);
+    if (activeItems.length > 0) {
+      return activeItems.map(i => ({ value: i.nome, label: i.detalhe ? `${i.nome} (${i.detalhe})` : i.nome }));
+    }
+    return [
+      { value: 'Sim', label: 'Sim' },
+      { value: 'Não', label: 'Não' }
+    ];
+  }, [activeTenant.id]);
 
   // Opções para SearchableSelect de Postos de Trabalho
   const optionsPostos = useMemo(() => {
-    const set = new Set(postosDisponiveis);
+    const activeItems = tenantService.getActiveOptions('posto_trabalho', activeTenant.id);
+    const set = new Set<string>([...activeItems.map(i => i.nome), ...postosDisponiveis]);
     if (form.posto) set.add(form.posto);
     return Array.from(set).map(p => ({
       value: p,
       label: p
     }));
-  }, [postosDisponiveis, form.posto]);
+  }, [activeTenant.id, postosDisponiveis, form.posto]);
 
   // Opções para SearchableSelect de FMDS
   const optionsFMDS = useMemo(() => {
-    const set = new Set(fmdsDisponiveis);
+    const activeItems = tenantService.getActiveOptions('area_fabril', activeTenant.id);
+    const set = new Set<string>([...activeItems.map(i => i.nome), ...fmdsDisponiveis]);
     if (form.fmds) set.add(form.fmds);
     return Array.from(set).map(f => ({
       value: f,
       label: f
     }));
-  }, [fmdsDisponiveis, form.fmds]);
+  }, [activeTenant.id, fmdsDisponiveis, form.fmds]);
 
   // Opções para SearchableSelect de Tipo de Ocorrência
-  const optionsTipoRnc = useMemo(() => [
-    { value: 'Formal', label: 'Formal (Reclamação Oficial do Cliente)', badge: 'Oficial' },
-    { value: 'Informal', label: 'Informal (Alerta / Contato da Montadora)', badge: 'Alerta' },
-    { value: 'Interno', label: 'Interno (Detecção Interna na Linha de Produção)', badge: 'Linha' },
-  ], []);
+  const optionsTipoRnc = useMemo(() => {
+    const activeItems = tenantService.getActiveOptions('tipo_rnc', activeTenant.id);
+    if (activeItems.length > 0) {
+      return activeItems.map(i => ({
+        value: i.nome,
+        label: i.detalhe ? `${i.nome} (${i.detalhe})` : i.nome,
+        badge: i.codigo
+      }));
+    }
+    return [
+      { value: 'Formal', label: 'Formal (Reclamação Oficial do Cliente)', badge: 'Oficial' },
+      { value: 'Informal', label: 'Informal (Alerta / Contato da Montadora)', badge: 'Alerta' },
+      { value: 'Interno', label: 'Interno (Detecção Interna na Linha de Produção)', badge: 'Linha' }
+    ];
+  }, [activeTenant.id]);
 
   // Opções para SearchableSelect de Turno
-  const optionsTurno = useMemo(() => [
-    { value: '1º Turno', label: '1º Turno (06:00 - 14:40)' },
-    { value: '2º Turno', label: '2º Turno (14:40 - 23:15)' },
-    { value: '3º Turno', label: '3º Turno (23:15 - 06:00)' },
-    { value: 'Central', label: 'Turno Central / Administrativo' },
-  ], []);
+  const optionsTurno = useMemo(() => {
+    const activeItems = tenantService.getActiveOptions('turno', activeTenant.id);
+    if (activeItems.length > 0) {
+      return activeItems.map(i => ({
+        value: i.nome,
+        label: i.detalhe ? `${i.nome} (${i.detalhe})` : i.nome
+      }));
+    }
+    return [
+      { value: '1º Turno', label: '1º Turno (06:00 - 14:40)' },
+      { value: '2º Turno', label: '2º Turno (14:40 - 23:15)' },
+      { value: '3º Turno', label: '3º Turno (23:15 - 06:00)' },
+      { value: 'Central', label: 'Turno Central / Administrativo' }
+    ];
+  }, [activeTenant.id]);
 
   // Opções para SearchableSelect de Tipo de Componente / Peça Rastreada
-  const optionsTipoComponente = useMemo(() => [
-    { value: 'Peça Final', label: 'Produto Final / Peça Final (Conjunto Completo)' },
-    { value: 'Peça Final + Componente', label: 'Peça Final + Componente' },
-    { value: 'Componente', label: 'Componente Isolado' },
-    { value: 'SubComponente + Componente', label: 'SubComponente + Componente' },
-  ], []);
+  const optionsTipoComponente = useMemo(() => {
+    const activeItems = tenantService.getActiveOptions('tipo_componente', activeTenant.id);
+    if (activeItems.length > 0) {
+      return activeItems.map(i => ({
+        value: i.nome,
+        label: i.detalhe ? `${i.nome} (${i.detalhe})` : i.nome
+      }));
+    }
+    return [
+      { value: 'Peça Final', label: 'Produto Final / Peça Final (Conjunto Completo)' },
+      { value: 'Peça Final + Componente', label: 'Peça Final + Componente' },
+      { value: 'Componente', label: 'Componente Isolado' },
+      { value: 'SubComponente + Componente', label: 'SubComponente + Componente' }
+    ];
+  }, [activeTenant.id]);
 
   // Opções para SearchableSelect de Impactos no Cliente
   const optionsImpactosCliente = useMemo(() => {
+    const activeItems = tenantService.getActiveOptions('impacto_cliente', activeTenant.id);
+    if (activeItems.length > 0) {
+      return activeItems.map(imp => ({ value: imp.nome, label: imp.nome }));
+    }
     return IMPACTOS_CLIENTE_LIST.map(imp => ({
       value: imp,
       label: imp
     }));
-  }, []);
+  }, [activeTenant.id]);
 
   // Opções para SearchableSelect de Documento para Rastreabilidade
-  const optionsDocumentoRastreabilidade = useMemo(() => [
-    { value: 'Não Informado', label: 'Não Informado' },
-    { value: 'Etiqueta SAP', label: 'Etiqueta SAP' },
-    { value: 'Order Cliente', label: 'Order Cliente' },
-    { value: 'NF', label: 'NF' },
-  ], []);
+  const optionsDocumentoRastreabilidade = useMemo(() => {
+    const activeItems = tenantService.getActiveOptions('doc_rastreabilidade', activeTenant.id);
+    if (activeItems.length > 0) {
+      return activeItems.map(doc => ({ value: doc.nome, label: doc.nome }));
+    }
+    return [
+      { value: 'Não Informado', label: 'Não Informado' },
+      { value: 'Etiqueta SAP', label: 'Etiqueta SAP' },
+      { value: 'Order Cliente', label: 'Order Cliente' },
+      { value: 'NF', label: 'NF' }
+    ];
+  }, [activeTenant.id]);
+
+  // Opções para Ações de Contenção (Múltipla Escolha)
+  const acoesContencaoDynamicList = useMemo(() => {
+    const activeItems = tenantService.getActiveOptions('acoes_contencao', activeTenant.id);
+    if (activeItems.length > 0) {
+      return activeItems.map(a => a.nome);
+    }
+    return ACOES_CONTENCAO_LIST;
+  }, [activeTenant.id]);
 
   // Opções para SearchableSelect de Gravidade
   const optionsGravidade = useMemo(() => {
+    const activeItems = tenantService.getActiveOptions('gravidade', activeTenant.id);
+    if (activeItems.length > 0) {
+      return activeItems.map(g => ({ value: g.nome, label: g.nome }));
+    }
     return GRAVIDADE_LIST.map(g => ({
       value: g,
       label: g
     }));
-  }, []);
+  }, [activeTenant.id]);
 
   // Opções para SearchableSelect de Detecção na Origem
-  const optionsPossivelDetectar = useMemo(() => [
-    { value: 'Sim', label: 'Sim (Falha de Inspeção / Padrão)' },
-    { value: 'Não', label: 'Não (Defeito Latente / Oculto)' },
-  ], []);
+  const optionsPossivelDetectar = useMemo(() => {
+    const activeItems = tenantService.getActiveOptions('possivel_detectar', activeTenant.id);
+    if (activeItems.length > 0) {
+      return activeItems.map(p => ({
+        value: p.nome,
+        label: p.detalhe ? `${p.nome} (${p.detalhe})` : p.nome
+      }));
+    }
+    return [
+      { value: 'Sim', label: 'Sim (Falha de Inspeção / Padrão)' },
+      { value: 'Não', label: 'Não (Defeito Latente / Oculto)' }
+    ];
+  }, [activeTenant.id]);
 
   const clearFieldError = (fieldName: string) => {
     setErrors(prev => {
@@ -694,77 +962,115 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
     }));
   };
 
-  // Upload de Evidências Fotográficas
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'fotoPecaNg' | 'fotoPecaOk' | 'fotoAuxiliar') => {
+  // Upload de Evidências Fotográficas com Compressão Automática Client-Side WebP (Full HD 1920x1080, q=80%)
+  const handleFileUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    field: 'fotoPecaNg' | 'fotoPecaOk' | 'fotoAuxiliar'
+  ) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 10 * 1024 * 1024) {
-      setNotification({ type: 'error', message: 'A imagem deve ter no máximo 10MB.' });
+    if (file.size > 20 * 1024 * 1024) {
+      setNotification({ type: 'error', message: 'A imagem original deve ter no máximo 20MB.' });
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64 = event.target?.result as string;
-      setForm(prev => ({ ...prev, [field]: base64 }));
-      setNotification({ type: 'success', message: 'Evidência fotográfica anexada com sucesso!' });
+    const slotMap: Record<'fotoPecaNg' | 'fotoPecaOk' | 'fotoAuxiliar', 'ng' | 'ok' | 'aux'> = {
+      fotoPecaNg: 'ng',
+      fotoPecaOk: 'ok',
+      fotoAuxiliar: 'aux'
     };
-    reader.readAsDataURL(file);
+
+    const processed = await tenantService.processAndStoreImage(file, {
+      rncId: rncId || form.id || 'novo',
+      slot: slotMap[field]
+    });
+
+    if (processed.success && processed.result) {
+      setForm(prev => ({ ...prev, [field]: processed.result!.dataUrl }));
+      setNotification({
+        type: 'success',
+        message: processed.message
+      });
+    } else {
+      setNotification({
+        type: 'error',
+        message: processed.message || 'Falha ao processar imagem.'
+      });
+    }
   };
 
   const handleRemoveFoto = (field: 'fotoPecaNg' | 'fotoPecaOk' | 'fotoAuxiliar') => {
     setForm(prev => ({ ...prev, [field]: '' }));
   };
 
-  // Validação estrita baseada nas regras do Power Apps
+  // Validação dinâmica respeitando campos visíveis/ocultos e campos novos criados pelo Admin
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!form.cliente || !form.cliente.trim()) {
-      newErrors.cliente = 'Selecione o Cliente / Montadora.';
+    if (isFieldRequired('cliente', true) && (!form.cliente || !form.cliente.trim())) {
+      newErrors.cliente = `Selecione ${getFieldLabel('cliente', 'Cliente / Montadora')}.`;
     }
-    if (!form.tipoRnc) {
-      newErrors.tipoRnc = 'Selecione o Tipo de Ocorrência (Formal, Informal ou Interno).';
+    if (isFieldRequired('tipoRnc', true) && !form.tipoRnc) {
+      newErrors.tipoRnc = `Selecione ${getFieldLabel('tipoRnc', 'Tipo de Ocorrência')}.`;
     }
-    if (form.tipoRnc === 'Interno' && (!form.setorDeteccao || !form.setorDeteccao.trim())) {
-      newErrors.setorDeteccao = 'Informe o Setor de Detecção (Chão de Fábrica).';
+    if (form.tipoRnc === 'Interno' && isFieldVisible('setorDeteccao') && isFieldRequired('setorDeteccao', true) && (!form.setorDeteccao || !form.setorDeteccao.trim())) {
+      newErrors.setorDeteccao = `Informe ${getFieldLabel('setorDeteccao', 'Setor de Detecção')}.`;
     }
-    if (!form.dataOcorrencia || !form.dataOcorrencia.trim()) {
-      newErrors.dataOcorrencia = 'Informe a data da ocorrência.';
+    if (isFieldRequired('dataOcorrencia', true) && (!form.dataOcorrencia || !form.dataOcorrencia.trim())) {
+      newErrors.dataOcorrencia = `Informe ${getFieldLabel('dataOcorrencia', 'Data da Ocorrência')}.`;
     }
 
     const isComponenteIsolado = form.finalComponente === 'Componente';
-    if (!isComponenteIsolado && (!form.produto || !form.produto.trim())) {
-      newErrors.produto = 'Selecione o Produto / Conjunto da ocorrência.';
+    if (!isComponenteIsolado && isFieldRequired('produto', true) && (!form.produto || !form.produto.trim())) {
+      newErrors.produto = `Selecione ${getFieldLabel('produto', 'Produto / Conjunto')}.`;
     }
-    if ((isComponenteIsolado || form.finalComponente === 'Peça Final + Componente' || form.finalComponente === 'SubComponente + Componente') && (!form.componente || !form.componente.trim())) {
-      newErrors.componente = 'Selecione o Componente da ocorrência.';
-    }
-
-    if (!form.modoFalha || !form.modoFalha.trim()) {
-      newErrors.modoFalha = 'Selecione a classificação do defeito (modo de falha).';
-    }
-    if (!form.descricaoProblema || form.descricaoProblema.trim().length < 3) {
-      newErrors.descricaoProblema = 'Informe o detalhamento técnico da não conformidade.';
-    }
-    if (form.quantidadeAfetada === undefined || form.quantidadeAfetada === null || String(form.quantidadeAfetada).trim() === '' || Number(form.quantidadeAfetada) <= 0) {
-      newErrors.quantidadeAfetada = 'Informe a quantidade de peças afetadas (maior que zero).';
+    if (
+      isFieldVisible('componente') &&
+      (isComponenteIsolado || form.finalComponente === 'Peça Final + Componente' || form.finalComponente === 'SubComponente + Componente') &&
+      (!form.componente || !form.componente.trim())
+    ) {
+      newErrors.componente = `Selecione ${getFieldLabel('componente', 'Componente')}.`;
     }
 
-    // Validação de rastreabilidade conforme Foto 5
-    if (form.documentoRastreabilidade === 'Não Informado') {
-      if (!form.dataInicioRastreabilidade) {
-        newErrors.dataInicioRastreabilidade = 'Informe a Data Inicial para rastreabilidade de lote.';
-      }
-      if (!form.dataFimRastreabilidade) {
-        newErrors.dataFimRastreabilidade = 'Informe a Data Final para rastreabilidade de lote.';
-      }
-    } else if (form.documentoRastreabilidade) {
-      if (!form.codigoRastreabilidade || !form.codigoRastreabilidade.trim()) {
-        newErrors.codigoRastreabilidade = `Informe o código ou número do documento (${form.documentoRastreabilidade}).`;
+    if (isFieldRequired('modoFalha', true) && (!form.modoFalha || !form.modoFalha.trim())) {
+      newErrors.modoFalha = `Selecione ${getFieldLabel('modoFalha', 'Classificação do Defeito')}.`;
+    }
+    if (isFieldRequired('descricaoProblema', true) && (!form.descricaoProblema || form.descricaoProblema.trim().length < 3)) {
+      newErrors.descricaoProblema = `Informe ${getFieldLabel('descricaoProblema', 'Detalhamento Técnico da Não Conformidade')}.`;
+    }
+    if (
+      isFieldRequired('quantidadeAfetada', true) &&
+      (form.quantidadeAfetada === undefined || form.quantidadeAfetada === null || String(form.quantidadeAfetada).trim() === '' || Number(form.quantidadeAfetada) <= 0)
+    ) {
+      newErrors.quantidadeAfetada = `Informe ${getFieldLabel('quantidadeAfetada', 'Quantidade Não Conforme')} (maior que zero).`;
+    }
+
+    // Validação de rastreabilidade se visível
+    if (isFieldVisible('documentoRastreabilidade') && isFieldRequired('documentoRastreabilidade', true)) {
+      if (form.documentoRastreabilidade === 'Não Informado') {
+        if (!form.dataInicioRastreabilidade) {
+          newErrors.dataInicioRastreabilidade = 'Informe a Data Inicial para rastreabilidade de lote.';
+        }
+        if (!form.dataFimRastreabilidade) {
+          newErrors.dataFimRastreabilidade = 'Informe a Data Final para rastreabilidade de lote.';
+        }
+      } else if (form.documentoRastreabilidade) {
+        if (!form.codigoRastreabilidade || !form.codigoRastreabilidade.trim()) {
+          newErrors.codigoRastreabilidade = `Informe o código ou número do documento (${form.documentoRastreabilidade}).`;
+        }
       }
     }
+
+    // Validação de campos personalizados criados pelo Admin e marcados como obrigatórios
+    allFormFields
+      .filter(f => !f.isSystem && f.visible && !f.deleted && f.required)
+      .forEach(cf => {
+        const val = form.camposPersonalizados?.[cf.fieldKey];
+        if (val === undefined || val === null || String(val).trim() === '') {
+          newErrors[cf.fieldKey] = `Preencha o campo obrigatório "${cf.label}".`;
+        }
+      });
 
     setErrors(newErrors);
 
@@ -837,7 +1143,6 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
           dataInicioRastreabilidade: form.dataInicioRastreabilidade || '',
           dataFimRastreabilidade: form.dataFimRastreabilidade || '',
           participantesAtendimento: participantesStr,
-          protcliente: (form.documentoRastreabilidade !== 'Não Informado' && form.codigoRastreabilidade) ? 'Sim' : 'Não',
           abrir8D: form.abrir8D || 'Sim',
           detector: currentUser.nome,
           reDetector: currentUser.reAcesso,
@@ -856,7 +1161,8 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
           porQueFazer: form.porQueFazer || '',
           quemFara: form.quemFara || '',
           quandoFara: form.quandoFara || '',
-          ondeFara: form.ondeFara || ''
+          ondeFara: form.ondeFara || '',
+          camposPersonalizados: form.camposPersonalizados || {}
         };
 
         const novaRnc = spStore.addRNC(payload);
@@ -960,7 +1266,18 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5 self-end sm:self-auto">
+        <div className="flex items-center gap-2.5 self-end sm:self-auto flex-wrap">
+          {isAdminUser && (
+            <button
+              type="button"
+              onClick={() => onNavigate('configuracoes-empresa')}
+              className="btn-secondary h-9 px-3.5 text-xs font-semibold inline-flex items-center gap-1.5 text-[#0b5796] border-blue-200 hover:bg-blue-50 cursor-pointer"
+              title="Adicionar, ocultar, mudar sequência de campos ou editar opções"
+            >
+              <Sliders className="w-3.5 h-3.5" />
+              <span>Configurar Campos e Opções</span>
+            </button>
+          )}
           <button 
             type="button"
             onClick={handleBack}
@@ -1006,77 +1323,87 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Cliente / Montadora (Inicia vazio para o usuário escolher) */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-slate-700 h-5 flex items-center justify-between">
-                <span>Cliente (Montadora) <strong className="text-rose-500">*</strong></span>
-                {clientBadge && (
-                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${clientBadge.bg} ${clientBadge.color}`}>
-                    {form.cliente}
-                  </span>
-                )}
-              </label>
-              <SearchableSelect
-                value={form.cliente || ''}
-                onChange={handleClienteChange}
-                placeholder="-- Selecione a Montadora --"
-                searchPlaceholder="Pesquisar montadora (ex: Toyota, Honda, VW)..."
-                error={errors.cliente}
-                options={optionsClientes}
-              />
-              {errors.cliente && <span className="text-[11px] text-rose-500 font-medium">{errors.cliente}</span>}
-            </div>
+            {isFieldVisible('cliente') && (
+              <div className="flex flex-col gap-1.5" style={{ order: getFieldOrder('cliente', 10) }}>
+                <label className="text-xs font-semibold text-slate-700 h-5 flex items-center justify-between">
+                  <span>{getFieldLabel('cliente', 'Cliente (Montadora)')} {isFieldRequired('cliente', true) && <strong className="text-rose-500">*</strong>}</span>
+                  {clientBadge && (
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${clientBadge.bg} ${clientBadge.color}`}>
+                      {form.cliente}
+                    </span>
+                  )}
+                </label>
+                <SearchableSelect
+                  value={form.cliente || ''}
+                  onChange={handleClienteChange}
+                  placeholder={getFieldPlaceholder('cliente', '-- Selecione a Montadora --')}
+                  searchPlaceholder="Pesquisar montadora (ex: Toyota, Honda, VW)..."
+                  error={errors.cliente}
+                  options={optionsClientes}
+                />
+                {errors.cliente && <span className="text-[11px] text-rose-500 font-medium">{errors.cliente}</span>}
+              </div>
+            )}
 
             {/* Tipo de Ocorrência (Inicia vazio para o usuário escolher) */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-slate-700 h-5 flex items-center justify-between">
-                <span>Tipo de Ocorrência <strong className="text-rose-500">*</strong></span>
-              </label>
-              <SearchableSelect
-                value={form.tipoRnc || ''}
-                onChange={val => {
-                  clearFieldError('tipoRnc');
-                  setForm(prev => ({ ...prev, tipoRnc: val as TipoRNC }));
-                }}
-                placeholder="-- Selecione o Tipo --"
-                searchPlaceholder="Pesquisar tipo de ocorrência..."
-                error={errors.tipoRnc}
-                options={optionsTipoRnc}
-              />
-              {errors.tipoRnc && <span className="text-[11px] text-rose-500 font-medium">{errors.tipoRnc}</span>}
-            </div>
+            {isFieldVisible('tipoRnc') && (
+              <div className="flex flex-col gap-1.5" style={{ order: getFieldOrder('tipoRnc', 20) }}>
+                <label className="text-xs font-semibold text-slate-700 h-5 flex items-center justify-between">
+                  <span>{getFieldLabel('tipoRnc', 'Tipo de Ocorrência')} {isFieldRequired('tipoRnc', true) && <strong className="text-rose-500">*</strong>}</span>
+                </label>
+                <SearchableSelect
+                  value={form.tipoRnc || ''}
+                  onChange={val => {
+                    clearFieldError('tipoRnc');
+                    setForm(prev => ({ ...prev, tipoRnc: val as TipoRNC }));
+                  }}
+                  placeholder={getFieldPlaceholder('tipoRnc', '-- Selecione o Tipo --')}
+                  searchPlaceholder="Pesquisar tipo de ocorrência..."
+                  error={errors.tipoRnc}
+                  options={optionsTipoRnc}
+                />
+                {errors.tipoRnc && <span className="text-[11px] text-rose-500 font-medium">{errors.tipoRnc}</span>}
+              </div>
+            )}
 
             {/* Data da Ocorrência (Vem data de hoje por padrão, editável) */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-slate-700 h-5 flex items-center justify-between">
-                <span>Data da Ocorrência <strong className="text-rose-500">*</strong></span>
-              </label>
-              <input
-                type="date"
-                value={form.dataOcorrencia || ''}
-                onChange={e => {
-                  clearFieldError('dataOcorrencia');
-                  setForm(prev => ({ ...prev, dataOcorrencia: e.target.value }));
-                }}
-                className={`w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border outline-none transition-all ${
-                  errors.dataOcorrencia ? 'border-rose-500 focus:ring-2 focus:ring-rose-200' : 'border-slate-200 focus:border-[#0b5796] focus:ring-2 focus:ring-[#0b5796]/15'
-                }`}
-              />
-              {errors.dataOcorrencia && <span className="text-[11px] text-rose-500 font-medium">{errors.dataOcorrencia}</span>}
-            </div>
+            {isFieldVisible('dataOcorrencia') && (
+              <div className="flex flex-col gap-1.5" style={{ order: getFieldOrder('dataOcorrencia', 30) }}>
+                <label className="text-xs font-semibold text-slate-700 h-5 flex items-center justify-between">
+                  <span>{getFieldLabel('dataOcorrencia', 'Data da Ocorrência')} {isFieldRequired('dataOcorrencia', true) && <strong className="text-rose-500">*</strong>}</span>
+                </label>
+                <input
+                  type="date"
+                  value={form.dataOcorrencia || ''}
+                  onChange={e => {
+                    clearFieldError('dataOcorrencia');
+                    setForm(prev => ({ ...prev, dataOcorrencia: e.target.value }));
+                  }}
+                  className={`w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border outline-none transition-all ${
+                    errors.dataOcorrencia ? 'border-rose-500 focus:ring-2 focus:ring-rose-200' : 'border-slate-200 focus:border-[#0b5796] focus:ring-2 focus:ring-[#0b5796]/15'
+                  }`}
+                />
+                {errors.dataOcorrencia && <span className="text-[11px] text-rose-500 font-medium">{errors.dataOcorrencia}</span>}
+              </div>
+            )}
 
             {/* Turno de Detecção (Calculado automaticamente pelo horário atual) */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-slate-700 h-5 flex items-center">
-                <span>Turno de Detecção</span>
-              </label>
-              <SearchableSelect
-                value={form.turno || '1º Turno'}
-                onChange={val => setForm(prev => ({ ...prev, turno: val as any }))}
-                placeholder="Selecione o turno..."
-                searchPlaceholder="Pesquisar turno..."
-                options={optionsTurno}
-              />
-            </div>
+            {isFieldVisible('turno') && (
+              <div className="flex flex-col gap-1.5" style={{ order: getFieldOrder('turno', 40) }}>
+                <label className="text-xs font-semibold text-slate-700 h-5 flex items-center">
+                  <span>{getFieldLabel('turno', 'Turno de Detecção')} {isFieldRequired('turno', false) && <strong className="text-rose-500">*</strong>}</span>
+                </label>
+                <SearchableSelect
+                  value={form.turno || '1º Turno'}
+                  onChange={val => setForm(prev => ({ ...prev, turno: val as any }))}
+                  placeholder={getFieldPlaceholder('turno', 'Selecione o turno...')}
+                  searchPlaceholder="Pesquisar turno..."
+                  options={optionsTurno}
+                />
+              </div>
+            )}
+
+            {renderCustomFieldsForSection('secao_1')}
           </div>
 
           {/* CAMPOS CONDICIONAIS PELO TIPO DE OCORRÊNCIA */}
@@ -1266,14 +1593,15 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
               PARTICIPANTES DO ATENDIMENTO (CARD 9 POWER APPS - FOTO 4)
               Permite multi-seleção de colaboradores envolvidos (BASE_ATIVOS)
               ========================================================================= */}
+          {isFieldVisible('participantesAtendimento') && (
           <div className="pt-3 border-t border-slate-100 flex flex-col gap-2 relative" ref={participantesRef}>
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold text-indigo-900 flex items-center gap-1.5">
                 <Users className="w-4 h-4 text-indigo-700" />
-                <span>* Participantes do atendimento:</span>
+                <span>* {getFieldLabel('participantesAtendimento', 'Participantes do atendimento:')}</span>
               </label>
               <span className="text-[11px] text-slate-500">
-                {participantesSelecionados.length} participante(s) registrado(s) • Base Ativos Gestamp
+                {participantesSelecionados.length} participante(s) registrado(s) • Base Ativos
               </span>
             </div>
 
@@ -1377,6 +1705,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
               </div>
             )}
           </div>
+          )}
         </div>
 
         {/* =========================================================================
@@ -1403,155 +1732,167 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             
             {/* 1. Tipo de Componente (Guia a regra e sequência dos campos) */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-slate-700 h-5 flex items-center">
-                <span>Tipo de Peça Rastreada <strong className="text-rose-500">*</strong></span>
-              </label>
-              <SearchableSelect
-                value={form.finalComponente || 'Peça Final'}
-                onChange={val => handleTipoComponenteChange(val as any)}
-                placeholder="Selecione o tipo de componente..."
-                searchPlaceholder="Pesquisar tipo de componente..."
-                options={optionsTipoComponente}
-              />
-            </div>
+            {isFieldVisible('finalComponente') && (
+              <div className="flex flex-col gap-1.5" style={{ order: getFieldOrder('finalComponente', 100) }}>
+                <label className="text-xs font-semibold text-slate-700 h-5 flex items-center">
+                  <span>{getFieldLabel('finalComponente', 'Tipo de Peça Rastreada')} {isFieldRequired('finalComponente', true) && <strong className="text-rose-500">*</strong>}</span>
+                </label>
+                <SearchableSelect
+                  value={form.finalComponente || 'Peça Final'}
+                  onChange={val => handleTipoComponenteChange(val as any)}
+                  placeholder={getFieldPlaceholder('finalComponente', 'Selecione o tipo de componente...')}
+                  searchPlaceholder="Pesquisar tipo de componente..."
+                  options={optionsTipoComponente}
+                />
+              </div>
+            )}
 
             {/* 2. Produto / Conjunto (Peça Final) */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-slate-700 h-5 flex items-center justify-between">
-                <span>Produto / Conjunto {!isComponenteIsolado && <strong className="text-rose-500">*</strong>}</span>
-              </label>
+            {isFieldVisible('produto') && (
+              <div className="flex flex-col gap-1.5" style={{ order: getFieldOrder('produto', 110) }}>
+                <label className="text-xs font-semibold text-slate-700 h-5 flex items-center justify-between">
+                  <span>{getFieldLabel('produto', 'Produto / Conjunto')} {!isComponenteIsolado && isFieldRequired('produto', true) && <strong className="text-rose-500">*</strong>}</span>
+                </label>
 
-              <SearchableSelect
-                disabled={isComponenteIsolado || (!form.cliente && form.finalComponente !== 'SubComponente + Componente')}
-                disabledText={
-                  isComponenteIsolado
-                    ? '-- Não aplicável para Componente Isolado --'
-                    : '-- Selecione a Montadora primeiro no Passo 1 --'
-                }
-                value={form.produto || ''}
-                onChange={handlePecaChange}
-                placeholder="-- Selecione o Produto / Conjunto --"
-                searchPlaceholder="Pesquisar por descrição, código montadora ou SAP..."
-                error={errors.produto}
-                options={optionsProduto}
-              />
-              {errors.produto && !isComponenteIsolado && <span className="text-[11px] text-rose-500 font-medium">{errors.produto}</span>}
-            </div>
+                <SearchableSelect
+                  disabled={isComponenteIsolado || (!form.cliente && form.finalComponente !== 'SubComponente + Componente')}
+                  disabledText={
+                    isComponenteIsolado
+                      ? '-- Não aplicável para Componente Isolado --'
+                      : '-- Selecione a Montadora primeiro no Passo 1 --'
+                  }
+                  value={form.produto || ''}
+                  onChange={handlePecaChange}
+                  placeholder={getFieldPlaceholder('produto', '-- Selecione o Produto / Conjunto --')}
+                  searchPlaceholder="Pesquisar por descrição, código montadora ou SAP..."
+                  error={errors.produto}
+                  options={optionsProduto}
+                />
+                {errors.produto && !isComponenteIsolado && <span className="text-[11px] text-rose-500 font-medium">{errors.produto}</span>}
+              </div>
+            )}
 
             {/* 3. Componente */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-slate-700 h-5 flex items-center justify-between">
-                <span>Componente</span>
-                {/* Badge dinâmica idêntica às Fotos 1 e 3 */}
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded leading-none ${
-                  form.finalComponente === 'Peça Final'
-                    ? 'text-emerald-800 bg-emerald-50 border border-emerald-200/60'
-                    : form.finalComponente === 'SubComponente + Componente'
-                    ? 'text-indigo-800 bg-indigo-50 border border-indigo-200/60'
-                    : isComponenteIsolado
-                    ? 'text-amber-800 bg-amber-50 border border-amber-200/60'
-                    : 'text-blue-800 bg-blue-50 border border-blue-200/60'
-                }`}>
-                  {form.finalComponente === 'Peça Final' 
-                    ? 'Conjunto' 
-                    : form.finalComponente === 'SubComponente + Componente'
-                    ? 'Subcomponente'
-                    : isComponenteIsolado
-                    ? 'Componente'
-                    : 'Subcomponente'}
-                </span>
-              </label>
-
-              {/* Modo 1: Peça Final (Conjunto Completo) - Campo read-only preenchido automaticamente (Foto 1) */}
-              {form.finalComponente === 'Peça Final' ? (
-                <input
-                  type="text"
-                  readOnly
-                  value={form.componente || (form.produto ? form.produto : '')}
-                  placeholder="Preenchido automaticamente com o conjunto"
-                  className="w-full h-10 px-3 bg-slate-50 text-slate-800 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 outline-none select-all"
-                />
-              ) : (
-                <SearchableSelect
-                  disabled={form.finalComponente === 'Peça Final + Componente' && !form.produto}
-                  disabledText="-- Selecione o Produto primeiro --"
-                  value={form.componente || ''}
-                  onChange={handleComponenteChange}
-                  placeholder={
-                    isComponenteIsolado
-                      ? '-- Selecione o Componente Isolado --'
+            {isFieldVisible('componente') && (
+              <div className="flex flex-col gap-1.5" style={{ order: getFieldOrder('componente', 120) }}>
+                <label className="text-xs font-semibold text-slate-700 h-5 flex items-center justify-between">
+                  <span>{getFieldLabel('componente', 'Componente')}</span>
+                  {/* Badge dinâmica idêntica às Fotos 1 e 3 */}
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded leading-none ${
+                    form.finalComponente === 'Peça Final'
+                      ? 'text-emerald-800 bg-emerald-50 border border-emerald-200/60'
                       : form.finalComponente === 'SubComponente + Componente'
-                      ? '-- Selecione o Subcomponente --'
-                      : '-- Selecione o Componente Filho --'
-                  }
-                  searchPlaceholder="Pesquisar componente..."
-                  error={errors.componente}
-                  options={optionsComponente}
-                />
-              )}
-              {errors.componente && <span className="text-[11px] text-rose-500 font-medium">{errors.componente}</span>}
-            </div>
+                      ? 'text-indigo-800 bg-indigo-50 border border-indigo-200/60'
+                      : isComponenteIsolado
+                      ? 'text-amber-800 bg-amber-50 border border-amber-200/60'
+                      : 'text-blue-800 bg-blue-50 border border-blue-200/60'
+                  }`}>
+                    {form.finalComponente === 'Peça Final' 
+                      ? 'Conjunto' 
+                      : form.finalComponente === 'SubComponente + Componente'
+                      ? 'Subcomponente'
+                      : isComponenteIsolado
+                      ? 'Componente'
+                      : 'Subcomponente'}
+                  </span>
+                </label>
+
+                {/* Modo 1: Peça Final (Conjunto Completo) - Campo read-only preenchido automaticamente (Foto 1) */}
+                {form.finalComponente === 'Peça Final' ? (
+                  <input
+                    type="text"
+                    readOnly
+                    value={form.componente || (form.produto ? form.produto : '')}
+                    placeholder="Preenchido automaticamente com o conjunto"
+                    className="w-full h-10 px-3 bg-slate-50 text-slate-800 text-xs sm:text-sm font-medium rounded-xl border border-slate-200 outline-none select-all"
+                  />
+                ) : (
+                  <SearchableSelect
+                    disabled={form.finalComponente === 'Peça Final + Componente' && !form.produto}
+                    disabledText="-- Selecione o Produto primeiro --"
+                    value={form.componente || ''}
+                    onChange={handleComponenteChange}
+                    placeholder={
+                      isComponenteIsolado
+                        ? '-- Selecione o Componente Isolado --'
+                        : form.finalComponente === 'SubComponente + Componente'
+                        ? '-- Selecione o Subcomponente --'
+                        : '-- Selecione o Componente Filho --'
+                    }
+                    searchPlaceholder="Pesquisar componente..."
+                    error={errors.componente}
+                    options={optionsComponente}
+                  />
+                )}
+                {errors.componente && <span className="text-[11px] text-rose-500 font-medium">{errors.componente}</span>}
+              </div>
+            )}
 
             {/* Posto de Trabalho (Autopreenchido com badge verde ou selecionável com busca) */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-slate-700 h-5 flex items-center justify-between">
-                <span>Posto de Trabalho Cadastrado</span>
-                {isPecaSelecionada && form.posto && (
-                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/60 leading-none">
-                    ✓ Autopreenchido
-                  </span>
+            {isFieldVisible('posto') && (
+              <div className="flex flex-col gap-1.5" style={{ order: getFieldOrder('posto', 130) }}>
+                <label className="text-xs font-semibold text-slate-700 h-5 flex items-center justify-between">
+                  <span>{getFieldLabel('posto', 'Posto de Trabalho Cadastrado')} {isFieldRequired('posto', false) && <strong className="text-rose-500">*</strong>}</span>
+                  {isPecaSelecionada && form.posto && (
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/60 leading-none">
+                      ✓ Autopreenchido
+                    </span>
+                  )}
+                </label>
+                {!isPecaSelecionada ? (
+                  <input
+                    type="text"
+                    disabled
+                    placeholder="Aguardando seleção da peça..."
+                    className="w-full h-10 px-3 bg-slate-50 text-slate-400 text-xs sm:text-sm rounded-xl border border-slate-200 cursor-not-allowed outline-none"
+                  />
+                ) : (
+                  <SearchableSelect
+                    value={form.posto || ''}
+                    onChange={val => setForm(prev => ({ ...prev, posto: val }))}
+                    placeholder={getFieldPlaceholder('posto', '-- Selecione o Posto de Trabalho --')}
+                    searchPlaceholder="Pesquisar posto..."
+                    options={optionsPostos}
+                  />
                 )}
-              </label>
-              {!isPecaSelecionada ? (
-                <input
-                  type="text"
-                  disabled
-                  placeholder="Aguardando seleção da peça..."
-                  className="w-full h-10 px-3 bg-slate-50 text-slate-400 text-xs sm:text-sm rounded-xl border border-slate-200 cursor-not-allowed outline-none"
-                />
-              ) : (
-                <SearchableSelect
-                  value={form.posto || ''}
-                  onChange={val => setForm(prev => ({ ...prev, posto: val }))}
-                  placeholder="-- Selecione o Posto de Trabalho --"
-                  searchPlaceholder="Pesquisar posto..."
-                  options={optionsPostos}
-                />
-              )}
-            </div>
+              </div>
+            )}
 
             {/* Área FMDS / Setor Fabril (Autopreenchido com badge verde ou selecionável com busca) */}
-            <div className="flex flex-col gap-1.5 md:col-span-1 lg:col-span-2">
-              <label className="text-xs font-semibold text-slate-700 h-5 flex items-center justify-between">
-                <span>Área FMDS / Setor Fabril</span>
-                {isPecaSelecionada && form.fmds && (
-                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/60 leading-none">
-                    ✓ Autopreenchido
-                  </span>
+            {isFieldVisible('fmds') && (
+              <div className="flex flex-col gap-1.5 md:col-span-1 lg:col-span-2" style={{ order: getFieldOrder('fmds', 140) }}>
+                <label className="text-xs font-semibold text-slate-700 h-5 flex items-center justify-between">
+                  <span>{getFieldLabel('fmds', 'Área FMDS / Setor Fabril')} {isFieldRequired('fmds', false) && <strong className="text-rose-500">*</strong>}</span>
+                  {isPecaSelecionada && form.fmds && (
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/60 leading-none">
+                      ✓ Autopreenchido
+                    </span>
+                  )}
+                </label>
+                {!isPecaSelecionada ? (
+                  <input
+                    type="text"
+                    disabled
+                    placeholder="Aguardando seleção da peça..."
+                    className="w-full h-10 px-3 bg-slate-50 text-slate-400 text-xs sm:text-sm rounded-xl border border-slate-200 cursor-not-allowed outline-none"
+                  />
+                ) : (
+                  <SearchableSelect
+                    value={form.fmds || ''}
+                    onChange={val => setForm(prev => ({ 
+                      ...prev, 
+                      fmds: val,
+                      classificacaoSetor: val 
+                    }))}
+                    placeholder={getFieldPlaceholder('fmds', '-- Selecione a Área FMDS --')}
+                    searchPlaceholder="Pesquisar área FMDS..."
+                    options={optionsFMDS}
+                  />
                 )}
-              </label>
-              {!isPecaSelecionada ? (
-                <input
-                  type="text"
-                  disabled
-                  placeholder="Aguardando seleção da peça..."
-                  className="w-full h-10 px-3 bg-slate-50 text-slate-400 text-xs sm:text-sm rounded-xl border border-slate-200 cursor-not-allowed outline-none"
-                />
-              ) : (
-                <SearchableSelect
-                  value={form.fmds || ''}
-                  onChange={val => setForm(prev => ({ 
-                    ...prev, 
-                    fmds: val,
-                    classificacaoSetor: val 
-                  }))}
-                  placeholder="-- Selecione a Área FMDS --"
-                  searchPlaceholder="Pesquisar área FMDS..."
-                  options={optionsFMDS}
-                />
-              )}
-            </div>
+              </div>
+            )}
+
+            {renderCustomFieldsForSection('secao_2')}
 
             {/* LINHA DE BADGES DE ATRIBUTOS DA PEÇA (CARRY OVER, CO-PRODUTO, SEGURANÇA, REINCIDENTE) - FOTO 1 */}
             <div className="flex flex-wrap items-center gap-3 pt-2.5 md:col-span-2 lg:col-span-3 border-t border-slate-100">
@@ -1678,77 +2019,85 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Classificação / Modo de Falha Padronizado (Choices do SharePoint) */}
-            <div className="flex flex-col gap-1.5 md:col-span-2 lg:col-span-1">
-              <label className="text-xs font-semibold text-slate-700 h-5 flex items-center justify-between">
-                <span>Classificação do Defeito <strong className="text-rose-500">*</strong></span>
-                <span className="text-[10px] text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded font-medium leading-none">
-                  Modo de Falha
+            {isFieldVisible('modoFalha') && (
+              <div className="flex flex-col gap-1.5 md:col-span-2 lg:col-span-1" style={{ order: getFieldOrder('modoFalha', 200) }}>
+                <label className="text-xs font-semibold text-slate-700 h-5 flex items-center justify-between">
+                  <span>{getFieldLabel('modoFalha', 'Classificação do Defeito')} {isFieldRequired('modoFalha', true) && <strong className="text-rose-500">*</strong>}</span>
+                  <span className="text-[10px] text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded font-medium leading-none">
+                    Modo de Falha
+                  </span>
+                </label>
+                <SearchableSelect
+                  value={form.modoFalha || ''}
+                  onChange={novoModo => {
+                    clearFieldError('modoFalha');
+                    setForm(prev => ({ 
+                      ...prev, 
+                      modoFalha: novoModo
+                    }));
+                  }}
+                  placeholder={getFieldPlaceholder('modoFalha', '-- Selecione o Modo de Falha --')}
+                  searchPlaceholder="Pesquisar defeito (ex: Trinca, Solda, Rebarba)..."
+                  error={errors.modoFalha}
+                  options={optionsModosFalha}
+                />
+                {errors.modoFalha && <span className="text-[11px] text-rose-500 font-medium">{errors.modoFalha}</span>}
+                <span className="text-[10px] text-slate-400">
+                  Padrão corporativo de defeitos
                 </span>
-              </label>
-              <SearchableSelect
-                value={form.modoFalha || ''}
-                onChange={novoModo => {
-                  clearFieldError('modoFalha');
-                  setForm(prev => ({ 
-                    ...prev, 
-                    modoFalha: novoModo
-                  }));
-                }}
-                placeholder="-- Selecione o Modo de Falha --"
-                searchPlaceholder="Pesquisar defeito (ex: Trinca, Solda, Rebarba)..."
-                error={errors.modoFalha}
-                options={optionsModosFalha}
-              />
-              {errors.modoFalha && <span className="text-[11px] text-rose-500 font-medium">{errors.modoFalha}</span>}
-              <span className="text-[10px] text-slate-400">
-                Padrão corporativo de defeitos Gestamp
-              </span>
-            </div>
+              </div>
+            )}
 
             {/* Descrição Detalhada do Defeito */}
-            <div className="flex flex-col gap-1.5 md:col-span-2 lg:col-span-2">
-              <label className="text-xs font-semibold text-slate-700 h-5 flex items-center justify-between">
-                <span>Detalhamento Técnico da Não Conformidade <strong className="text-rose-500">*</strong></span>
-                <span className="text-[11px] text-slate-400 font-normal leading-none">
-                  {(form.descricaoProblema || '').length} carac.
-                </span>
-              </label>
-              <textarea
-                rows={3}
-                value={form.descricaoProblema || ''}
-                onChange={e => {
-                  clearFieldError('descricaoProblema');
-                  setForm(prev => ({ ...prev, descricaoProblema: e.target.value }));
-                }}
-                placeholder="Descreva aqui o detalhamento técnico do problema (ex: local exato, dimensões fora da tolerância, número do cordão ou ponto de solda afetado)..."
-                className={`w-full p-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border outline-none transition-all resize-y ${
-                  errors.descricaoProblema ? 'border-rose-500 focus:ring-2 focus:ring-rose-200' : 'border-slate-200 focus:border-[#0b5796] focus:ring-2 focus:ring-[#0b5796]/15'
-                }`}
-              />
-              {errors.descricaoProblema && <span className="text-[11px] text-rose-500 font-medium">{errors.descricaoProblema}</span>}
-            </div>
+            {isFieldVisible('descricaoProblema') && (
+              <div className="flex flex-col gap-1.5 md:col-span-2 lg:col-span-2" style={{ order: getFieldOrder('descricaoProblema', 210) }}>
+                <label className="text-xs font-semibold text-slate-700 h-5 flex items-center justify-between">
+                  <span>{getFieldLabel('descricaoProblema', 'Detalhamento Técnico da Não Conformidade')} {isFieldRequired('descricaoProblema', true) && <strong className="text-rose-500">*</strong>}</span>
+                  <span className="text-[11px] text-slate-400 font-normal leading-none">
+                    {(form.descricaoProblema || '').length} carac.
+                  </span>
+                </label>
+                <textarea
+                  rows={3}
+                  value={form.descricaoProblema || ''}
+                  onChange={e => {
+                    clearFieldError('descricaoProblema');
+                    setForm(prev => ({ ...prev, descricaoProblema: e.target.value }));
+                  }}
+                  placeholder={getFieldPlaceholder('descricaoProblema', 'Descreva aqui o detalhamento técnico do problema (ex: local exato, dimensões fora da tolerância, número do cordão ou ponto de solda afetado)...')}
+                  className={`w-full p-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border outline-none transition-all resize-y ${
+                    errors.descricaoProblema ? 'border-rose-500 focus:ring-2 focus:ring-rose-200' : 'border-slate-200 focus:border-[#0b5796] focus:ring-2 focus:ring-[#0b5796]/15'
+                  }`}
+                />
+                {errors.descricaoProblema && <span className="text-[11px] text-rose-500 font-medium">{errors.descricaoProblema}</span>}
+              </div>
+            )}
 
             {/* Quantidade Afetada */}
-            <div className="flex flex-col gap-1.5 md:col-span-2 lg:col-span-1">
-              <label className="text-xs font-semibold text-slate-700 h-5 flex items-center justify-between">
-                <span>Quantidade Não Conforme <strong className="text-rose-500">*</strong></span>
-              </label>
-              <input
-                type="number"
-                min={1}
-                value={form.quantidadeAfetada ?? ''}
-                onChange={e => {
-                  clearFieldError('quantidadeAfetada');
-                  const val = e.target.value;
-                  setForm(prev => ({ ...prev, quantidadeAfetada: val === '' ? ('' as any) : Math.max(1, parseInt(val) || 1) }));
-                }}
-                placeholder="Ex: 1, 5, 10..."
-                className={`w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border outline-none transition-all ${
-                  errors.quantidadeAfetada ? 'border-rose-500 focus:ring-2 focus:ring-rose-200' : 'border-slate-200 focus:border-[#0b5796] focus:ring-2 focus:ring-[#0b5796]/15'
-                }`}
-              />
-              {errors.quantidadeAfetada && <span className="text-[11px] text-rose-500 font-medium">{errors.quantidadeAfetada}</span>}
-            </div>
+            {isFieldVisible('quantidadeAfetada') && (
+              <div className="flex flex-col gap-1.5 md:col-span-2 lg:col-span-1" style={{ order: getFieldOrder('quantidadeAfetada', 220) }}>
+                <label className="text-xs font-semibold text-slate-700 h-5 flex items-center justify-between">
+                  <span>{getFieldLabel('quantidadeAfetada', 'Quantidade Não Conforme')} {isFieldRequired('quantidadeAfetada', true) && <strong className="text-rose-500">*</strong>}</span>
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  value={form.quantidadeAfetada ?? ''}
+                  onChange={e => {
+                    clearFieldError('quantidadeAfetada');
+                    const val = e.target.value;
+                    setForm(prev => ({ ...prev, quantidadeAfetada: val === '' ? ('' as any) : Math.max(1, parseInt(val) || 1) }));
+                  }}
+                  placeholder={getFieldPlaceholder('quantidadeAfetada', 'Ex: 1, 5, 10...')}
+                  className={`w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border outline-none transition-all ${
+                    errors.quantidadeAfetada ? 'border-rose-500 focus:ring-2 focus:ring-rose-200' : 'border-slate-200 focus:border-[#0b5796] focus:ring-2 focus:ring-[#0b5796]/15'
+                  }`}
+                />
+                {errors.quantidadeAfetada && <span className="text-[11px] text-rose-500 font-medium">{errors.quantidadeAfetada}</span>}
+              </div>
+            )}
+
+            {renderCustomFieldsForSection('secao_3')}
 
             {/* =========================================================================
                 DOCUMENTO PARA RASTREABILIDADE
@@ -1756,12 +2105,13 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                 Se 'Não Informado' => Pede Data Inicial e Data Final para range de contenção
                 Se outro documento => Pede Código/Número do documento
                 ========================================================================= */}
-            <div className="pt-3 border-t border-slate-100 md:col-span-2 lg:col-span-4 grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50/60 p-4 rounded-xl border border-slate-200/80">
+            {isFieldVisible('documentoRastreabilidade') && (
+            <div className="pt-3 border-t border-slate-100 md:col-span-2 lg:col-span-4 grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50/60 p-4 rounded-xl border border-slate-200/80" style={{ order: getFieldOrder('documentoRastreabilidade', 230) }}>
               
               {/* Dropdown de Seleção de Documento */}
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-bold text-slate-800 h-5 flex items-center justify-between">
-                  <span>Documento para rastreabilidade <strong className="text-rose-500">*</strong></span>
+                  <span>{getFieldLabel('documentoRastreabilidade', 'Documento para rastreabilidade')} {isFieldRequired('documentoRastreabilidade', true) && <strong className="text-rose-500">*</strong>}</span>
                 </label>
                 <SearchableSelect
                   value={form.documentoRastreabilidade || 'Não Informado'}
@@ -1772,11 +2122,10 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                     clearFieldError('dataFimRastreabilidade');
                     setForm(prev => ({
                       ...prev,
-                      documentoRastreabilidade: novoDoc,
-                      protcliente: novoDoc !== 'Não Informado' ? 'Sim' : 'Não'
+                      documentoRastreabilidade: novoDoc
                     }));
                   }}
-                  placeholder="Selecione o documento..."
+                  placeholder={getFieldPlaceholder('documentoRastreabilidade', 'Selecione o documento...')}
                   searchPlaceholder="Pesquisar documento..."
                   options={optionsDocumentoRastreabilidade}
                 />
@@ -1846,8 +2195,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                       clearFieldError('codigoRastreabilidade');
                       setForm(prev => ({ 
                         ...prev, 
-                        codigoRastreabilidade: e.target.value,
-                        protcliente: 'Sim'
+                        codigoRastreabilidade: e.target.value
                       }));
                     }}
                     placeholder={
@@ -1865,6 +2213,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                 </div>
               )}
             </div>
+            )}
 
             {/* SELEÇÃO RÁPIDA: Sugestão de defeitos anteriores desta peça antes de selecionar o modo de falha */}
             {isPecaSelecionada && !form.modoFalha && defeitosHistoricoPeca.length > 0 && (
@@ -1958,7 +2307,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                             ? 'bg-amber-50 text-amber-900 border-amber-200' 
                             : 'bg-blue-50 text-blue-800 border-blue-200'
                         }`}>
-                          {item.protcliente === 'Sim' ? 'Proteção ao cliente' : (item.status || 'Em Andamento')}
+                          {item.status || 'Em Andamento'}
                         </span>
 
                         <button
@@ -2015,11 +2364,12 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
           </div>
 
           {/* Foto Peça NG (Não Conforme) */}
-          <div className="flex flex-col gap-2 p-4 rounded-xl border border-rose-200/80 bg-rose-50/20">
+          {isFieldVisible('fotoPecaNg') && (
+          <div className="flex flex-col gap-2 p-4 rounded-xl border border-rose-200/80 bg-rose-50/20" style={{ order: getFieldOrder('fotoPecaNg', 300) }}>
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-rose-800 flex items-center gap-1.5">
                 <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
-                Evidência da Peça Defeituosa (NG)
+                {getFieldLabel('fotoPecaNg', 'Evidência da Peça Defeituosa (NG)')} {isFieldRequired('fotoPecaNg', false) && <strong className="text-rose-500">*</strong>}
               </span>
               {form.fotoPecaNg && (
                 <button
@@ -2085,6 +2435,11 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
               className="hidden"
               onChange={e => handleFileUpload(e, 'fotoPecaNg')}
             />
+          </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {renderCustomFieldsForSection('secao_4')}
           </div>
         </div>
 
@@ -2152,12 +2507,13 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
             <div className="p-3.5 sm:p-5 flex flex-col gap-3.5 sm:gap-5 bg-white">
               
               {/* ITEM: FOTO DA PEÇA OK (PADRÃO DE REFERÊNCIA) - CARD 30 */}
-              <div className="flex flex-col gap-2 p-3 sm:p-4 rounded-xl border border-emerald-200/80 bg-emerald-50/20">
+              {isFieldVisible('fotoPecaOk') && (
+              <div className="flex flex-col gap-2 p-3 sm:p-4 rounded-xl border border-emerald-200/80 bg-emerald-50/20" style={{ order: getFieldOrder('fotoPecaOk', 400) }}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-emerald-800 flex items-center gap-1.5">
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                      Foto da Peça OK (Padrão de Referência / Aceitável)
+                      {getFieldLabel('fotoPecaOk', 'Foto da Peça OK (Padrão de Referência / Aceitável)')}
                     </span>
                     <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full">
                       Padrão de Conformidade
@@ -2267,11 +2623,13 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                   </div>
                 </div>
               </div>
+              )}
               
               {/* ITEM 1: DESCRIÇÃO DO PROBLEMA (INTERNO) - CARD 36 / field_17 */}
-              <div className="flex flex-col gap-1.5">
+              {isFieldVisible('descricaoProblemaInterno') && (
+              <div className="flex flex-col gap-1.5" style={{ order: getFieldOrder('descricaoProblemaInterno', 410) }}>
                 <label className="text-xs font-bold text-slate-800 flex items-center justify-between">
-                  <span>* Descrição do problema (interno):</span>
+                  <span>{getFieldLabel('descricaoProblemaInterno', '* Descrição do problema (interno):')}</span>
                 </label>
                 <textarea
                   rows={2}
@@ -2280,21 +2638,23 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                     ...prev, 
                     descricaoProblemaInterno: e.target.value
                   }))}
-                  placeholder="Descreva o problema sob a ótica interna de processo/fabricação..."
+                  placeholder={getFieldPlaceholder('descricaoProblemaInterno', 'Descreva o problema sob a ótica interna de processo/fabricação...')}
                   className="w-full p-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border border-slate-200 focus:border-[#0b5796] focus:ring-2 focus:ring-[#0b5796]/15 outline-none transition-all resize-y"
                 />
               </div>
+              )}
 
               {/* ITEM 2: AÇÕES DE CONTENÇÃO - CARD 37 / A_x00e7__x00f5_es_x0020_de_x0020 */}
-              <div className="flex flex-col gap-2 p-3 sm:p-3.5 bg-slate-50/60 rounded-xl border border-slate-200/80">
+              {isFieldVisible('acoesContencao') && (
+              <div className="flex flex-col gap-2 p-3 sm:p-3.5 bg-slate-50/60 rounded-xl border border-slate-200/80" style={{ order: getFieldOrder('acoesContencao', 420) }}>
                 <label className="text-xs font-bold text-slate-800 flex items-center justify-between">
-                  <span>* Ações de contenção:</span>
+                  <span>{getFieldLabel('acoesContencao', '* Ações de contenção:')}</span>
                   <span className="text-[10px] text-slate-500 font-normal">Escolha Múltipla</span>
                 </label>
                 
-                {/* Botões / Chips de Escolha Múltipla */}
+                {/* Botões / Chips de Escolha Múltipla (dinâmicos da lista do admin) */}
                 <div className="flex flex-wrap gap-2">
-                  {ACOES_CONTENCAO_LIST.map(acao => {
+                  {acoesContencaoDynamicList.map(acao => {
                     const isSelected = (form.acoesContencao || '').includes(acao);
                     return (
                       <button
@@ -2324,30 +2684,34 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                   type="text"
                   value={form.acoesContencao || ''}
                   onChange={e => setForm(prev => ({ ...prev, acoesContencao: e.target.value }))}
-                  placeholder="Ou digite detalhes complementares das ações de contenção..."
+                  placeholder={getFieldPlaceholder('acoesContencao', 'Ou digite detalhes complementares das ações de contenção...')}
                   className="w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border border-slate-200 focus:border-[#0b5796] outline-none"
                 />
               </div>
+              )}
 
               {/* ITEM 3: RECOMENDAÇÕES / PROVIDÊNCIAS - CARD 38 / Recomenda_x00e7__x00f5_es_x0020_ */}
-              <div className="flex flex-col gap-1.5">
+              {isFieldVisible('recomendacoesProvidencias') && (
+              <div className="flex flex-col gap-1.5" style={{ order: getFieldOrder('recomendacoesProvidencias', 430) }}>
                 <label className="text-xs font-bold text-slate-800 flex items-center justify-between">
-                  <span>* Recomendações / Providências:</span>
+                  <span>{getFieldLabel('recomendacoesProvidencias', '* Recomendações / Providências:')}</span>
                   <span className="text-[10px] text-slate-500 font-normal">Providências Imediatas</span>
                 </label>
                 <textarea
                   rows={3}
                   value={form.recomendacoesProvidencias || ''}
                   onChange={e => setForm(prev => ({ ...prev, recomendacoesProvidencias: e.target.value }))}
-                  placeholder="Informe recomendações e providências adotadas pela equipe para proteger o cliente e processo..."
+                  placeholder={getFieldPlaceholder('recomendacoesProvidencias', 'Informe recomendações e providências adotadas pela equipe para proteger o cliente e processo...')}
                   className="w-full p-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border border-slate-200 focus:border-[#0b5796] focus:ring-2 focus:ring-[#0b5796]/15 outline-none transition-all resize-y"
                 />
               </div>
+              )}
 
               {/* TRIAGEM E QUANTIDADES BLOQUEADAS */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 pt-2 border-t border-slate-100">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-slate-700 h-5 flex items-center">Gravidade do Defeito</label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 pt-2 border-t border-slate-100" style={{ order: 435 }}>
+                {isFieldVisible('gravidade') && (
+                <div className="flex flex-col gap-1.5" style={{ order: getFieldOrder('gravidade', 440) }}>
+                  <label className="text-xs font-semibold text-slate-700 h-5 flex items-center">{getFieldLabel('gravidade', 'Gravidade do Defeito')}</label>
                   <SearchableSelect
                     value={form.gravidade || 'Média'}
                     onChange={val => setForm(prev => ({ ...prev, gravidade: val }))}
@@ -2355,9 +2719,11 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                     options={optionsGravidade}
                   />
                 </div>
+                )}
 
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-slate-700 h-5 flex items-center">Detecção no Processo?</label>
+                {isFieldVisible('possivelDetectar') && (
+                <div className="flex flex-col gap-1.5" style={{ order: getFieldOrder('possivelDetectar', 450) }}>
+                  <label className="text-xs font-semibold text-slate-700 h-5 flex items-center">{getFieldLabel('possivelDetectar', 'Detecção no Processo?')}</label>
                   <SearchableSelect
                     value={form.possivelDetectar || 'Sim'}
                     onChange={val => setForm(prev => ({ ...prev, possivelDetectar: val }))}
@@ -2365,9 +2731,11 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                     options={optionsPossivelDetectar}
                   />
                 </div>
+                )}
 
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-slate-700 h-5 flex items-center">Qtd Inspecionada</label>
+                {isFieldVisible('qtdInspecionada') && (
+                <div className="flex flex-col gap-1.5" style={{ order: getFieldOrder('qtdInspecionada', 460) }}>
+                  <label className="text-xs font-semibold text-slate-700 h-5 flex items-center">{getFieldLabel('qtdInspecionada', 'Qtd Inspecionada')}</label>
                   <input
                     type="number"
                     value={form.qtdInspecionada || 0}
@@ -2375,9 +2743,11 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                     className="w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border border-slate-200 outline-none"
                   />
                 </div>
+                )}
 
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-slate-700 h-5 flex items-center">Qtd Suspeita</label>
+                {isFieldVisible('qtdSuspeita') && (
+                <div className="flex flex-col gap-1.5" style={{ order: getFieldOrder('qtdSuspeita', 470) }}>
+                  <label className="text-xs font-semibold text-slate-700 h-5 flex items-center">{getFieldLabel('qtdSuspeita', 'Qtd Suspeita')}</label>
                   <input
                     type="number"
                     value={form.qtdSuspeita || 0}
@@ -2385,9 +2755,11 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                     className="w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border border-slate-200 outline-none"
                   />
                 </div>
+                )}
 
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-slate-700 h-5 flex items-center">Qtd Bloqueada</label>
+                {isFieldVisible('qtdBloqueada') && (
+                <div className="flex flex-col gap-1.5" style={{ order: getFieldOrder('qtdBloqueada', 480) }}>
+                  <label className="text-xs font-semibold text-slate-700 h-5 flex items-center">{getFieldLabel('qtdBloqueada', 'Qtd Bloqueada')}</label>
                   <input
                     type="number"
                     value={form.qtdBloqueada || 0}
@@ -2395,10 +2767,11 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                     className="w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border border-slate-200 outline-none"
                   />
                 </div>
+                )}
               </div>
 
               {/* 5W2H - PLANO DE AÇÃO IMEDIATO */}
-              <div className="p-3 sm:p-4 bg-indigo-50/40 rounded-xl border border-indigo-200/70 flex flex-col gap-3.5">
+              <div className="p-3 sm:p-4 bg-indigo-50/40 rounded-xl border border-indigo-200/70 flex flex-col gap-3.5" style={{ order: 485 }}>
                 <div className="flex items-center justify-between pb-2 border-b border-indigo-200/60">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-indigo-950 uppercase tracking-wide">
@@ -2409,44 +2782,51 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
                   {/* ITEM 4: O QUE FAZER? */}
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-800 h-5 flex items-center">* O que fazer?</label>
+                  {isFieldVisible('oQueFazer') && (
+                  <div className="flex flex-col gap-1.5" style={{ order: getFieldOrder('oQueFazer', 490) }}>
+                    <label className="text-xs font-bold text-slate-800 h-5 flex items-center">* {getFieldLabel('oQueFazer', 'O que fazer?')}</label>
                     <textarea
                       rows={3}
                       value={form.oQueFazer || ''}
                       onChange={e => setForm(prev => ({ ...prev, oQueFazer: e.target.value }))}
-                      placeholder="Ex: Realizar contenção antes de colocar na embalagem..."
+                      placeholder={getFieldPlaceholder('oQueFazer', 'Ex: Realizar contenção antes de colocar na embalagem...')}
                       className="w-full p-2.5 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border border-slate-200 focus:border-[#0b5796] focus:ring-2 focus:ring-[#0b5796]/15 outline-none transition-all resize-y"
                     />
                   </div>
+                  )}
 
                   {/* ITEM 5: COMO FAZER */}
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-800 h-5 flex items-center">* Como fazer</label>
+                  {isFieldVisible('comoFazer') && (
+                  <div className="flex flex-col gap-1.5" style={{ order: getFieldOrder('comoFazer', 500) }}>
+                    <label className="text-xs font-bold text-slate-800 h-5 flex items-center">* {getFieldLabel('comoFazer', 'Como fazer')}</label>
                     <textarea
                       rows={3}
                       value={form.comoFazer || ''}
                       onChange={e => setForm(prev => ({ ...prev, comoFazer: e.target.value }))}
-                      placeholder="Ex: Inspecionar isento de amassado..."
+                      placeholder={getFieldPlaceholder('comoFazer', 'Ex: Inspecionar isento de amassado...')}
                       className="w-full p-2.5 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border border-slate-200 focus:border-[#0b5796] focus:ring-2 focus:ring-[#0b5796]/15 outline-none transition-all resize-y"
                     />
                   </div>
+                  )}
 
                   {/* ITEM 6: PORQUE FAZER? */}
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-800 h-5 flex items-center">* Porque fazer?</label>
+                  {isFieldVisible('porQueFazer') && (
+                  <div className="flex flex-col gap-1.5" style={{ order: getFieldOrder('porQueFazer', 510) }}>
+                    <label className="text-xs font-bold text-slate-800 h-5 flex items-center">* {getFieldLabel('porQueFazer', 'Porque fazer?')}</label>
                     <textarea
                       rows={3}
                       value={form.porQueFazer || ''}
                       onChange={e => setForm(prev => ({ ...prev, porQueFazer: e.target.value }))}
-                      placeholder="Ex: Para garantir que na próxima operação peças estejam OK..."
+                      placeholder={getFieldPlaceholder('porQueFazer', 'Ex: Para garantir que na próxima operação peças estejam OK...')}
                       className="w-full p-2.5 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border border-slate-200 focus:border-[#0b5796] focus:ring-2 focus:ring-[#0b5796]/15 outline-none transition-all resize-y"
                     />
                   </div>
+                  )}
 
                   {/* ITEM 7: QUANDO FAZER? */}
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-800 h-5 flex items-center">* Quando fazer?</label>
+                  {isFieldVisible('quandoFara') && (
+                  <div className="flex flex-col gap-1.5" style={{ order: getFieldOrder('quandoFara', 520) }}>
+                    <label className="text-xs font-bold text-slate-800 h-5 flex items-center">* {getFieldLabel('quandoFara', 'Quando fazer?')}</label>
                     <input
                       type="date"
                       value={form.quandoFara || ''}
@@ -2454,41 +2834,47 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                       className="w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border border-slate-200 focus:border-[#0b5796] outline-none"
                     />
                   </div>
+                  )}
 
                   {/* ITEM 8: ONDE FAZER? */}
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-800 h-5 flex items-center">* Onde fazer?</label>
+                  {isFieldVisible('ondeFara') && (
+                  <div className="flex flex-col gap-1.5" style={{ order: getFieldOrder('ondeFara', 530) }}>
+                    <label className="text-xs font-bold text-slate-800 h-5 flex items-center">* {getFieldLabel('ondeFara', 'Onde fazer?')}</label>
                     <input
                       type="text"
                       value={form.ondeFara || ''}
                       onChange={e => setForm(prev => ({ ...prev, ondeFara: e.target.value }))}
-                      placeholder="Ex: Linha 3 / Posto de inspeção..."
+                      placeholder={getFieldPlaceholder('ondeFara', 'Ex: Linha 3 / Posto de inspeção...')}
                       className="w-full h-10 px-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border border-slate-200 focus:border-[#0b5796] outline-none"
                     />
                   </div>
+                  )}
 
                   {/* ITEM 9: EQUIPE RESPONSÁVEL PELO 8D */}
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-bold text-slate-800 h-5 flex items-center">* Equipe responsável pelo 8D</label>
+                  {isFieldVisible('quemFara') && (
+                  <div className="flex flex-col gap-1.5" style={{ order: getFieldOrder('quemFara', 540) }}>
+                    <label className="text-xs font-bold text-slate-800 h-5 flex items-center">* {getFieldLabel('quemFara', 'Equipe responsável pelo 8D')}</label>
                     <SearchableSelect
                       value={form.quemFara || ''}
                       onChange={val => setForm(prev => ({ ...prev, quemFara: val }))}
-                      placeholder="Selecione o responsável..."
+                      placeholder={getFieldPlaceholder('quemFara', 'Selecione o responsável...')}
                       searchPlaceholder="Pesquisar colaborador da base de ativos..."
                       options={optionsEquipe8D}
                     />
                   </div>
+                  )}
                 </div>
               </div>
 
               {/* ITENS 10, 11 E 12: FOTO AUXILIAR, DATA FINAL DE CONTENÇÃO E ABRIR 8D */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 border-t border-slate-100">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 border-t border-slate-100" style={{ order: 545 }}>
                 {/* ITEM 10: FOTO AUXILIAR RETRABALHO / SELEÇÃO (CARD 46) */}
-                <div className="flex flex-col gap-1.5">
+                {isFieldVisible('fotoAuxiliar') && (
+                <div className="flex flex-col gap-1.5" style={{ order: getFieldOrder('fotoAuxiliar', 550) }}>
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                       <Camera className="w-3.5 h-3.5 text-slate-500" />
-                      <span>Foto auxiliar Retrabalho / Seleção:</span>
+                      <span>{getFieldLabel('fotoAuxiliar', 'Foto auxiliar Retrabalho / Seleção:')}</span>
                     </label>
                     {form.fotoAuxiliar && (
                       <button
@@ -2541,11 +2927,13 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                     onChange={e => handleFileUpload(e, 'fotoAuxiliar')}
                   />
                 </div>
+                )}
 
                 {/* ITEM 11: DATA FINAL DE CONTENÇÃO */}
-                <div className="flex flex-col gap-1.5">
+                {isFieldVisible('dataContencao') && (
+                <div className="flex flex-col gap-1.5" style={{ order: getFieldOrder('dataContencao', 560) }}>
                   <label className="text-xs font-bold text-slate-800 flex items-center justify-between">
-                    <span>* Data Final de Contenção</span>
+                    <span>* {getFieldLabel('dataContencao', 'Data Final de Contenção')}</span>
                   </label>
                   <input
                     type="date"
@@ -2555,11 +2943,13 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                   />
                   <span className="text-[10px] text-slate-400">Prazo final estipulado para a contenção</span>
                 </div>
+                )}
 
                 {/* ITEM 12: ABRIR 8D */}
-                <div className="flex flex-col gap-1.5">
+                {isFieldVisible('abrir8D') && (
+                <div className="flex flex-col gap-1.5" style={{ order: getFieldOrder('abrir8D', 570) }}>
                   <label className="text-xs font-bold text-slate-800 flex items-center justify-between">
-                    <span>Abrir 8D</span>
+                    <span>{getFieldLabel('abrir8D', 'Abrir 8D')}</span>
                   </label>
                   <SearchableSelect
                     value={form.abrir8D || 'Sim'}
@@ -2569,6 +2959,12 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                   />
                   <span className="text-[10px] text-slate-400">Define se gera relatório 8D oficial</span>
                 </div>
+                )}
+              </div>
+
+              {/* CAMPOS PERSONALIZADOS DA SEÇÃO 5 */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" style={{ order: 999 }}>
+                {renderCustomFieldsForSection('secao_5')}
               </div>
 
             </div>

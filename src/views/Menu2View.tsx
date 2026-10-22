@@ -1,9 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { 
   ClipboardList, 
-  ShieldCheck, 
   Users, 
-  Truck, 
   ArrowRight, 
   CheckCircle2, 
   Clock, 
@@ -53,18 +51,16 @@ export const Menu2View: React.FC<Menu2ViewProps> = ({
   const [selectedClient, setSelectedClient] = useState<string | null>(null);
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
   const [selectedTipoRnc, setSelectedTipoRnc] = useState<string | null>(null);
-  const [selectedProtCli, setSelectedProtCli] = useState<boolean | null>(null);
   const [selectedDefeito, setSelectedDefeito] = useState<string | null>(null);
 
   const hasActiveFilters = Boolean(
-    selectedClient || selectedStatus || selectedTipoRnc || selectedProtCli || selectedDefeito
+    selectedClient || selectedStatus || selectedTipoRnc || selectedDefeito
   );
 
   const clearAllFilters = () => {
     setSelectedClient(null);
     setSelectedStatus(null);
     setSelectedTipoRnc(null);
-    setSelectedProtCli(null);
     setSelectedDefeito(null);
   };
 
@@ -72,7 +68,7 @@ export const Menu2View: React.FC<Menu2ViewProps> = ({
     onNavigate('lista-8d', {
       cliente: selectedClient || undefined,
       status: selectedStatus || undefined,
-      tipo: selectedTipoRnc || (selectedProtCli ? 'protcliente' : undefined),
+      tipo: selectedTipoRnc || undefined,
       search: selectedDefeito || undefined
     });
   };
@@ -85,17 +81,12 @@ export const Menu2View: React.FC<Menu2ViewProps> = ({
         if (c !== selectedClient.toUpperCase()) return false;
       }
       if (selectedStatus) {
-        if (selectedStatus === 'Proteção ao cliente') {
-          if (!r.protcliente || r.protcliente === 'Não') return false;
-        } else if (r.status !== selectedStatus) {
+        if (r.status !== selectedStatus) {
           return false;
         }
       }
       if (selectedTipoRnc) {
         if (r.tipoRnc !== selectedTipoRnc) return false;
-      }
-      if (selectedProtCli) {
-        if (!r.protcliente || r.protcliente === 'Não') return false;
       }
       if (selectedDefeito) {
         const rawDesc = (r.descricaoProblema || '').toLowerCase();
@@ -105,13 +96,12 @@ export const Menu2View: React.FC<Menu2ViewProps> = ({
       }
       return true;
     });
-  }, [allRncs, selectedClient, selectedStatus, selectedTipoRnc, selectedProtCli, selectedDefeito]);
+  }, [allRncs, selectedClient, selectedStatus, selectedTipoRnc, selectedDefeito]);
 
   // Cálculo de alta performance de todas as métricas gerenciais e cruzadas
   const metrics = useMemo(() => {
     let open = 0;
     let concluido = 0;
-    let prot = 0;
     let reprovado = 0;
     let totalPecas = 0;
 
@@ -119,16 +109,11 @@ export const Menu2View: React.FC<Menu2ViewProps> = ({
     let tipoFormal = 0;
     let tipoInformal = 0;
     let tipoInterno = 0;
-    let tipoProtCliente = 0;
 
-    // Status conforme sequência oficial da Imagem 7 do usuário
+    // Status
     let statusRelatorioInicial = 0;
     let statusRncEmitida = 0;
     let statusEmAndamento = 0;
-
-    // Avaliações de Proteção ao Cliente
-    let protPendentes = 0;
-    let protAprovados = 0;
 
     const defectCounts: Record<string, { count: number; pecas: number }> = {};
 
@@ -153,14 +138,6 @@ export const Menu2View: React.FC<Menu2ViewProps> = ({
         reprovado++;
       }
 
-      // Proteção ao Cliente
-      if (r.protcliente && r.protcliente !== 'Não') {
-        prot++;
-        tipoProtCliente++;
-        if (r.protcliente === 'Sim') protPendentes++;
-        if (r.protcliente === 'Aprovado' || r.protcliente === 'Registro Pago') protAprovados++;
-      }
-
       // Tipos de RNC
       if (r.tipoRnc === 'Formal') tipoFormal++;
       else if (r.tipoRnc === 'Informal') tipoInformal++;
@@ -177,17 +154,10 @@ export const Menu2View: React.FC<Menu2ViewProps> = ({
 
     // Base de montadoras: computada respeitando os filtros (exceto o próprio cliente se estiver alternando)
     const clientCounts: Record<string, { count: number; pecas: number }> = {};
-    const montadoraBase = (selectedStatus || selectedTipoRnc || selectedProtCli || selectedDefeito)
+    const montadoraBase = (selectedStatus || selectedTipoRnc || selectedDefeito)
       ? allRncs.filter(r => {
-          if (selectedStatus) {
-            if (selectedStatus === 'Proteção ao cliente') {
-              if (!r.protcliente || r.protcliente === 'Não') return false;
-            } else if (r.status !== selectedStatus) {
-              return false;
-            }
-          }
+          if (selectedStatus && r.status !== selectedStatus) return false;
           if (selectedTipoRnc && r.tipoRnc !== selectedTipoRnc) return false;
-          if (selectedProtCli && (!r.protcliente || r.protcliente === 'Não')) return false;
           if (selectedDefeito) {
             const rawDesc = (r.descricaoProblema || '').toLowerCase();
             const rawModo = (r.modoFalha || '').toLowerCase();
@@ -207,7 +177,7 @@ export const Menu2View: React.FC<Menu2ViewProps> = ({
       clientCounts[c].pecas += pecas;
     }
 
-    // TODAS as montadoras (Imagem 5: não limita a Top 5, mostra todas com scroll)
+    // TODAS as montadoras (mostra todas com scroll)
     const allClients = Object.entries(clientCounts)
       .sort((a, b) => b[1].count - a[1].count)
       .map(([name, data]) => ({
@@ -228,29 +198,23 @@ export const Menu2View: React.FC<Menu2ViewProps> = ({
       }));
 
     const taxaResolucao = filteredRncs.length > 0 ? Math.round((concluido / filteredRncs.length) * 100) : 0;
-    const taxaRetencaoProt = prot > 0 ? Math.round((protAprovados / prot) * 100) : 100;
 
     return {
       openCount: open,
       concluidoCount: concluido,
       reprovadoCount: reprovado,
-      protCliCount: prot,
-      protPendentes,
-      protAprovados,
       totalPecas,
       taxaResolucao,
-      taxaRetencaoProt,
       tipoFormal,
       tipoInformal,
       tipoInterno,
-      tipoProtCliente,
       statusRelatorioInicial,
       statusRncEmitida,
       statusEmAndamento,
       allClients,
       topDefects
     };
-  }, [allRncs, filteredRncs, selectedStatus, selectedTipoRnc, selectedProtCli, selectedDefeito]);
+  }, [allRncs, filteredRncs, selectedStatus, selectedTipoRnc, selectedDefeito]);
 
   const getClientBadge = (cliente: string) => {
     return getClientBadgeInfo(cliente);
@@ -352,20 +316,6 @@ export const Menu2View: React.FC<Menu2ViewProps> = ({
                 </button>
               </span>
             )}
-            {selectedProtCli && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-white text-emerald-900 border border-emerald-200 shadow-2xs">
-                <strong>Proteção ao Cliente</strong>
-                <button
-                  type="button"
-                  onClick={() => setSelectedProtCli(null)}
-                  title="Remover filtro de proteção ao cliente"
-                  aria-label="Remover filtro de proteção ao cliente"
-                  className="p-0.5 rounded hover:bg-emerald-100 text-slate-400 hover:text-rose-600 transition"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </span>
-            )}
             {selectedDefeito && (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-white text-rose-900 border border-rose-200 shadow-2xs">
                 Defeito: <strong>{selectedDefeito}</strong>
@@ -458,36 +408,30 @@ export const Menu2View: React.FC<Menu2ViewProps> = ({
           </div>
         </div>
 
-        {/* Card 3: Proteção ao Cliente (VERDE, Destaque Chão de Fábrica - NOME OFICIAL PADRONIZADO) */}
+        {/* Card 3: Relatório Inicial / Triagem */}
         <div
-          onClick={() => setSelectedProtCli(prev => prev ? null : true)}
-          className={`card-saas card-saas-hover cursor-pointer flex flex-col justify-between group relative overflow-hidden transition-all border-emerald-200/80 ${
-            selectedProtCli
-              ? 'ring-2 ring-emerald-600 bg-emerald-50 shadow-md scale-[1.01]'
-              : 'bg-gradient-to-b from-white to-emerald-50/20'
+          onClick={() => setSelectedStatus(prev => prev === 'Relatório Inicial' ? null : 'Relatório Inicial')}
+          className={`card-saas card-saas-hover cursor-pointer flex flex-col justify-between group relative overflow-hidden transition-all border-indigo-200/80 ${
+            selectedStatus === 'Relatório Inicial'
+              ? 'ring-2 ring-indigo-600 bg-indigo-50 shadow-md scale-[1.01]'
+              : 'bg-gradient-to-b from-white to-indigo-50/20'
           }`}
-          title="Clique para filtrar apenas registros do programa Proteção ao Cliente"
+          title="Clique para filtrar ocorrências em Relatório Inicial"
         >
-          <div className="absolute top-0 right-0 w-28 h-28 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none" />
+          <div className="absolute top-0 right-0 w-28 h-28 bg-indigo-500/5 rounded-full blur-2xl pointer-events-none" />
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-emerald-950">Proteção ao Cliente</span>
-            <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center border border-emerald-200 group-hover:scale-105 group-hover:bg-emerald-600 group-hover:text-white transition-all shadow-xs">
-              <ShieldCheck className="w-4 h-4" />
+            <span className="text-xs font-semibold text-indigo-950">Relatório Inicial</span>
+            <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center border border-indigo-200 group-hover:scale-105 group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-xs">
+              <FileText className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-3xl sm:text-4xl font-display font-extrabold text-emerald-950 font-mono my-2.5 tracking-tight tabular-nums">
-            {metrics.protCliCount.toLocaleString('pt-BR')}
+          <div className="text-3xl sm:text-4xl font-display font-extrabold text-indigo-950 font-mono my-2.5 tracking-tight tabular-nums">
+            {metrics.statusRelatorioInicial.toLocaleString('pt-BR')}
           </div>
-          <div className="text-xs text-emerald-800 flex items-center justify-between pt-2 border-t border-emerald-100/80">
-            <span>
-              {metrics.protPendentes > 0 ? (
-                <strong className="text-amber-700">{metrics.protPendentes} aguardando avaliação</strong>
-              ) : (
-                'Detecções de proteção na fábrica'
-              )}
-            </span>
-            <span className="text-[11px] text-emerald-700 font-semibold flex items-center gap-0.5">
-              {selectedProtCli ? 'Selecionado' : 'Filtrar'}
+          <div className="text-xs text-indigo-800 flex items-center justify-between pt-2 border-t border-indigo-100/80">
+            <span>Aguardando triagem inicial</span>
+            <span className="text-[11px] text-indigo-700 font-semibold flex items-center gap-0.5">
+              {selectedStatus === 'Relatório Inicial' ? 'Selecionado' : 'Filtrar'}
               <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-all" />
             </span>
           </div>
@@ -538,7 +482,7 @@ export const Menu2View: React.FC<Menu2ViewProps> = ({
           <span className="text-xs text-[#94a3b8]">Ações diretas do sistema</span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           
           {/* Módulo 1 */}
           <div
@@ -558,43 +502,7 @@ export const Menu2View: React.FC<Menu2ViewProps> = ({
             </div>
           </div>
 
-          {/* Módulo 2: Proteção ao Cliente (VERDE - NOME PADRONIZADO) */}
-          <div
-            onClick={() => onNavigate('registro-protcli')}
-            className="card-saas card-saas-hover cursor-pointer flex items-start gap-3.5 p-4 group border-emerald-100"
-          >
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0 border border-emerald-200 group-hover:bg-emerald-700 group-hover:text-white transition-all shadow-xs">
-              <ShieldCheck className="w-5 h-5" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-display font-bold text-[#0f172a] group-hover:text-emerald-700 transition-colors truncate">
-                Lançamento Proteção ao Cliente
-              </div>
-              <div className="text-xs text-[#64748b] mt-0.5 line-clamp-2 leading-relaxed">
-                Apontamento de contenção e rastreabilidade SAP para proteção ao cliente.
-              </div>
-            </div>
-          </div>
-
-          {/* Módulo 3 */}
-          <div
-            onClick={() => onNavigate('falha-entrega')}
-            className="card-saas card-saas-hover cursor-pointer flex items-start gap-3.5 p-4 group"
-          >
-            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center shrink-0 border border-amber-100 group-hover:bg-amber-700 group-hover:text-white transition-all shadow-xs">
-              <Truck className="w-5 h-5" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-display font-bold text-[#0f172a] group-hover:text-amber-700 transition-colors truncate">
-                Falhas de entrega
-              </div>
-              <div className="text-xs text-[#64748b] mt-0.5 line-clamp-2 leading-relaxed">
-                Registro e contenção de divergências logísticas de expedição.
-              </div>
-            </div>
-          </div>
-
-          {/* Módulo 4 */}
+          {/* Módulo 2 */}
           <div
             onClick={() => onNavigate('cadastro-usuarios')}
             className="card-saas card-saas-hover cursor-pointer flex items-start gap-3.5 p-4 group"
@@ -755,7 +663,7 @@ export const Menu2View: React.FC<Menu2ViewProps> = ({
                     Origem das Ocorrências
                   </h2>
                   <p className="text-xs text-[#64748b]">
-                    Cliente vs Internas vs Proteção
+                    Cliente (Formal e Informal) vs Internas
                   </p>
                 </div>
               </div>
@@ -842,32 +750,6 @@ export const Menu2View: React.FC<Menu2ViewProps> = ({
                 </div>
               </div>
 
-              {/* Proteção ao Cliente (VERDE - NOME PADRONIZADO) */}
-              <div 
-                onClick={() => setSelectedProtCli(prev => prev ? null : true)}
-                className={`p-3 rounded-xl border transition cursor-pointer flex items-center justify-between ${
-                  selectedProtCli
-                    ? 'bg-emerald-100/90 border-emerald-500 ring-2 ring-emerald-400'
-                    : 'bg-emerald-50/70 border-emerald-200 hover:bg-emerald-50'
-                }`}
-              >
-                <div className="flex items-center gap-2.5">
-                  <ShieldCheck className="w-4 h-4 text-emerald-700" />
-                  <div>
-                    <span className="font-bold text-xs text-emerald-950 block">Proteção ao Cliente</span>
-                    <span className="text-[11px] text-emerald-800">Detecções de proteção na fábrica</span>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <span className="font-bold font-mono text-sm text-emerald-950 block tabular-nums">
-                    {metrics.protCliCount}
-                  </span>
-                  <span className="text-[10px] text-emerald-700 font-semibold">
-                    {filteredRncs.length > 0 ? Math.round((metrics.protCliCount / filteredRncs.length) * 100) : 0}%
-                  </span>
-                </div>
-              </div>
-
             </div>
           </div>
 
@@ -911,35 +793,12 @@ export const Menu2View: React.FC<Menu2ViewProps> = ({
               )}
             </div>
 
-            {/* Grid dos 5 Status na Sequência Exata da Imagem 7:
-                1. Proteção ao cliente
-                2. Relatório Inicial
-                3. RNC Emitida
-                4. Em Andamento
-                5. Concluído */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 pt-4">
-              
-              {/* 1. Proteção ao cliente (Primeiro item da Foto 7) */}
-              <div 
-                onClick={() => setSelectedProtCli(prev => prev ? null : true)}
-                className={`p-3 rounded-xl border flex flex-col justify-between cursor-pointer transition ${
-                  selectedProtCli
-                    ? 'bg-emerald-100/80 border-emerald-500 ring-2 ring-emerald-400 shadow-xs'
-                    : 'bg-emerald-50/70 border-emerald-200 hover:bg-emerald-100/50'
-                }`}
-                title="Clique para filtrar Proteção ao Cliente"
-              >
-                <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 block">Proteção</span>
-                  <span className="text-xs font-bold text-emerald-950 block mt-0.5">Proteção ao cliente</span>
-                </div>
-                <div className="mt-2.5">
-                  <span className="text-lg sm:text-xl font-mono font-extrabold text-emerald-950 block tabular-nums">
-                    {metrics.protCliCount}
-                  </span>
-                  <span className="text-[10px] text-emerald-700">Ações preventivas</span>
-                </div>
-              </div>
+            {/* Grid dos 4 Status:
+                1. Relatório Inicial
+                2. RNC Emitida
+                3. Em Andamento
+                4. Concluído */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-4">
 
               {/* 2. Relatório Inicial (Segundo item da Foto 7) */}
               <div 

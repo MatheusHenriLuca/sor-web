@@ -10,7 +10,9 @@ import {
   Factory,
   X,
   Palette,
-  Shield
+  Shield,
+  CheckSquare,
+  Archive
 } from 'lucide-react';
 import { ActiveScreen, UsuarioQualidade } from '../types';
 import { tenantService } from '../services/tenantService';
@@ -125,6 +127,30 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
               )}
               <LayoutGrid className={getIconClasses(currentScreen === 'menu-2')} />
               <span className="truncate">Menu Principal</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleItemClick('plano-acao')}
+              className={getLinkClasses(currentScreen === 'plano-acao')}
+            >
+              {currentScreen === 'plano-acao' && (
+                <span className="absolute left-0 top-2 bottom-2 w-1.25 bg-[#0f6cbd] rounded-r-full shadow-[0_0_8px_rgba(15,108,189,0.5)]" />
+              )}
+              <CheckSquare className={getIconClasses(currentScreen === 'plano-acao')} />
+              <span className="truncate">Planejamento &amp; Ações</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleItemClick('repositorio-8d')}
+              className={getLinkClasses(currentScreen === 'repositorio-8d')}
+            >
+              {currentScreen === 'repositorio-8d' && (
+                <span className="absolute left-0 top-2 bottom-2 w-1.25 bg-[#0f6cbd] rounded-r-full shadow-[0_0_8px_rgba(15,108,189,0.5)]" />
+              )}
+              <Archive className={getIconClasses(currentScreen === 'repositorio-8d')} />
+              <span className="truncate">Repositório 8D</span>
             </button>
           </div>
         </div>

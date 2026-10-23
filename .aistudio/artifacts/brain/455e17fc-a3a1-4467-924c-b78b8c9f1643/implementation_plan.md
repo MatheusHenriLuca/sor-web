@@ -1,136 +1,216 @@
-# Arquitetura SaaS Multi-Tenant — SOR Web (Gestão de RNCs e Qualidade)
+# Módulos de Planejamento (Plano de Ação) & Repositório 8D Integrado
 
-Transformação do sistema SOR em uma plataforma **SaaS Multi-Tenant escalável**, com isolamento estrito de dados por empresa (`tenant_id`), console gerencial de Super Administrador (`/super-admin`) com recurso de *Impersonation*, customização White-Label por cliente, compressão automática de fotos em WebP no navegador e carga inicial do tenant piloto **GPM Serviços** com 10 ocorrências formais realistas.
+Plano estratégico de engenharia para implementação dos módulos de **Planejamento (Plano de Ação corporativo)** e **Repositório de Dossiês 8D**, 100% integrados às bases de dados do SharePoint atuais (`Action plan`, `Action plan_acoes`, `lista_participantes`, `lista_ishikawa`, `lista_henkaten`, `lista_entrevista8d`), com fluxo integrado de 1D a 8D e visão global para a fábrica.
 
 ---
 
-## Decisões Críticas e Alinhamento Confirmado
+### User Review & Critical Decisions
 
 > [!IMPORTANT]
-> As diretrizes abaixo foram confirmadas diretamente com você e regem toda a implementação arquitetural deste plano:
+> Decisões confirmadas pelo usuário na etapa de alinhamento interativo (Fase 1):
 
-- **Camada de Banco de Dados Híbrida (Supabase + Fallback Local)**: Fornecimento do script SQL completo (DDL + políticas de Row Level Security + Storage Bucket) pronto para o Supabase PostgreSQL, aliado a um repositório híbrido que conecta automaticamente ao Supabase quando as credenciais estão presentes ou opera em armazenamento local multi-tenant isolado para homologação imediata a custo zero.
-- **Escopo Focado do Modelo Relacional Multi-Tenant**: Isolamento multi-tenant concentrado nas entidades essenciais do produto: **Tenants (Empresas)**, **Usuários**, **RNCs**, **Treinamentos**, **Histórico de Ações** e **Cadastros Mestres por Empresa** (Clientes/Montadoras, Áreas Fabris/FMDS, Postos de Trabalho e Catálogo de Defeitos).
-- **Rota Raiz com Login Global Inteligente por E-mail**: Ao acessar a raiz do sistema, o usuário encontra a **Tela de Login Global SaaS**, que identifica automaticamente a empresa vinculada ao e-mail informado (ou a credencial de Super Admin) e redireciona para o ambiente correspondente (`/:empresa-slug/dashboard` ou `/super-admin`), mantendo também o suporte ao login direto personalizado em `/:empresa-slug/login`.
-- **Atalhos Rápidos de Demonstração por Perfil**: A tela de login combina autenticação por e-mail e senha com botões de acesso rápido de 1 clique para testar imediatamente os papéis de **Super Admin do SaaS**, **Admin da Empresa (GPM Serviços)**, **Engenharia/Qualidade** e **Operador Fabril**.
-
----
-
-## 1. Visão Geral e Conceito Central
-
-- **O Que Entrega**: Uma plataforma B2B pronta para comercialização, onde múltiplas indústrias utilizam a mesma infraestrutura de código com dados 100% isolados, identidade visual própria (logotipo e cor primária aplicada dinamicamente) e administração centralizada pelo proprietário do SaaS.
-- **Público-Alvo e Personas**:
-  - **Super Administrador do SaaS**: Gerencia empresas clientes (onboarding, limites de usuários/armazenamento, suspensão por inadimplência, métricas globais e suporte via *Impersonation*).
-  - **Administrador da Empresa (Tenant Admin)**: Personaliza a marca da sua fábrica (White-Label), gerencia cadastros mestres locais (montadoras, linhas, postos, modos de falha) e administra sua equipe.
-  - **Analistas da Qualidade e Operadores**: Registram ocorrências, anexam evidências fotográficas otimizadas em WebP, acompanham tratativas, gerenciam treinamentos e imprimem relatórios padronizados com o timbre da própria empresa.
-- **Proposta de Valor**: Operação inicial a custo zero (R$ 0,00/mês no Free Tier do Supabase + Cloudflare Pages/Vercel), reduzindo em ~95% o consumo de armazenamento de imagens via compressão client-side para WebP.
+- **Navegação do Planejamento**: **Menu dedicado** na barra lateral/superior para gestão de todos os planos de ação da fábrica (Kanban corporativo) **E gaveta/painel embutido** nas etapas 5D, 6D, 7D e 8D do fluxo 8D (sem necessidade de abrir abas externas ou perder o contexto).
+- **Escopo do Módulo de Repositório**: Central de **Dossiês 8D Concluídos**, planos homologados pela Qualidade e geração/impressão de **Relatórios Técnicos Oficiais** para auditorias IATF 16949 e montadoras.
+- **Transição 4D ➔ 5D**: **Botão de 1 clique** na análise de causa raiz (5 Porquês / Ishikawa) que gera automaticamente uma contramedida no 5D já preenchida com a causa raiz (último porquê preenchido da hipótese "NG").
+- **Compatibilidade com Bases SharePoint**: Modelo de dados espelhando fielmente os esquemas das listas `'Action plan'` (mestre) e `'Action plan_acoes'` (detalhe) com duplo vínculo relacional (`id_rel2` e `id_programa_acoes`), mantendo suporte total a tenants e usuários locais.
 
 ---
 
-## 2. Experiência do Usuário e Design Visual
+### 1. Overview & Core Concept
 
-### Fluxos Principais de Navegação e Roteamento
-1. **Login Global Inteligente (`/` ou `/login`)**:
-   - O usuário insere seu e-mail e senha (ou aciona um dos botões de acesso rápido de homologação).
-   - O motor de autenticação resolve o `tenant_id` e o `papel` do usuário:
-     - Se `papel === 'super_admin'`, redireciona para `/super-admin`.
-     - Se vinculado a uma empresa ativa (ex.: `gpm-servicos`), injeta o contexto do tenant e redireciona para `/gpm-servicos/dashboard`.
-     - Se a empresa estiver com status `suspenso` ou `cancelado`, exibe aviso claro de bloqueio administrativo.
-2. **Login Contextualizado por Slug (`/:empresa-slug/login`)**:
-   - Consulta os metadados públicos do tenant a partir do slug na URL e renderiza a tela de acesso já com o logotipo, nome da empresa e cor primária da marca.
-3. **Console do Super Administrador (`/super-admin`)**:
-   - Visão executiva com indicadores globais (Total de Empresas Ativas, Total de Usuários, RNCs Registradas e Consumo Estimado de Storage em MB).
-   - Tabela de gestão de empresas com criação de novo tenant + primeiro administrador, edição de limites (`max_usuarios`, `max_storage_mb`), alternância de status (`ativo`, `suspenso`, `cancelado`) e botão **"Acessar como Empresa" (Impersonation)**.
-   - Quando em modo *Impersonation*, uma barra superior discreta e de alto contraste informa que o Super Admin está visualizando o ambiente da empresa selecionada, permitindo retornar ao console `/super-admin` com 1 clique.
-4. **Ambiente Operacional e Configurações White-Label (`/:empresa-slug/*`)**:
-   - Cabeçalho e barra lateral exibem o logotipo e a cor primária (`--brand-primary`) configurados pela empresa, mantendo a navegação limpa e sem poluição visual.
-   - Nova área de **Configurações da Empresa & Cadastros Mestres** acessível a administradores da empresa para atualizar logotipo, paleta de cor primária, clientes/montadoras, áreas fabris, postos de trabalho, catálogo de defeitos e usuários internos.
-
-### Identidade Visual, Tipografia e Ergonomia (Padrão SaaS Industrial)
-- **Direção Estética**: *Industrial Clean de Alta Densidade*, com superfícies planas de elevação única (`border border-slate-200`, sem cards aninhados com sombras pesadas) e hierarquia visual clara para uso tanto em escritórios quanto em tablets de chão de fábrica.
-- **Paleta de Cores & White-Label Dinâmico (60-30-10)**:
-  - **60% Canvas Neutro**: Fundo principal `#f8fafc` com containers brancos puros `#ffffff`.
-  - **30% Superfícies Estruturais**: Bordas sutis `#e2e8f0` e tipografia secundária `#475569`.
-  - **10% Orçamento de Destaque (`--brand-primary`)**: Cor primária dinâmica injetada pelo Tenant ativo (ex.: `#0b5796` ou `#0f766e` para GPM Serviços), acompanhada de cores semânticas fixas para estados operacionais: Verde (`#16a34a` Ativo/Concluído), Âmbar (`#d97706` Em Análise/Alerta) e Vermelho (`#dc2626` Crítico/Suspenso) sempre pareadas com rótulos textuais claros.
-- **Tipografia e Disciplina Tabular**:
-  - Títulos e Navegação em `Outfit` / `Plus Jakarta Sans`; corpo de alta legibilidade em `Plus Jakarta Sans`.
-  - Todos os códigos de RNC, contadores de ocorrências, cotas de armazenamento (MB), datas e quantidades utilizam obrigatoriamente `font-mono tabular-nums` (`JetBrains Mono`) para alinhamento vertical perfeito nas tabelas e KPIs.
-- **Completude de Estados**:
-  - Todas as listagens (Tenants, RNCs, Treinamentos e Cadastros Mestres) possuem estados populados, empty states orientativos com ação primária imediata, feedback de carregamento e filtragem instantânea em memória.
+- **O que faz**: 
+  1. **Módulo de Planejamento (Plano de Ação Geral da Fábrica)**: Centraliza todos os planos de ação originados de 8D, Kaizen, Fast Response, Auditorias e Melhorias. Oferece visualização Kanban por status (`Aberto`, `Atrasado`, `Concluído`, `Validado`), filtros multicritério por indicador/programa, prioridade, responsável e setor, e ciclo completo de aprovação pela Qualidade.
+  2. **Integração Fluida no Fluxo 8D (1D a 8D)**: As etapas 5D (Ações Corretivas), 6D (Abrangência Yokoten / Poka-Yoke), 7D (Ações Preventivas: FMEA, Trabalho Padronizado, Auditoria Escalonada) e 8D (Validação & Homologação) gerenciam suas ações diretamente na tela da ocorrência através de gaveta embutida com sincronização em tempo real.
+  3. **Módulo de Repositório 8D**: Hub corporativo onde líderes e auditores encontram todos os 8D finalizados e homologados, com busca rápida, filtros por montadora/produto, visualização da árvore de investigação completa e exportação de relatórios técnicos padronizados.
+- **Público-Alvo**: Engenheiros e Técnicos da Qualidade, Supervisores de Produção, Inspetores, Auditores de Linha e Gestão de Planta.
+- **Valor Principal**: Elimina a fragmentação entre sistemas e abas externas do Power Apps (`Launch`), assegura integridade referencial absoluta entre causas raízes e contramedidas, e oferece visão executiva dos planos de ação de toda a fábrica em uma única interface responsiva.
 
 ---
 
-## 3. Decisões de Produto e Trade-Offs Arquiteturais
+### 2. User Experience & Visual Design
 
-- **Decisão 1: Arquitetura Shared Database, Shared Schema com RLS + Repositório Híbrido**
-  - *Abordagem Escolhida*: Todas as tabelas de domínio possuem a coluna obrigatória `tenant_id`. No PostgreSQL (Supabase), políticas de Row Level Security validam `tenant_id = auth.jwt() -> 'app_metadata' ->> 'tenant_id'` ou `is_super_admin = true`. No modo local/híbrido, o serviço de dados aplica o mesmo filtro de isolamento por `tenant_id` em todas as leituras e gravações.
-  - *Por quê*: Garante segurança em nível de banco de dados em produção e permite testar 100% dos fluxos multi-tenant, criação de novas empresas e *Impersonation* imediatamente no navegador.
-- **Decisão 2: Compressão Fotográfica Client-Side para WebP (Full HD 1920x1080, Qualidade 80%)**
-  - *Abordagem Escolhida*: Antes de persistir qualquer foto de peça OK, peça NG ou evidência auxiliar, um processador baseado em HTML5 Canvas redimensiona e codifica a imagem em formato WebP, registrando o tamanho final em KB para atualizar o medidor de cota do tenant (`max_storage_mb`).
-  - *Por quê*: Reduz fotos de 8–15 MB para ~250 KB, permitindo armazenar até 4.000 fotos dentro de 1 GB gratuito do Supabase Storage e acelerando o envio em redes móveis industriais.
-- **Decisão 3: Isolamento de Cadastros Mestres por Empresa**
-  - *Abordagem Escolhida*: Em vez de listas fixas no código, os seletores de Clientes/Montadoras, Áreas Fabris, Postos de Trabalho e Catálogo de Defeitos do formulário de RNC passam a ler os cadastros do tenant ativo.
-  - *Por quê*: Permite que a `GPM Serviços` ou qualquer nova indústria cliente configure suas próprias linhas, máquinas e clientes sem interferir nas demais empresas da plataforma.
+#### A. Estrutura de Navegação & Layout
+- **Barra Lateral (`AppSidebar`)**: 
+  - Novo item **"Planejamento"** (`plano-acao`) no grupo de Acesso Principal com ícone de checklist/cronograma e badge numérico de ações sob responsabilidade do usuário.
+  - Novo item **"Repositório 8D"** (`repositorio-8d`) no grupo de Acesso Principal com ícone de arquivo/arquivo-morto para consulta de dossiês homologados.
+- **Tela de Planejamento (`PlanoAcaoView`)**:
+  - Cabeçalho executivo com KPIs imediatos: Total de Ações, Abertas, Atrasadas (em vermelho), Aguardando Validação e Validadas.
+  - Alternador de visão: **Quadro Kanban** (4 colunas com arrastar/mover rápido ou avançar de etapa) vs. **Lista Tabular de Alta Densidade** (com ordenação e busca instantânea).
+  - Barra de filtros: Programa/Indicador (`Atendimento ao Cliente`, `Fast Response`, etc.), Prioridade (`Alta`, `Média`, `Baixa`), Minhas Ações vs. Todas as Ações, e busca por texto.
+  - Botão de ação primária: `+ Novo Plano de Ação` e `+ Nova Ação`.
+- **Tela de Repositório (`Repositorio8DView`)**:
+  - Grid responsivo de Dossiês 8D Concluídos exibindo Código da RNC (`ID:XX`), Cliente, Veículo, Defeito, Data de Conclusão, Auditor Responsável e Parecer Final.
+  - Drawer lateral para leitura rápida da investigação (linha do tempo 1D a 8D, Ishikawa, causas raízes e ações validadas).
+  - Botão de Ação: `Imprimir Dossiê 8D Oficial` (utilizando a estilização padronizada já existente no app).
+- **Fluxo 8D Unificado (`Detalhes8DView`)**:
+  - Barra superior de navegação por disciplinas: `1D`, `2D`, `3D`, `4D`, `5D`, `6D`, `7D`, `8D`.
+  - No **4D**: Diagrama de Ishikawa 6M com causas e 5 Porquês; para cada causa classificada como "NG", botão destacado: `Gerar Ação Corretiva no 5D` com badge verde.
+  - Nos **5D, 6D e 7D**: Painel integrado exibindo ações vinculadas ao programa (`varid8d`), permitindo adicionar novas ações sem sair da tela.
+  - No **8D**: Tabela de homologação com validação individual de cada ação e formulário de parecer técnico final com opções de aprovação ou devolução para revisão com registro de pendências por etapa.
+
+#### B. Paleta de Cores & Tipografia (Alinhada com MH Qualidade)
+- **Canvas Neutro (60%)**: Fundo limpo `#f8fafc` com cartões em `#ffffff` e bordas sutis `border-slate-200`.
+- **Superfícies Estruturais (30%)**: Barras de ferramentas em `#f1f5f9`, divisores elegantes de 1px e tipografia corporativa em `#0f172a` (títulos) e `#475569` (textos de apoio).
+- **Acentos Funcionais (10%)**:
+  - Azul Institucional (`#0b5796` / `#0f6cbd`): Ações primárias, abas ativas e seleção de itens.
+  - Esmeralda (`#16a34a`): Status Validado / Concluído, hipótese OK.
+  - Âmbar (`#d97706`): Em Andamento, Aguardando Validação da Qualidade, hipótese NG.
+  - Rosa / Carmesim (`#dc2626`): Atrasado, Reprovado / Solicitação de Revisão.
+- **Tipografia**: `Plus Jakarta Sans` para títulos e botões, `tabular-nums` / `font-mono` para códigos de peça, datas e números de identificação (`ID:10`).
 
 ---
 
-## 4. Arquitetura Técnica e Estratégia de Dados
+### 3. Key Product Decisions & Trade-Offs
 
-### Diagrama de Arquitetura e Hierarquia de Componentes
+1. **Gestão de Dados: Mock Local Estruturado com Espelhamento Exato do SharePoint**
+   - *Decisão*: Implementar as coleções `'Action plan'`, `'Action plan_acoes'`, `'lista_participantes'`, `'lista_henkaten'`, `'lista_entrevista8d'` e `'lista_ishikawa'` dentro do serviço `sharepointService.ts` com persistência em `localStorage` e tipagem estrita TypeScript.
+   - *Por que*: Atende integralmente a diretriz do usuário de "focar na implementação usando já os tipos de bases que já estão hoje no nosso ambiente", garantindo que a aplicação funcione imediatamente no navegador e esteja pronta para sincronização via Microsoft Graph API.
+2. **Duplo Link Relacional (`id_rel2` e `id_programa_acoes`)**
+   - *Decisão*: Ao cadastrar qualquer ação vinculada a uma RNC (ex: `ID:10`), o sistema preenche simultaneamente o `id_programa_acoes` (chave textual como `I - 10` ou `C - 10`) e o `id_rel2` (ID numérico do cabeçalho `'Action plan'`).
+   - *Por que*: Garante compatibilidade bidirecional total com a lógica histórica dos Canvas Apps do Power Apps mapeados.
+3. **Automação 4D ➔ 5D sem fricção**
+   - *Decisão*: Ao clicar em "Gerar Ação Corretiva" em uma causa NG no 4D, abre-se a gaveta de criação de ação com a causa raiz (último porquê preenchido) já injetada no campo `causa`, o tipo de ação setado como `CORRETIVA` e o vínculo com a ocorrência ativo.
+   - *Por que*: Reduz drasticamente o tempo de preenchimento e evita inconsistências textuais entre a investigação e o plano de ação.
+
+---
+
+### 4. Technical Architecture & Data Strategy
 
 ```
-┌──────────────────────────────────────────────────────────────────────────────────┐
-│                        ROTEADOR MULTI-TENANT & AUTH GUARD                        │
-│   • / ou /login          ──► Login Global SaaS (Descoberta de Tenant por E-mail) │
-│   • /super-admin         ──► Console Super Admin (Gestão Global + Impersonation) │
-│   • /:empresa-slug/login ──► Login White-Label Contextualizado da Empresa        │
-│   • /:empresa-slug/*     ──► Workspace da Empresa (Injeção CSS --brand-primary)  │
-└───────────────────┬──────────────────────────────────────────┬───────────────────┘
-                    │                                          │
-                    ▼                                          ▼
-┌───────────────────────────────────────┐  ┌───────────────────────────────────────┐
-│        CONSOLE SUPER ADMIN            │  │       WORKSPACE DO TENANT ATIVO       │
-│ • KPIs Globais (Tenants, RNCs, Disco) │  │ • Banner de Impersonation (se ativo)  │
-│ • CRUD de Empresas & Limites de Uso   │  │ • Dashboard, Galeria & Registro RNC   │
-│ • Ativação / Suspensão Instantânea    │  │ • Matriz de Treinamentos & Histórico  │
-│ • Chaveamento Impersonate (1 clique)  │  │ • Configurações White-Label & Mestres │
-└───────────────────┬───────────────────┘  └───────────────────┬───────────────────┘
-                    │                                          │
-                    └───────────────────┬──────────────────────┘
-                                        ▼
-┌──────────────────────────────────────────────────────────────────────────────────┐
-│                CONTEXTO GLOBAL MULTI-TENANT & COMPRESSOR DE MÍDIA                │
-│   • TenantContext: tenantAtivo, usuarioAutenticado, isImpersonating, temaCSS     │
-│   • WebP Image Compressor: Canvas 1920x1080 (q=0.80) + Cálculo de Quota em MB    │
-└───────────────────────────────────────┬──────────────────────────────────────────┘
-                                        ▼
-┌──────────────────────────────────────────────────────────────────────────────────┐
-│              CAMADA DE DADOS HÍBRIDA (SUPABASE CLIENT + LOCAL FALLBACK)          │
-│   • Conector Supabase (PostgreSQL + Auth + Storage /tenants/{tenant_id}/...)     │
-│   • Store Local Multi-Tenant Particionado por tenant_id (Seed: GPM Serviços)     │
-└──────────────────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────┐
+│                        MH QUALIDADE (REACT SPA)                        │
+├────────────────────────────────────────────────────────────────────────┤
+│  Navegação Global: AppSidebar & Header                                 │
+│  ├─ Menu Principal (menu-2)                                            │
+│  ├─ Lista de Ocorrências (lista-8d)                                    │
+│  ├─ [NOVO] Planejamento / Plano de Ação (plano-acao)                   │
+│  │   ├─ Kanban Corporativo (Aberto | Atrasado | Concluído | Validado)   │
+│  │   ├─ Lista Tabular com Filtros (Programa, Prioridade, Responsável)  │
+│  │   ├─ Modal Criar/Editar Plano & Ação                                │
+│  │   └─ Modais de Conclusão (Evidência) e Validação (Auditoria)        │
+│  ├─ [NOVO] Repositório 8D (repositorio-8d)                             │
+│  │   ├─ Catálogo de Dossiês Homologados com Busca Multicritério        │
+│  │   ├─ Visualizador do Dossiê Completo (Timeline 1D-8D)               │
+│  │   └─ Exportador & Impressão Técnica Oficial                         │
+│  └─ Fluxo 8D Detalhado (detalhes-8d)                                   │
+│      ├─ 1D: Contenção & Detalhes da RNC                                │
+│      ├─ 2D: Equipe Multidisciplinar (BASE_ATIVOS)                      │
+│      ├─ 3D: Rastreabilidade & Bloqueios SAP                            │
+│      ├─ 4D: Ishikawa 6M + 5 Porquês + [Botão 1-Clique p/ 5D]           │
+│      ├─ 5D: Ações Corretivas (Gaveta de Ações Integrada)               │
+│      ├─ 6D: Abrangência (Yokoten) & Poka-Yoke                          │
+│      ├─ 7D: Ações Preventivas (FMEA / Trab. Padronizado / Auditoria)   │
+│      └─ 8D: Validação das Ações & Aprovação Final do 8D                │
+├────────────────────────────────────────────────────────────────────────┤
+│                    CAMADA DE DADOS & SERVIÇOS                          │
+│  sharepointService.ts (spStore)                                        │
+│  ├─ tratativa_produto_nao_conforme (RNCs)                              │
+│  ├─ lista_participantes (Equipe, Status 8D, Revisões 4D-7D)            │
+│  ├─ lista_ishikawa (Causas 6M, 5 Porquês, OK/NG)                       │
+│  ├─ lista_henkaten & lista_entrevista8d (Diagnóstico 4D)               │
+│  ├─ Action plan (Mestre de Planos de Ação)                             │
+│  ├─ Action plan_acoes (Ações Detalhadas, Prazos, Status, Evidências)  │
+│  └─ BASE_ATIVOS (Colaboradores e Responsáveis)                         │
+└────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Modelo de Dados e Entidades Principais
-1. **`tenants`**: `id` (UUID), `nome`, `slug` (único), `cnpj_contato`, `status` (`ativo` | `suspenso` | `cancelado`), `customizacao` (`logo_url`, `cor_primaria`, `nome_exibicao`), `limites` (`max_usuarios`, `max_storage_mb`, `storage_usado_mb`), `created_at`.
-2. **`users`**: `id` (UUID), `tenant_id` (FK opcional para `super_admin`), `email` (único), `senha`, `nome`, `cargo`, `setor`, `re_acesso`, `papel` (`super_admin` | `admin_empresa` | `qualidade` | `operador`), `ativo`.
-3. **`rncs`**: Registro de ocorrências vinculado a `tenant_id`, preservando compatibilidade com os fluxos de abertura, análise, contenção, evidências fotográficas (`foto_peca_ok`, `foto_peca_ng`, `foto_auxiliar`), status e impressão.
-4. **`treinamentos` & `historico_acoes`**: Registros de eficácia, lições/treinamentos de operadores e log de auditoria vinculados a `tenant_id` e `rnc_id`.
-5. **Cadastros Mestres por Tenant (`clientes_montadoras`, `areas_fabris`, `postos_trabalho`, `cat_defeitos`)**: Coleções isoladas por `tenant_id` que alimentam dinamicamente os filtros e formulários da empresa logada.
+#### Modelo de Dados das Novas Entidades no `sharepointService.ts`:
 
-### Mapeamento de Interações e Estados
-- **Descoberta de Empresa no Login Global**: Ao submeter `email` e `senha`, o autenticador localiza o registro em `users`. Se for `super_admin`, navega para `/super-admin` e sincroniza `window.history.pushState`. Se pertencer a um tenant, verifica se `tenant.status === 'ativo'`; caso positivo, carrega o tema White-Label do tenant e navega para `/:slug/dashboard`.
-- **Ciclo de Impersonation do Super Admin**: Ao clicar em *"Acessar como Empresa"* na linha de um tenant no painel `/super-admin`, o sistema preserva a sessão do Super Admin em `impersonatorUser`, define `activeTenant` para a empresa escolhida, navega para `/:slug/dashboard` e exibe uma barra fixa no topo permitindo encerrar a visualização e voltar imediatamente ao `/super-admin`.
-- **Onboarding de Nova Empresa**: Quando o Super Admin cadastra uma nova empresa no modal de criação, o sistema cria o registro do tenant, cria o usuário `admin_empresa` inicial, inicializa o conjunto padrão de cadastros mestres para aquela empresa e disponibiliza imediatamente o acesso via `/:novo-slug/login`.
-- **Upload com Compressão WebP e Controle de Cota**: Ao selecionar uma foto no formulário de RNC ou um logotipo nas configurações White-Label, o utilitário converte a imagem em WebP, verifica se o tamanho somado respeita `limites.max_storage_mb` do tenant, atualiza `storage_usado_mb` e persiste a imagem no bucket/store isolado da empresa.
-- **Carga Piloto Inicial (`GPM Serviços`)**: Na primeira inicialização, o banco/store é populado automaticamente com o tenant piloto **GPM Serviços** (`slug: gpm-servicos`), seus cadastros mestres industriais, usuários de todos os perfis e as **10 ocorrências formais realistas** especificadas no seu plano:
-  1. *Trinca no ponto de solda robotizada* (Item de Segurança - FMEA Crítico)
-  2. *Rebarba excessiva em flange estampada* (Linha de Montagem)
-  3. *Empolamento e contaminação em pintura superficial* (Acabamento)
-  4. *Desvio dimensional em furação de fixação* (Usinagem/Conformação)
-  5. *Falta de torque em parafuso estrutural M10* (Segurança do Produto)
-  6. *Arranhão severo em superfície classe A visível* (Inspeção Final)
-  7. *Inversão de chicote elétrico de comando* (Montagem Elétrica)
-  8. *Porosidade interna detectada em teste de estanqueidade* (Fundição)
-  9. *Deformação por impacto em transporte interno* (Logística/Kitting)
-  10. *Etiqueta de rastreabilidade com código ilegível* (Expedição/Rastreabilidade)
+1. **`ActionPlanHeader` (Espelho da lista `'Action plan'`):**
+   - `id`: number
+   - `tenant_id`: string
+   - `indicador_programa_estrategico`: string (ex: `'ATENDIMENTO AO CLIENTE'`, `'FAST RESPONSE'`, `'KAIZEN'`)
+   - `sub1`?: string
+   - `sub2`?: string
+   - `posto_`?: string
+   - `produto_`?: string
+   - `setor_`: string
+   - `prioridade`: `'Alta'` | `'Média'` | `'Baixa'`
+   - `descricao_problema_oportunidade`: string
+   - `foto_acao`?: string
+   - `idprograma`: string (ex: `'I - 10'`)
+   - `id_rel1`: string (GUID)
+   - `data_abertura`: string
+   - `status`: `'Aberto'` | `'Concluído'` | `'Cancelado'`
+   - `responsavel_abertura`: string
+
+2. **`ActionPlanItem` (Espelho da lista `'Action plan_acoes'`):**
+   - `id`: number
+   - `tenant_id`: string
+   - `id_rel2`: number (ID do cabeçalho)
+   - `id_programa_acoes`: string (ID do programa / 8D, ex: `'I - 10'`)
+   - `causa`: string (preenchida automaticamente via 5 Porquês do 4D)
+   - `contra_medida`: string
+   - `comentarios_observacoes`?: string
+   - `data_acompanhamento`: string
+   - `data_planejada`: string
+   - `data_plan_anterior`?: string
+   - `responsavel_acao`: string (selecionado de `BASE_ATIVOS`)
+   - `email`?: string
+   - `email_super`?: string
+   - `tipo_acao`: `'CONTENÇÃO'` | `'CORRETIVA'` | `'PREVENTIVA'` | `'MELHORIA'`
+   - `yokoten`: `'SIM'` | `'NÃO'`
+   - `poka_yoke`: `'SIM'` | `'NÃO'`
+   - `oData_8d_7d`?: `'FMEA'` | `'Trabalho Padronizado'` | `'Auditoria Escalonada'`
+   - `oc_nd`?: `'Ocorrência'` | `'Não Detecção'`
+   - `evidencia_obrigatoria`: `'SIM'` | `'NÃO'`
+   - `validacao_acao`: `'SIM'` | `'NÃO'`
+   - `status`: `'Aberto'` | `'Atrasado'` | `'Concluído'` | `'Validado'`
+   - `data_conclusao`?: string
+   - `comentarios_evidencia`?: string
+   - `anexos_evidencia`?: string[]
+   - `comentarios_validacao`?: string
+   - `status_revisar`?: string
+
+3. **`EightDMetadata` (Espelho da lista `'lista_participantes'`):**
+   - `id`: number
+   - `tenant_id`: string
+   - `id8d`: string (ex: `'I - 10'`)
+   - `participantes_8d`: string (nomes separados por vírgula)
+   - `validar_8d`: `'Aprovado'` | `'Reprovado'` | `'Em Andamento'` | `'Pendente'`
+   - `comentarios_validacao`?: string
+   - `revisado_4d`?: boolean; `comentarios_revisao_4d`?: string
+   - `revisado_5d`?: boolean; `comentarios_revisao_5d`?: string
+   - `revisado_6d`?: boolean; `comentarios_revisao_6d`?: string
+   - `revisado_7d`?: boolean; `comentarios_revisao_7d`?: string
+
+4. **`IshikawaCauseItem` (Espelho da lista `'lista_ishikawa'`):**
+   - `id`: number
+   - `tenant_id`: string
+   - `id8d`: string
+   - `descricao_causa`: string
+   - `seisms`: `'Máquina'` | `'Mão de Obra'` | `'Método'` | `'Material'` | `'Medição'` | `'Meio Ambiente'`
+   - `ocnd`: `'Ocorrência'` | `'Não Detecção'`
+   - `okng`: `'OK'` | `'NG'`
+   - `umpq`?: string; `doispq`?: string; `trespq`?: string; `quatropq`?: string; `cincopq`?: string
+
+---
+
+### 5. Plano de Implementação em Fases
+
+- **Fase 1: Tipagem & Métodos de Repositório e Planos no `sharepointService.ts`**
+  - Criação das interfaces tipadas correspondentes às tabelas SharePoint.
+  - Implementação dos métodos de CRUD e filtros no `spStore`: `getActionPlans()`, `getActionItems()`, `saveActionPlan()`, `saveActionItem()`, `concluirActionItem()`, `validarActionItem()`, `getEightDMetadata()`, `saveEightDMetadata()`, `getIshikawaCauses()`, `saveIshikawaCause()`.
+  - Dados sementes industriais realistas já vinculados às RNCs piloto.
+
+- **Fase 2: Tela de Planejamento Geral (`PlanoAcaoView.tsx`)**
+  - Implementação da visão Kanban com colunas inteligentes (calculando automaticamente atraso com base na `data_planejada`).
+  - Implementação da visão em Lista com filtros avançados.
+  - Modais para nova ação, conclusão de evidência e validação pela Qualidade.
+  - Adição da rota `'plano-acao'` no `App.tsx` e no menu lateral `AppSidebar.tsx`.
+
+- **Fase 3: Mapeamento Completo 1D a 8D em `Detalhes8DView.tsx`**
+  - Barra de abas 1D–8D.
+  - Sub-tela 4D com Ishikawa 6M interativo, árvore de 5 Porquês e botão de 1 clique para gerar ação corretiva.
+  - Sub-telas 5D, 6D e 7D integradas com a gaveta de ações embutida.
+  - Sub-tela 8D com aprovação das ações e validação final com feedback técnico.
+
+- **Fase 4: Módulo de Repositório 8D (`Repositorio8DView.tsx`)**
+  - Catálogo de ocorrências com 8D aprovado/homologado.
+  - Filtros por cliente, produto, ano e visualização rápida do dossiê.
+  - Integração com o fluxo de impressão técnica oficial.
+  - Adição da rota `'repositorio-8d'` no `App.tsx` e `AppSidebar.tsx`.
+
+- **Fase 5: Verificação, Compilação e Testes de Responsividade**
+  - Execução de `compile_applet` e `lint_applet`.
+  - Verificação de layout desktop e mobile, garantindo zero quebras visuais e usabilidade em chão de fábrica.

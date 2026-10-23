@@ -33,12 +33,14 @@ import {
   Bot,
   MoreHorizontal,
   Image as ImageIcon,
-  Sliders
+  Sliders,
+  GitBranch
 } from 'lucide-react';
 import { RNCRecord, UsuarioQualidade, RegistroTreinamento } from '../types';
 import { spStore } from '../services/sharepointService';
 import { ImageWithFallback } from '../components/ImageWithFallback';
 import { RncDetalhesModal } from '../components/RncDetalhesModal';
+import { Metodologia8DPanel } from '../components/Metodologia8DPanel';
 import { formatDateBR } from '../utils/date';
 import { normalizeDisplayText, formatOccurrenceId } from '../utils/formatText';
 
@@ -46,19 +48,23 @@ interface Detalhes8DViewProps {
   rncId: number;
   onNavigate: (screen: any, params?: any) => void;
   currentUser: UsuarioQualidade;
+  initialViewMode?: 'detalhes' | 'alerta' | 'metodologia8d';
 }
 
 export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({ 
   rncId, 
   onNavigate, 
-  currentUser 
+  currentUser,
+  initialViewMode
 }) => {
   const [rnc, setRnc] = useState<RNCRecord | undefined>(undefined);
   const [treinamentos, setTreinamentos] = useState<RegistroTreinamento[]>([]);
   const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'warning'; message: string } | null>(null);
 
-  // Modo de visualização: Detalhado (Lista Completa) vs Alerta da Qualidade
-  const [activeViewMode, setActiveViewMode] = useState<'detalhes' | 'alerta'>('detalhes');
+  // Modo de visualização: Detalhado (Lista Completa) vs Alerta da Qualidade vs Metodologia 8D
+  const [activeViewMode, setActiveViewMode] = useState<'detalhes' | 'alerta' | 'metodologia8d'>(
+    initialViewMode || 'detalhes'
+  );
   // Seletor dos 3 Blocos Power Apps na visualização detalhada
   const [activeBlockTab, setActiveBlockTab] = useState<'todos' | 'cliente' | 'contencao' | 'disposicao'>('todos');
 
@@ -356,6 +362,14 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                   </button>
                   <button
                     type="button"
+                    onClick={() => { setActiveViewMode('metodologia8d'); setActionsMenuOpen(false); }}
+                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-medium text-purple-700 hover:bg-purple-50 transition text-left"
+                  >
+                    <GitBranch className="w-4 h-4 text-purple-500" />
+                    <span>Metodologia 8D & Ações</span>
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => { onNavigate('rastreabilidade', { rncId: rnc.id }); setActionsMenuOpen(false); }}
                     className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-medium text-indigo-700 hover:bg-indigo-50 transition text-left"
                   >
@@ -435,6 +449,22 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
               >
                 <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
                 <span>Alerta Qualidade / Disposição</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveViewMode('metodologia8d')}
+                className={`h-8 px-3.5 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer select-none flex-1 sm:flex-initial ${
+                  activeViewMode === 'metodologia8d'
+                    ? 'bg-white text-purple-700 shadow-sm border border-purple-200'
+                    : 'text-slate-600 hover:text-purple-700 hover:bg-slate-200/60'
+                }`}
+              >
+                <GitBranch className="w-3.5 h-3.5 text-purple-600" />
+                <span>Metodologia 8D (1D - 8D)</span>
+                {rnc.abrir8D === 'Sim' && (
+                  <span className="w-2 h-2 rounded-full bg-purple-600 shrink-0" />
+                )}
               </button>
 
               <button
@@ -1582,6 +1612,20 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
             )}
           </div>
 
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODO 3: METODOLOGIA 8D (DISCIPLINAS 1D A 8D, ISHIKAWA, 5 PORQUÊS & AÇÕES) */}
+      {/* ========================================================================= */}
+      {activeViewMode === 'metodologia8d' && (
+        <div className="animate-in fade-in">
+          <Metodologia8DPanel
+            rnc={rnc}
+            currentUser={currentUser}
+            onNavigate={onNavigate}
+            onRefreshRnc={reloadData}
+          />
         </div>
       )}
 

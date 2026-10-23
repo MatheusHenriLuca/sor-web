@@ -12,6 +12,8 @@ import { Detalhes8DView } from './views/Detalhes8DView';
 import { DetalhesImpressaoView } from './views/DetalhesImpressaoView';
 import { RastreabilidadeView } from './views/RastreabilidadeView';
 import { CadastroUsuariosView } from './views/CadastroUsuariosView';
+import { PlanoAcaoView } from './views/PlanoAcaoView';
+import { Repositorio8DView } from './views/Repositorio8DView';
 import { SharePointSyncModal } from './components/SharePointSyncModal';
 import { AppHeader } from './components/AppHeader';
 import { AppSidebar } from './components/AppSidebar';
@@ -117,6 +119,10 @@ export function App() {
         window.history.replaceState({}, '', `/${slug}/ocorrencias`);
       } else if (screen === 'menu-2') {
         window.history.replaceState({}, '', `/${slug}/dashboard`);
+      } else if (screen === 'plano-acao') {
+        window.history.replaceState({}, '', `/${slug}/planejamento`);
+      } else if (screen === 'repositorio-8d') {
+        window.history.replaceState({}, '', `/${slug}/repositorio-8d`);
       }
     } catch {
       // Ignora restrições de history API em iframes sandboxed se aplicável
@@ -340,6 +346,7 @@ export function App() {
                 rncId={Number(screenParams?.rncId || screenParams?.id || 6119)}
                 onNavigate={handleNavigate}
                 currentUser={currentUser}
+                initialViewMode={screenParams?.initialViewMode}
               />
             )}
 
@@ -370,6 +377,21 @@ export function App() {
                 currentUser={currentUser}
                 onNavigate={handleNavigate}
                 onTenantUpdated={handleRefreshData}
+              />
+            )}
+
+            {currentScreen === 'plano-acao' && (
+              <PlanoAcaoView
+                currentUser={currentUser}
+                onNavigate={handleNavigate}
+                initialFilterPrograma={screenParams?.programa}
+              />
+            )}
+
+            {currentScreen === 'repositorio-8d' && (
+              <Repositorio8DView
+                currentUser={currentUser}
+                onNavigate={handleNavigate}
               />
             )}
           </div>

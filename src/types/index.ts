@@ -145,7 +145,9 @@ export type ActiveScreen =
   | 'detalhes-8d'
   | 'impressao-8d'
   | 'rastreabilidade'
-  | 'cadastro-usuarios';
+  | 'cadastro-usuarios'
+  | 'plano-acao'
+  | 'repositorio-8d';
 
 export interface UsuarioQualidade {
   id: number;
@@ -384,3 +386,149 @@ export interface ListFiltersState {
   viewMode: 'grid' | 'list';
   currentPage: number;
 }
+
+// ============================================================================
+// MODELOS ESPECÍFICOS DO SHAREPOINT: 8D, ISHIKAWA, HENKATEN & PLANO DE AÇÃO
+// ============================================================================
+
+export type ActionPlanPriority = 'Alta' | 'Média' | 'Baixa';
+export type ActionPlanStatus = 'Aberto' | 'Concluído' | 'Cancelado';
+export type ActionItemStatus = 'Aberto' | 'Atrasado' | 'Concluído' | 'Validado';
+export type ActionItemType = 'CONTENÇÃO' | 'CORRETIVA' | 'PREVENTIVA' | 'MELHORIA';
+export type IshikawaM = 'Máquina' | 'Mão de Obra' | 'Método' | 'Material' | 'Medição' | 'Meio Ambiente';
+
+/**
+ * Cabeçalho do Plano de Ação (Lista SharePoint: 'Action plan')
+ */
+export interface ActionPlanHeader {
+  id: number;
+  tenant_id: string;
+  indicador_programa_estrategico: string; // ex: "ATENDIMENTO AO CLIENTE", "FAST RESPONSE", "KAIZEN"
+  sub1?: string;
+  sub2?: string;
+  posto_?: string;
+  produto_?: string;
+  setor_?: string;
+  prioridade: ActionPlanPriority;
+  descricao_problema_oportunidade: string;
+  foto_acao?: string;
+  idprograma?: string; // Chave externa (ex: varid8d -> "I - 10" ou "C - 10")
+  id_rel1?: string; // GUID único do plano
+  data_abertura: string;
+  status: ActionPlanStatus;
+  responsavel_abertura: string;
+}
+
+/**
+ * Detalhes da Ação (Lista SharePoint: 'Action plan_acoes')
+ */
+export interface ActionPlanItem {
+  id: number;
+  tenant_id: string;
+  id_rel2: number; // ID do cabeçalho Action plan
+  id_programa_acoes?: string; // Chave externa da RNC/8D (ex: "I - 10")
+  causa?: string; // Causa raiz dos 5 Porquês / Ishikawa
+  contra_medida: string;
+  comentarios_observacoes?: string;
+  data_acompanhamento: string;
+  data_planejada: string;
+  data_plan_anterior?: string;
+  responsavel_acao: string; // Nome da BASE_ATIVOS
+  email?: string;
+  email_super?: string;
+  tipo_acao: ActionItemType;
+  yokoten?: 'SIM' | 'NÃO'; // Abrangência 6D
+  poka_yoke?: 'SIM' | 'NÃO'; // Dispositivo à prova de erro 6D
+  oData_8d_7d?: 'FMEA' | 'Trabalho Padronizado' | 'Auditoria Escalonada'; // Ações preventivas 7D
+  oc_nd?: 'Ocorrência' | 'Não Detecção';
+  evidencia_obrigatoria?: 'SIM' | 'NÃO';
+  validacao_acao?: 'SIM' | 'NÃO';
+  status: ActionItemStatus;
+  status_acao?: ActionItemStatus;
+  data_conclusao?: string;
+  comentarios_evidencia?: string;
+  anexos_evidencia?: string[];
+  comentarios_validacao?: string;
+  status_revisar?: string; // "Revisar" se reprovado
+  revisao_data?: number; // Contador de prorrogações
+}
+
+/**
+ * Metadados, Equipe Multidisciplinar e Aprovação Final do 8D (Lista SharePoint: 'lista_participantes')
+ */
+export interface EightDMetadata {
+  id: number;
+  tenant_id: string;
+  id8d: string; // ex: "I - 10" ou "C - 10"
+  participantes_8d: string; // Lista de nomes separados por vírgula
+  validar_8d?: 'Aprovado' | 'Reprovado' | 'Em Andamento' | 'Pendente';
+  comentarios_validacao?: string;
+  // Ciclos de revisão por etapa
+  revisado_4d?: boolean;
+  comentarios_revisao_4d?: string;
+  revisado_5d?: boolean;
+  comentarios_revisao_5d?: string;
+  revisado_6d?: boolean;
+  comentarios_revisao_6d?: string;
+  revisado_7d?: boolean;
+  comentarios_revisao_7d?: string;
+  // Diretrizes 6D (Yokoten & Poka-Yoke)
+  diretriz_yokoten?: string;
+  diretriz_pokayoke?: string;
+  data_aprovacao?: string;
+  aprovado_por?: string;
+}
+
+/**
+ * Causas do Diagrama de Ishikawa e 5 Porquês (Lista SharePoint: 'lista_ishikawa')
+ */
+export interface IshikawaCauseItem {
+  id: number;
+  tenant_id: string;
+  id8d: string; // ex: "I - 10"
+  descricao_causa: string;
+  seisms: IshikawaM;
+  ocnd: 'Ocorrência' | 'Não Detecção';
+  okng: 'OK' | 'NG';
+  umpq?: string;
+  doispq?: string;
+  trespq?: string;
+  quatropq?: string;
+  cincopq?: string;
+  anexos?: string[];
+}
+
+/**
+ * Pontos de Mudança nos 6M (Lista SharePoint: 'lista_henkaten')
+ */
+export interface HenkatenRecord {
+  id: number;
+  tenant_id: string;
+  id8d: string;
+  maqhkt?: 'Sim' | 'Não';
+  maq_comentarios?: string;
+  mohkt?: 'Sim' | 'Não';
+  mo_comentarios?: string;
+  methkt?: 'Sim' | 'Não';
+  met_comentarios?: string;
+  mathkt?: 'Sim' | 'Não';
+  mat_comentarios?: string;
+  medhkt?: 'Sim' | 'Não';
+  med_comentarios?: string;
+  mambhkt?: 'Sim' | 'Não';
+  mamb_comentarios?: string;
+}
+
+/**
+ * Investigação Gemba & Entrevistas (Lista SharePoint: 'lista_entrevista8d')
+ */
+export interface Entrevista8DRecord {
+  id: number;
+  tenant_id: string;
+  id8d: string;
+  gemba?: string;
+  rastreabilidade?: string;
+  entrevista?: string;
+  simulacao?: string;
+}
+

@@ -24,7 +24,9 @@ import {
   ShieldAlert,
   Filter,
   RotateCcw,
-  ExternalLink
+  ExternalLink,
+  CheckSquare,
+  Archive
 } from 'lucide-react';
 import { UsuarioQualidade, RNCRecord } from '../types';
 import { spStore } from '../services/sharepointService';
@@ -215,6 +217,18 @@ export const Menu2View: React.FC<Menu2ViewProps> = ({
       topDefects
     };
   }, [allRncs, filteredRncs, selectedStatus, selectedTipoRnc, selectedDefeito]);
+
+  const actionPlanMetrics = useMemo(() => {
+    const plans = spStore.getActionPlans();
+    const items = spStore.getActionItems();
+    const dossiers = spStore.getConcluded8DDossiers();
+    const pendingActions = items.filter(i => i.status === 'Aberto' || i.status === 'Atrasado').length;
+    return {
+      totalPlans: plans.length,
+      pendingActions,
+      concludedDossiers: dossiers.length
+    };
+  }, []);
 
   const getClientBadge = (cliente: string) => {
     return getClientBadgeInfo(cliente);
@@ -482,9 +496,9 @@ export const Menu2View: React.FC<Menu2ViewProps> = ({
           <span className="text-xs text-slate-400">Ações diretas do sistema</span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           
-          {/* Módulo 1 */}
+          {/* Módulo 1: Ocorrências */}
           <div
             onClick={() => onNavigate('lista-8d')}
             className="card-saas card-saas-hover cursor-pointer flex items-start gap-3.5 p-4 group"
@@ -493,16 +507,67 @@ export const Menu2View: React.FC<Menu2ViewProps> = ({
               <ClipboardList className="w-5 h-5" />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-bold text-[#0f172a] group-hover:text-[#0f6cbd] transition-colors truncate">
-                Lista de Ocorrências (RNC)
+              <div className="flex items-center justify-between gap-1">
+                <span className="text-sm font-bold text-[#0f172a] group-hover:text-[#0f6cbd] transition-colors truncate">
+                  Ocorrências (RNC)
+                </span>
+                <span className="text-[11px] font-mono font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded">
+                  {allRncs.length}
+                </span>
               </div>
               <div className="text-xs text-[#64748b] mt-0.5 line-clamp-2 leading-relaxed">
-                Visualização por lista e blocos com filtros completos.
+                Visualização por galeria e lista com filtros por montadora.
               </div>
             </div>
           </div>
 
-          {/* Módulo 2 */}
+          {/* Módulo 2: Planejamento & Ações */}
+          <div
+            onClick={() => onNavigate('plano-acao')}
+            className="card-saas card-saas-hover cursor-pointer flex items-start gap-3.5 p-4 group"
+          >
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0 border border-emerald-100 group-hover:bg-emerald-600 group-hover:text-white transition-all shadow-xs">
+              <CheckSquare className="w-5 h-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-1">
+                <span className="text-sm font-bold text-[#0f172a] group-hover:text-emerald-700 transition-colors truncate">
+                  Planejamento & Ações
+                </span>
+                <span className="text-[11px] font-mono font-bold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded">
+                  {actionPlanMetrics.pendingActions} pend.
+                </span>
+              </div>
+              <div className="text-xs text-[#64748b] mt-0.5 line-clamp-2 leading-relaxed">
+                Planos de ação 5W2H, Kanban fabril e follow-up de eficácia.
+              </div>
+            </div>
+          </div>
+
+          {/* Módulo 3: Repositório 8D */}
+          <div
+            onClick={() => onNavigate('repositorio-8d')}
+            className="card-saas card-saas-hover cursor-pointer flex items-start gap-3.5 p-4 group"
+          >
+            <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center shrink-0 border border-purple-100 group-hover:bg-purple-600 group-hover:text-white transition-all shadow-xs">
+              <Archive className="w-5 h-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-1">
+                <span className="text-sm font-bold text-[#0f172a] group-hover:text-purple-700 transition-colors truncate">
+                  Repositório 8D
+                </span>
+                <span className="text-[11px] font-mono font-bold text-purple-800 bg-purple-50 px-1.5 py-0.5 rounded">
+                  {actionPlanMetrics.concludedDossiers} dossiês
+                </span>
+              </div>
+              <div className="text-xs text-[#64748b] mt-0.5 line-clamp-2 leading-relaxed">
+                Dossiês homologados, lições aprendidas e relatórios de auditoria.
+              </div>
+            </div>
+          </div>
+
+          {/* Módulo 4: Gestão de Usuários */}
           <div
             onClick={() => onNavigate('cadastro-usuarios')}
             className="card-saas card-saas-hover cursor-pointer flex items-start gap-3.5 p-4 group"

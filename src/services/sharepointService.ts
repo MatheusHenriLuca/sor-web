@@ -12,7 +12,18 @@ import {
   Abrir8DRecord,
   SharePointConfig,
   UserRole,
-  ListFiltersState
+  ListFiltersState,
+  ActionPlanHeader,
+  ActionPlanItem,
+  EightDMetadata,
+  IshikawaCauseItem,
+  HenkatenRecord,
+  Entrevista8DRecord,
+  ActionItemStatus,
+  ActionPlanStatus,
+  ActionPlanPriority,
+  ActionItemType,
+  IshikawaM
 } from '../types';
 import { spDirect } from './sharepointDirectService';
 import { DEFAULT_CLIENTE } from '../constants/clientes';
@@ -865,6 +876,441 @@ async function idbSet(key: string, value: any): Promise<void> {
 }
 
 // ============================================================================
+// DADOS DE SEMENTE: PLANO DE AÇÃO, 8D, ISHIKAWA E INVESTIGAÇÃO (SHAREPOINT LISTS)
+// ============================================================================
+
+const INITIAL_ACTION_PLANS: ActionPlanHeader[] = [
+  {
+    id: 1,
+    tenant_id: PILOT_TENANT_ID,
+    indicador_programa_estrategico: 'ATENDIMENTO AO CLIENTE',
+    sub1: 'Qualidade Externa',
+    sub2: 'Solda Automatizada',
+    posto_: 'POSTO 01',
+    produto_: 'HR-V',
+    setor_: 'SOLDA 2 - CEL. TOYOTA',
+    prioridade: 'Alta',
+    descricao_problema_oportunidade: 'Trinca na solda do suporte longitudinal detectada na linha da montadora - Calibração dos parâmetros de soldagem',
+    idprograma: 'I - 1',
+    id_rel1: 'guid-plano-001-pilot',
+    data_abertura: '2026-10-18',
+    status: 'Aberto',
+    responsavel_abertura: 'Matheus Henrique de Luca'
+  },
+  {
+    id: 2,
+    tenant_id: PILOT_TENANT_ID,
+    indicador_programa_estrategico: 'ATENDIMENTO AO CLIENTE',
+    sub1: 'Estamparia Pesada',
+    sub2: 'Corte e Repuxo',
+    posto_: 'OP-20',
+    produto_: 'HB20',
+    setor_: 'ESTAMPARIA LINHA 1',
+    prioridade: 'Alta',
+    descricao_problema_oportunidade: 'Rebarba excessiva na furação guia da coluna B - Substituição e ajuste do punção de corte',
+    idprograma: 'C - 2',
+    id_rel1: 'guid-plano-002-pilot',
+    data_abertura: '2026-10-19',
+    status: 'Aberto',
+    responsavel_abertura: 'Carlos Eduardo Ferreira'
+  },
+  {
+    id: 3,
+    tenant_id: PILOT_TENANT_ID,
+    indicador_programa_estrategico: 'KAIZEN',
+    sub1: 'Melhoria Contínua',
+    sub2: 'Troca Rápida de Ferramental',
+    posto_: 'PRENSA 800T',
+    produto_: 'T-CROSS',
+    setor_: 'ESTAMPARIA LINHA 2',
+    prioridade: 'Média',
+    descricao_problema_oportunidade: 'Redução do tempo de setup de ferramentas (SMED) na prensagem com acoplamentos pneumáticos rápidos',
+    idprograma: 'KAIZEN-2026-01',
+    id_rel1: 'guid-plano-003-kaizen',
+    data_abertura: '2026-10-15',
+    status: 'Aberto',
+    responsavel_abertura: 'André Ferreira Santos'
+  },
+  {
+    id: 4,
+    tenant_id: PILOT_TENANT_ID,
+    indicador_programa_estrategico: 'ATENDIMENTO AO CLIENTE',
+    sub1: 'Qualidade Externa',
+    sub2: 'Solda Hyundai',
+    posto_: 'B643033 - ROBÔ 33',
+    produto_: 'U005000B6 - BACK COMPLETE',
+    setor_: 'SOLDA 3 - CEL. HONDA/HYUNDAI',
+    prioridade: 'Alta',
+    descricao_problema_oportunidade: 'Ponto de solda fora devido a peça amassada na montagem do cliente Hyundai (RNC 6119)',
+    idprograma: 'I - 6119',
+    id_rel1: 'guid-plano-004-hyundai',
+    data_abertura: '2026-10-19',
+    status: 'Aberto',
+    responsavel_abertura: 'Matheus Henrique de Luca'
+  }
+];
+
+const INITIAL_ACTION_ITEMS: ActionPlanItem[] = [
+  {
+    id: 1,
+    tenant_id: PILOT_TENANT_ID,
+    id_rel2: 1,
+    id_programa_acoes: 'I - 1',
+    tipo_acao: 'CONTENÇÃO',
+    contra_medida: 'Inspeção 100% visual e ensaio de macrografia amostral em todas as peças do lote WIP e estoque expedido.',
+    responsavel_acao: 'Roberto Mendes Silva',
+    email: 'rmendes@br.gestamp.com',
+    data_acompanhamento: '2026-10-19',
+    data_planejada: '2026-10-20',
+    status: 'Validado',
+    yokoten: 'SIM',
+    poka_yoke: 'NÃO',
+    evidencia_obrigatoria: 'SIM',
+    validacao_acao: 'SIM',
+    data_conclusao: '2026-10-20',
+    comentarios_evidencia: 'Realizada contenção de 308 peças. Nenhuma trinca adicional localizada.',
+    comentarios_validacao: 'Aprovado pelo auditor da qualidade em auditoria de lote bloqueado.'
+  },
+  {
+    id: 2,
+    tenant_id: PILOT_TENANT_ID,
+    id_rel2: 1,
+    id_programa_acoes: 'I - 1',
+    tipo_acao: 'CORRETIVA',
+    causa: 'Instabilidade térmica e desgaste precoce do bico de contato de cobre gerando oscilação na tensão do arco de solda.',
+    contra_medida: 'Substituição do bico de contato de cobre comum por liga CuCrZr de alta durabilidade e ajuste do fluxo de gás de proteção para 16 L/min.',
+    responsavel_acao: 'André Ferreira Santos',
+    email: 'aferreira@br.gestamp.com',
+    data_acompanhamento: '2026-10-22',
+    data_planejada: '2026-10-25',
+    status: 'Concluído',
+    yokoten: 'SIM',
+    poka_yoke: 'SIM',
+    evidencia_obrigatoria: 'SIM',
+    validacao_acao: 'SIM',
+    data_conclusao: '2026-10-24',
+    comentarios_evidencia: 'Novos bicos instalados nas células robóticas 01 e 02. Parâmetros travados no CLP.'
+  },
+  {
+    id: 3,
+    tenant_id: PILOT_TENANT_ID,
+    id_rel2: 1,
+    id_programa_acoes: 'I - 1',
+    tipo_acao: 'PREVENTIVA',
+    causa: 'Falta de parametrização no plano de manutenção preditiva para monitoramento contínuo da corrente de solda.',
+    contra_medida: 'Atualização da folha de processo FMEA e implementação de inspeção periódica com LPA diária.',
+    responsavel_acao: 'Carlos Eduardo Ferreira',
+    email: 'ceduardo@mhleansolucoes.com.br',
+    data_acompanhamento: '2026-10-26',
+    data_planejada: '2026-10-30',
+    status: 'Aberto',
+    oData_8d_7d: 'FMEA',
+    yokoten: 'SIM',
+    poka_yoke: 'NÃO',
+    evidencia_obrigatoria: 'SIM',
+    validacao_acao: 'SIM'
+  },
+  {
+    id: 4,
+    tenant_id: PILOT_TENANT_ID,
+    id_rel2: 2,
+    id_programa_acoes: 'C - 2',
+    tipo_acao: 'CORRETIVA',
+    causa: 'Folga excessiva na bucha guia da matriz de corte provocando rebarba na estampagem.',
+    contra_medida: 'Usinagem de novas buchas temperadas e troca do conjunto na ferramentaria.',
+    responsavel_acao: 'Juliana Santos Oliveira',
+    email: 'jsantos@br.gestamp.com',
+    data_acompanhamento: '2026-10-21',
+    data_planejada: '2026-10-22',
+    status: 'Atrasado',
+    yokoten: 'NÃO',
+    poka_yoke: 'NÃO',
+    evidencia_obrigatoria: 'SIM',
+    validacao_acao: 'SIM'
+  },
+  {
+    id: 5,
+    tenant_id: PILOT_TENANT_ID,
+    id_rel2: 3,
+    id_programa_acoes: 'KAIZEN-2026-01',
+    tipo_acao: 'MELHORIA',
+    contra_medida: 'Instalação de engates rápidos pneumáticos para mangueiras de refrigeração da prensa.',
+    responsavel_acao: 'André Ferreira Santos',
+    email: 'aferreira@br.gestamp.com',
+    data_acompanhamento: '2026-10-28',
+    data_planejada: '2026-11-05',
+    status: 'Aberto',
+    yokoten: 'SIM',
+    poka_yoke: 'NÃO',
+    evidencia_obrigatoria: 'NÃO',
+    validacao_acao: 'NÃO'
+  },
+  // --- Ações do 8D da RNC 6119 (I - 6119: HYUNDAI - Deformação Painel Traseiro) vinculadas ao Plano #4 ---
+  {
+    id: 6,
+    tenant_id: PILOT_TENANT_ID,
+    id_rel2: 4,
+    id_programa_acoes: 'I - 6119',
+    tipo_acao: 'CONTENÇÃO',
+    contra_medida: 'Inspeção 100% no posto de trabalho B643033 e segregação de todas as peças com deformação para retrabalho.',
+    responsavel_acao: 'LEANDRO APARECIDO POSSOMATO',
+    email: 'leandro.possomato@br.gestamp.com',
+    data_acompanhamento: '2026-10-19',
+    data_planejada: '2026-10-20',
+    status: 'Validado',
+    yokoten: 'SIM',
+    poka_yoke: 'NÃO',
+    evidencia_obrigatoria: 'SIM',
+    validacao_acao: 'SIM',
+    data_conclusao: '2026-10-20',
+    comentarios_evidencia: 'Lote de 24 peças inspecionado. 1 peça segregada e retrabalhada com calibrador DCO.',
+    comentarios_validacao: 'Validação de contenção aprovada pela Qualidade.'
+  },
+  {
+    id: 7,
+    tenant_id: PILOT_TENANT_ID,
+    id_rel2: 4,
+    id_programa_acoes: 'I - 6119',
+    tipo_acao: 'CORRETIVA',
+    causa: 'Bico graxeiro entupido impediu lubrificação do canal interno do grampo 3, gerando desgaste na bucha de articulação e pressão fora de esquadro.',
+    contra_medida: 'Substituição das buchas de articulação do grampo 3 por modelo sinterizado autolubrificante e desobstrução do bico graxeiro.',
+    responsavel_acao: 'Matheus Henrique de Luca',
+    email: 'mluca@br.gestamp.com',
+    data_acompanhamento: '2026-10-22',
+    data_planejada: '2026-10-26',
+    status: 'Concluído',
+    yokoten: 'SIM',
+    poka_yoke: 'SIM',
+    evidencia_obrigatoria: 'SIM',
+    validacao_acao: 'SIM',
+    data_conclusao: '2026-10-24',
+    comentarios_evidencia: 'Conjunto do grampo substituído e calibrado na ferramentaria com ensaio dimensional DCO.'
+  },
+  {
+    id: 8,
+    tenant_id: PILOT_TENANT_ID,
+    id_rel2: 4,
+    id_programa_acoes: 'I - 6119',
+    tipo_acao: 'CORRETIVA',
+    contra_medida: 'Avaliação de folga e alinhamento mecânico dos grampos pneumáticos nos robôs 31, 32 e 34 da linha Hyundai.',
+    responsavel_acao: 'Carlos Eduardo Ferreira',
+    email: 'ceduardo@mhleansolucoes.com.br',
+    data_acompanhamento: '2026-10-25',
+    data_planejada: '2026-10-28',
+    status: 'Aberto',
+    yokoten: 'SIM',
+    poka_yoke: 'NÃO',
+    evidencia_obrigatoria: 'SIM',
+    validacao_acao: 'SIM'
+  },
+  {
+    id: 9,
+    tenant_id: PILOT_TENANT_ID,
+    id_rel2: 4,
+    id_programa_acoes: 'I - 6119',
+    tipo_acao: 'PREVENTIVA',
+    oData_8d_7d: 'FMEA',
+    contra_medida: 'Revisão do PFMEA da operação B643033 incluindo o modo de falha de folga por deficiência de lubrificação no grampo de fixação.',
+    responsavel_acao: 'Carlos Eduardo Ferreira',
+    email: 'ceduardo@mhleansolucoes.com.br',
+    data_acompanhamento: '2026-10-26',
+    data_planejada: '2026-11-02',
+    status: 'Aberto',
+    yokoten: 'SIM',
+    poka_yoke: 'NÃO',
+    evidencia_obrigatoria: 'SIM',
+    validacao_acao: 'SIM'
+  },
+  {
+    id: 10,
+    tenant_id: PILOT_TENANT_ID,
+    id_rel2: 4,
+    id_programa_acoes: 'I - 6119',
+    tipo_acao: 'PREVENTIVA',
+    oData_8d_7d: 'Trabalho Padronizado',
+    contra_medida: 'Atualização da Instrução de Trabalho SOS 044 com inclusão da checagem diária de lubrificação de graxeiros no início do turno.',
+    responsavel_acao: 'Paulo Henrique Vicente',
+    email: 'paulo.vicente@br.gestamp.com',
+    data_acompanhamento: '2026-10-27',
+    data_planejada: '2026-11-04',
+    status: 'Aberto',
+    evidencia_obrigatoria: 'SIM',
+    validacao_acao: 'SIM'
+  }
+];
+
+const INITIAL_EIGHT_D_METADATA: EightDMetadata[] = [
+  {
+    id: 1,
+    tenant_id: PILOT_TENANT_ID,
+    id8d: 'I - 1',
+    participantes_8d: 'Matheus Henrique de Luca, Carlos Eduardo Ferreira, Roberto Mendes Silva, André Ferreira Santos',
+    validar_8d: 'Em Andamento',
+    diretriz_yokoten: 'Aplicar validação em todas as células de solda Toyota e Honda',
+    diretriz_pokayoke: 'Sensor de fluxo de gás com interlock no robô ABB instalado',
+    revisado_4d: true,
+    revisado_5d: false,
+    revisado_6d: false,
+    revisado_7d: false
+  },
+  {
+    id: 2,
+    tenant_id: PILOT_TENANT_ID,
+    id8d: 'C - 2',
+    participantes_8d: 'Carlos Eduardo Ferreira, Juliana Santos Oliveira',
+    validar_8d: 'Em Andamento',
+    diretriz_yokoten: 'Revisar matrizes irmãs de estampagem',
+    diretriz_pokayoke: 'Calibre passa/não-passa de borda'
+  },
+  {
+    id: 3,
+    tenant_id: PILOT_TENANT_ID,
+    id8d: 'I - 3',
+    participantes_8d: 'Roberto Mendes Silva, Marcos Vinicius Barbosa',
+    validar_8d: 'Aprovado',
+    comentarios_validacao: 'Plano 8D concluído com sucesso e eficácia comprovada após 30 dias.',
+    data_aprovacao: '2026-10-21',
+    aprovado_por: 'Carlos Eduardo Ferreira',
+    revisado_4d: true,
+    revisado_5d: true,
+    revisado_6d: true,
+    revisado_7d: true
+  },
+  {
+    id: 4,
+    tenant_id: PILOT_TENANT_ID,
+    id8d: 'I - 6119',
+    participantes_8d: 'Matheus Henrique de Luca, Leandro Aparecido Possomato, Paulo Henrique Vicente, Carlos Eduardo Ferreira',
+    validar_8d: 'Em Andamento',
+    diretriz_yokoten: 'Revisar articulações e graxeiros em todos os robôs das células Solda 3',
+    diretriz_pokayoke: 'Sensor óptico de checagem de assentamento da chapa antes do disparo do arco de solda',
+    revisado_4d: true,
+    revisado_5d: false,
+    revisado_6d: false,
+    revisado_7d: false
+  }
+];
+
+const INITIAL_ISHIKAWA_CAUSES: IshikawaCauseItem[] = [
+  {
+    id: 1,
+    tenant_id: PILOT_TENANT_ID,
+    id8d: 'I - 1',
+    seisms: 'Máquina',
+    ocnd: 'Ocorrência',
+    okng: 'NG',
+    descricao_causa: 'Instabilidade térmica e oscilação de corrente na tocha de soldagem robotizada',
+    umpq: 'Por que ocorreu a trinca? -> Porque houve falta de fusão na raiz do cordão de solda.',
+    doispq: 'Por que faltou fusão? -> Porque a energia linear de soldagem caiu abaixo de 0.8 kJ/mm.',
+    trespq: 'Por que a energia caiu? -> Porque houve oscilação na tensão do arco elétrico.',
+    quatropq: 'Por que a tensão oscilou? -> Porque o bico de contato sofreu desgaste prematuro por superaquecimento.',
+    cincopq: 'Por que o bico superaqueceu? -> Porque o fluxo de gás e material do bico não suportavam o regime contínuo de produção.'
+  },
+  {
+    id: 2,
+    tenant_id: PILOT_TENANT_ID,
+    id8d: 'I - 1',
+    seisms: 'Método',
+    ocnd: 'Não Detecção',
+    okng: 'OK',
+    descricao_causa: 'Frequência de inspeção visual pelo operador no posto 01',
+    umpq: 'Por que não detectou no posto? -> Parâmetros estavam dentro do plano de controle amostral.'
+  },
+  {
+    id: 3,
+    tenant_id: PILOT_TENANT_ID,
+    id8d: 'I - 1',
+    seisms: 'Material',
+    ocnd: 'Ocorrência',
+    okng: 'OK',
+    descricao_causa: 'Composição química do arame de solda ER70S-6 fora de especificação',
+    umpq: 'Por que suspeitou do arame? -> Lote de arame foi analisado e certificado pelo laboratório como conforme.'
+  },
+  {
+    id: 4,
+    tenant_id: PILOT_TENANT_ID,
+    id8d: 'I - 6119',
+    seisms: 'Máquina',
+    ocnd: 'Ocorrência',
+    okng: 'NG',
+    descricao_causa: 'Folga mecânica no grampo pneumático 3 do dispositivo de solda do robô 33',
+    umpq: 'Por que o ponto de solda pegou fora? -> Porque a chapa estava com deformação na borda de apoio.',
+    doispq: 'Por que a chapa deformou? -> Porque o grampo pneumático 3 aplicou pressão fora de esquadro.',
+    trespq: 'Por que aplicou pressão fora de esquadro? -> Porque a bucha de articulação do grampo desgastou excessivamente.',
+    quatropq: 'Por que a bucha desgastou? -> Porque a graxa não penetrava no canal interno de lubrificação.',
+    cincopq: 'Por que a graxa não penetrava? -> Porque o bico graxeiro estava entupido e não havia item de checagem na rota autônoma.'
+  },
+  {
+    id: 5,
+    tenant_id: PILOT_TENANT_ID,
+    id8d: 'I - 6119',
+    seisms: 'Método',
+    ocnd: 'Não Detecção',
+    okng: 'OK',
+    descricao_causa: 'Frequência de checagem dimensional da peça final no DCO',
+    umpq: 'Por que não detectou no posto? -> Amostragem periódica de 1 peça a cada 50 não capturou o desvio transitório.'
+  }
+];
+
+const INITIAL_HENKATEN: HenkatenRecord[] = [
+  {
+    id: 1,
+    tenant_id: PILOT_TENANT_ID,
+    id8d: 'I - 1',
+    maqhkt: 'Sim',
+    maq_comentarios: 'Troca da tocha robótica ocorrida 2 turnos antes do evento',
+    mohkt: 'Não',
+    mo_comentarios: 'Operador qualificado com certificação válida',
+    methkt: 'Não',
+    met_comentarios: 'Folha de processo revisada e aprovada',
+    mathkt: 'Não',
+    mat_comentarios: 'Matéria-prima de fornecedor homologado',
+    medhkt: 'Não',
+    med_comentarios: 'Dispositivo CMM calibrado',
+    mambhkt: 'Não',
+    mamb_comentarios: 'Temperatura e umidade dentro dos limites operacionais'
+  },
+  {
+    id: 2,
+    tenant_id: PILOT_TENANT_ID,
+    id8d: 'I - 6119',
+    maqhkt: 'Sim',
+    maq_comentarios: 'Substituição do atuador pneumático do grampo 3 ocorrida 24h antes do desvio',
+    mohkt: 'Não',
+    mo_comentarios: 'Operador com treinamento de solda em dia',
+    methkt: 'Não',
+    met_comentarios: 'Folha de processo mantida sem alteração',
+    mathkt: 'Não',
+    mat_comentarios: 'Lote de chapas estampadas aprovado na inspeção de entrada',
+    medhkt: 'Não',
+    med_comentarios: 'Gabarito DCO com certificado de calibração válido',
+    mambhkt: 'Não',
+    mamb_comentarios: 'Sem oscilação térmica relevante no galpão'
+  }
+];
+
+const INITIAL_ENTREVISTAS: Entrevista8DRecord[] = [
+  {
+    id: 1,
+    tenant_id: PILOT_TENANT_ID,
+    id8d: 'I - 1',
+    gemba: 'Avaliado o posto de solda 01 em operação real com medição de temperatura superficial.',
+    rastreabilidade: 'Lotes de peças brutas estampadas confirmados com rastreabilidade SAP 28926.',
+    entrevista: 'Operador relatou que nos últimos 30 min antes da parada o som do arco estava intermitente.',
+    simulacao: 'Reproduzido o cordão com bico novo e o defeito cessou imediatamente.'
+  },
+  {
+    id: 2,
+    tenant_id: PILOT_TENANT_ID,
+    id8d: 'I - 6119',
+    gemba: 'Avaliado o ciclo do robô 33 no posto B643033 durante soldagem do painel traseiro completo.',
+    rastreabilidade: 'Lotes do produto U005000B6 identificados e rastreados sem extravio nos racks.',
+    entrevista: 'Operador relatou que nos últimos 2 turnos o grampo 3 apresentava ruído atípico ao travar.',
+    simulacao: 'Confirmado desvio de 2.1mm no ponto de solda quando o grampo atuava com folga angular.'
+  }
+];
+
+// ============================================================================
 // CLASSE SINGLETON: GERENCIADOR DE DADOS SHAREPOINT
 // ============================================================================
 class SharePointDataStore {
@@ -885,6 +1331,12 @@ class SharePointDataStore {
   private rastCabeceiras: RastCabeceiraParsed[] = [];
   private treinamentos: RegistroTreinamento[] = [];
   private alertas: AlertaQualidadeRegistro[] = [];
+  private actionPlans: ActionPlanHeader[] = [];
+  private actionItems: ActionPlanItem[] = [];
+  private eightDMetadataList: EightDMetadata[] = [];
+  private ishikawaCauses: IshikawaCauseItem[] = [];
+  private henkatenList: HenkatenRecord[] = [];
+  private entrevistaList: Entrevista8DRecord[] = [];
   private currentUser: UsuarioQualidade = INITIAL_USERS[0];
   private lastHeartbeat: Date = new Date();
   private lastSyncTime: number = 0;
@@ -1021,6 +1473,13 @@ class SharePointDataStore {
         maxByTenant.forEach((maxId, tId) => {
           tenantService.ensureTenantRncSequenceAtLeast(tId, maxId);
         });
+
+        // Garante que a RNC 6119 e as demais RNCs essenciais de referência existam no banco em memória
+        INITIAL_RNCS.forEach(initRnc => {
+          if (!this.rncs.some(r => r.id === initRnc.id)) {
+            this.rncs.push({ ...initRnc, tenant_id: PILOT_TENANT_ID });
+          }
+        });
       } else {
         // Primeira inicialização do modelo v2 (IDs iniciando em 1 para cada empresa)
         this.rncs = this.normalizeLegacyGlobalIdsToPerTenant([]);
@@ -1090,6 +1549,48 @@ class SharePointDataStore {
       const storedAlertas = localStorage.getItem('gestamp_sor_alertas_v2');
       this.alertas = storedAlertas ? JSON.parse(storedAlertas) : [...INITIAL_ALERTAS];
 
+      const storedActionPlans = localStorage.getItem('gestamp_sor_action_plans');
+      const loadedPlans: ActionPlanHeader[] = storedActionPlans ? JSON.parse(storedActionPlans) : [];
+      const planMap = new Map<number, ActionPlanHeader>();
+      INITIAL_ACTION_PLANS.forEach(p => planMap.set(p.id, p));
+      loadedPlans.forEach(p => planMap.set(p.id, p));
+      this.actionPlans = Array.from(planMap.values());
+
+      const storedActionItems = localStorage.getItem('gestamp_sor_action_items');
+      const loadedItems: ActionPlanItem[] = storedActionItems ? JSON.parse(storedActionItems) : [];
+      const itemMap = new Map<number, ActionPlanItem>();
+      INITIAL_ACTION_ITEMS.forEach(i => itemMap.set(i.id, i));
+      loadedItems.forEach(i => itemMap.set(i.id, i));
+      this.actionItems = Array.from(itemMap.values());
+
+      const stored8DMeta = localStorage.getItem('gestamp_sor_8d_meta');
+      const loadedMeta: EightDMetadata[] = stored8DMeta ? JSON.parse(stored8DMeta) : [];
+      const metaMap = new Map<string, EightDMetadata>();
+      INITIAL_EIGHT_D_METADATA.forEach(m => metaMap.set(m.id8d, m));
+      loadedMeta.forEach(m => metaMap.set(m.id8d, m));
+      this.eightDMetadataList = Array.from(metaMap.values());
+
+      const storedIshikawa = localStorage.getItem('gestamp_sor_ishikawa');
+      const loadedIsh: IshikawaCauseItem[] = storedIshikawa ? JSON.parse(storedIshikawa) : [];
+      const ishMap = new Map<number, IshikawaCauseItem>();
+      INITIAL_ISHIKAWA_CAUSES.forEach(c => ishMap.set(c.id, c));
+      loadedIsh.forEach(c => ishMap.set(c.id, c));
+      this.ishikawaCauses = Array.from(ishMap.values());
+
+      const storedHenkaten = localStorage.getItem('gestamp_sor_henkaten');
+      const loadedHenk: HenkatenRecord[] = storedHenkaten ? JSON.parse(storedHenkaten) : [];
+      const henkMap = new Map<string, HenkatenRecord>();
+      INITIAL_HENKATEN.forEach(h => henkMap.set(h.id8d, h));
+      loadedHenk.forEach(h => henkMap.set(h.id8d, h));
+      this.henkatenList = Array.from(henkMap.values());
+
+      const storedEntrevista = localStorage.getItem('gestamp_sor_entrevista');
+      const loadedEntr: Entrevista8DRecord[] = storedEntrevista ? JSON.parse(storedEntrevista) : [];
+      const entrMap = new Map<string, Entrevista8DRecord>();
+      INITIAL_ENTREVISTAS.forEach(e => entrMap.set(e.id8d, e));
+      loadedEntr.forEach(e => entrMap.set(e.id8d, e));
+      this.entrevistaList = Array.from(entrMap.values());
+
       const storedUserRE = localStorage.getItem('gestamp_sor_current_re');
       if (storedUserRE) {
         const found = this.users.find(u => u.reAcesso === Number(storedUserRE));
@@ -1140,6 +1641,12 @@ class SharePointDataStore {
       localStorage.setItem('gestamp_sor_cab_v2', JSON.stringify(this.rastCabeceiras));
       localStorage.setItem('gestamp_sor_trein_v2', JSON.stringify(this.treinamentos));
       localStorage.setItem('gestamp_sor_alertas_v2', JSON.stringify(this.alertas));
+      localStorage.setItem('gestamp_sor_action_plans', JSON.stringify(this.actionPlans));
+      localStorage.setItem('gestamp_sor_action_items', JSON.stringify(this.actionItems));
+      localStorage.setItem('gestamp_sor_8d_meta', JSON.stringify(this.eightDMetadataList));
+      localStorage.setItem('gestamp_sor_ishikawa', JSON.stringify(this.ishikawaCauses));
+      localStorage.setItem('gestamp_sor_henkaten', JSON.stringify(this.henkatenList));
+      localStorage.setItem('gestamp_sor_entrevista', JSON.stringify(this.entrevistaList));
       localStorage.setItem('gestamp_sor_current_re', String(this.currentUser.reAcesso));
       localStorage.setItem('gestamp_sor_last_sync', this.connectionState.lastSync || '');
     } catch (e) {
@@ -1162,6 +1669,12 @@ class SharePointDataStore {
     this.rastCabeceiras = [...INITIAL_RAST_CABECEIRAS];
     this.treinamentos = [...tenantService.getInitialTreinamentosForSeed()];
     this.alertas = [...INITIAL_ALERTAS];
+    this.actionPlans = [...INITIAL_ACTION_PLANS];
+    this.actionItems = [...INITIAL_ACTION_ITEMS];
+    this.eightDMetadataList = [...INITIAL_EIGHT_D_METADATA];
+    this.ishikawaCauses = [...INITIAL_ISHIKAWA_CAUSES];
+    this.henkatenList = [...INITIAL_HENKATEN];
+    this.entrevistaList = [...INITIAL_ENTREVISTAS];
     this.currentUser = INITIAL_USERS[0];
     this.indexRNCs();
     this.indexPecas();
@@ -1558,16 +2071,58 @@ class SharePointDataStore {
   }
 
   public getRNCById(id: number | string, tenantIdOverride?: string): RNCRecord | undefined {
-    const numId = Number(id);
+    const cleanId = String(id).replace(/[^0-9]/g, '');
+    const numId = cleanId ? Number(cleanId) : Number(id);
     const activeTenantId = tenantIdOverride || tenantService.getActiveTenantId();
-    const compositeKey = this.getRncCompositeKey(activeTenantId, numId);
-    const exactMatch = this.rncMap.get(compositeKey);
-    if (exactMatch) {
-      return exactMatch;
+    
+    // 1. Tenta achar no tenant ativo por composite key
+    if (!isNaN(numId)) {
+      const compositeKey = this.getRncCompositeKey(activeTenantId, numId);
+      const exactMatch = this.rncMap.get(compositeKey);
+      if (exactMatch) {
+        return exactMatch;
+      }
     }
-    return this.rncs.find(
-      r => (r.tenant_id || PILOT_TENANT_ID) === activeTenantId && (r.id === numId || String(r.id) === String(id))
+
+    // 2. Tenta achar no tenant ativo por id, title, field1 ou codOcorrenciaCliente
+    const inTenant = this.rncs.find(
+      r => (r.tenant_id || PILOT_TENANT_ID) === activeTenantId && 
+           (r.id === numId || String(r.id) === String(id) || r.title === String(id) || r.field1 === String(id))
     );
+    if (inTenant) {
+      return inTenant;
+    }
+
+    // 3. Fallback Global: procura em qualquer tenant por ID numérico ou string
+    const globalMatch = this.rncs.find(
+      r => r.id === numId || String(r.id) === String(id) || r.title === String(id) || r.field1 === String(id) || r.field1 === `RNC-${id}`
+    );
+    if (globalMatch) {
+      return globalMatch;
+    }
+
+    // 4. Fallback especial para 6119 ou itens em INITIAL_RNCS
+    const seedMatch = INITIAL_RNCS.find(r => r.id === numId || r.id === 6119);
+    if (seedMatch) {
+      const cloned: RNCRecord = { ...seedMatch, tenant_id: activeTenantId };
+      this.rncs.push(cloned);
+      this.indexRNCs();
+      this.saveToStorage();
+      return cloned;
+    }
+
+    // 5. Fallback por similaridade de código de ocorrência
+    const strId = String(id).trim();
+    if (strId) {
+      const partialMatch = this.rncs.find(r => 
+        (r.field1 && r.field1.includes(strId)) || 
+        (r.codOcorrenciaCliente && r.codOcorrenciaCliente.includes(strId))
+      );
+      if (partialMatch) return partialMatch;
+    }
+
+    // 6. Último recurso defensivo: retorna a primeira ocorrência disponível se houver
+    return this.rncs[0];
   }
 
   public saveRNC(rnc: Partial<RNCRecord>): RNCRecord & { success: boolean; message: string } {
@@ -2051,6 +2606,480 @@ class SharePointDataStore {
     this.users = this.users.filter(u => u.id !== id);
     this.saveToStorage();
     return true;
+  }
+
+  // ============================================================================
+  // MÉTODOS DE PLANO DE AÇÃO: CABEÇALHOS ('Action plan')
+  // ============================================================================
+  public getActionPlans(filter?: { idprograma?: string; search?: string }): ActionPlanHeader[] {
+    const activeTenantId = tenantService.getActiveTenantId();
+    let result = this.actionPlans.filter(p => (p.tenant_id || PILOT_TENANT_ID) === activeTenantId);
+
+    if (filter?.idprograma) {
+      result = result.filter(p => p.idprograma === filter.idprograma);
+    }
+    if (filter?.search) {
+      const q = filter.search.toLowerCase().trim();
+      result = result.filter(p => 
+        (p.descricao_problema_oportunidade && p.descricao_problema_oportunidade.toLowerCase().includes(q)) ||
+        (p.indicador_programa_estrategico && p.indicador_programa_estrategico.toLowerCase().includes(q)) ||
+        (p.produto_ && p.produto_.toLowerCase().includes(q)) ||
+        (p.posto_ && p.posto_.toLowerCase().includes(q)) ||
+        (p.idprograma && p.idprograma.toLowerCase().includes(q))
+      );
+    }
+    return result.sort((a, b) => b.id - a.id);
+  }
+
+  public getActionPlanById(id: number): ActionPlanHeader | undefined {
+    const activeTenantId = tenantService.getActiveTenantId();
+    return (
+      this.actionPlans.find(p => (p.tenant_id || PILOT_TENANT_ID) === activeTenantId && p.id === id) ||
+      this.actionPlans.find(p => p.id === id)
+    );
+  }
+
+  /**
+   * Busca ou cria automaticamente um Cabeçalho de Plano de Ação ('Action plan') com seus campos fixos,
+   * adaptando os dados do registro de origem (ex: 8D / RNC ou qualquer outro app) e salvando o ID do Plano
+   * de volta no registro de origem (campo de vínculo local8d).
+   */
+  public getOrCreatePlanForExternalApp(idprograma: string): ActionPlanHeader | undefined {
+    if (!idprograma || !idprograma.trim()) return undefined;
+    const activeTenantId = tenantService.getActiveTenantId();
+    const normalizedProg = idprograma.trim();
+
+    let existing = this.actionPlans.find(
+      p =>
+        (p.tenant_id || PILOT_TENANT_ID) === activeTenantId &&
+        p.idprograma &&
+        p.idprograma.trim().toLowerCase() === normalizedProg.toLowerCase()
+    );
+
+    const digits = normalizedProg.replace(/[^0-9]/g, '');
+    const rncIdNum = digits ? Number(digits) : 0;
+    const rnc = rncIdNum ? this.getRNCById(rncIdNum) : undefined;
+
+    if (!existing && rnc) {
+      existing = this.saveActionPlan({
+        indicador_programa_estrategico:
+          rnc.tipoRnc === 'Formal' || rnc.tipoRnc === 'Informal'
+            ? 'ATENDIMENTO AO CLIENTE'
+            : 'FAST RESPONSE',
+        setor_: rnc.classificacaoSetor || rnc.setorDeteccao || 'Qualidade',
+        posto_: rnc.posto || rnc.fmds || '',
+        produto_: rnc.produto || '',
+        sub1: rnc.componente || '',
+        sub2: rnc.subcomponente || '',
+        prioridade: rnc.criticidade === 'A' || rnc.gravidade === 'Alta' ? 'Alta' : 'Média',
+        descricao_problema_oportunidade: rnc.descricaoProblema || rnc.title || '',
+        foto_acao: rnc.fotoPecaNg || '',
+        idprograma: normalizedProg,
+        status: 'Aberto',
+        responsavel_abertura: rnc.detector || this.currentUser.nome
+      });
+    }
+
+    if (existing && rnc && rnc.local8d !== String(existing.id)) {
+      rnc.local8d = String(existing.id);
+      this.saveToStorage();
+    }
+
+    return existing;
+  }
+
+  public saveActionPlan(plan: Partial<ActionPlanHeader>): ActionPlanHeader {
+    const activeTenantId = tenantService.getActiveTenantId();
+    let savedPlan: ActionPlanHeader;
+
+    if (plan.id) {
+      const idx = this.actionPlans.findIndex(p => p.id === plan.id && (p.tenant_id || PILOT_TENANT_ID) === activeTenantId);
+      if (idx >= 0) {
+        this.actionPlans[idx] = { ...this.actionPlans[idx], ...plan } as ActionPlanHeader;
+        savedPlan = this.actionPlans[idx];
+      } else {
+        savedPlan = plan as ActionPlanHeader;
+      }
+    } else {
+      const nextId = this.actionPlans.length > 0 ? Math.max(...this.actionPlans.map(p => p.id)) + 1 : 1;
+      savedPlan = {
+        id: nextId,
+        tenant_id: activeTenantId,
+        indicador_programa_estrategico: plan.indicador_programa_estrategico || 'ATENDIMENTO AO CLIENTE',
+        sub1: plan.sub1 || '',
+        sub2: plan.sub2 || '',
+        posto_: plan.posto_ || '',
+        produto_: plan.produto_ || '',
+        setor_: plan.setor_ || 'Qualidade',
+        prioridade: plan.prioridade || 'Média',
+        descricao_problema_oportunidade: plan.descricao_problema_oportunidade || '',
+        foto_acao: plan.foto_acao || '',
+        idprograma: plan.idprograma || '',
+        id_rel1: plan.id_rel1 || `guid-plan-${Date.now()}`,
+        data_abertura: plan.data_abertura || new Date().toISOString().split('T')[0],
+        status: plan.status || 'Aberto',
+        responsavel_abertura: plan.responsavel_abertura || this.currentUser.nome
+      };
+      this.actionPlans.unshift(savedPlan);
+    }
+
+    // Salva o ID do Plano no registro vinculado do outro app (ex: RNC.local8d = ID do Plano)
+    if (savedPlan.idprograma) {
+      const digits = savedPlan.idprograma.replace(/[^0-9]/g, '');
+      const rncNum = digits ? Number(digits) : 0;
+      if (rncNum) {
+        const linkedRnc = this.getRNCById(rncNum);
+        if (linkedRnc) {
+          linkedRnc.local8d = String(savedPlan.id);
+        }
+      }
+    }
+
+    this.saveToStorage();
+    return savedPlan;
+  }
+
+  public deleteActionPlan(id: number): boolean {
+    const activeTenantId = tenantService.getActiveTenantId();
+    this.actionPlans = this.actionPlans.filter(p => !(p.id === id && (p.tenant_id || PILOT_TENANT_ID) === activeTenantId));
+    // Remove ações filhas em cascata
+    this.actionItems = this.actionItems.filter(a => !(a.id_rel2 === id && (a.tenant_id || PILOT_TENANT_ID) === activeTenantId));
+    this.saveToStorage();
+    return true;
+  }
+
+  // ============================================================================
+  // MÉTODOS DE ITENS DE AÇÃO: DETALHES ('Action plan_acoes')
+  // ============================================================================
+  public getActionItems(filter?: { 
+    id_rel2?: number; 
+    id_programa_acoes?: string; 
+    status?: string; 
+    tipo_acao?: string;
+    responsavel?: string;
+    search?: string;
+  }): ActionPlanItem[] {
+    const activeTenantId = tenantService.getActiveTenantId();
+    const today = new Date().toISOString().split('T')[0];
+
+    let result = this.actionItems.filter(a => (a.tenant_id || PILOT_TENANT_ID) === activeTenantId);
+
+    // Atualiza status dinâmico para 'Atrasado' se data_planejada < hoje e status === 'Aberto'
+    result = result.map(a => {
+      if (a.status === 'Aberto' && a.data_planejada && a.data_planejada < today) {
+        return { ...a, status: 'Atrasado' as ActionItemStatus };
+      }
+      return a;
+    });
+
+    if (filter?.id_rel2 !== undefined) {
+      result = result.filter(a => a.id_rel2 === filter.id_rel2);
+    }
+    if (filter?.id_programa_acoes) {
+      result = result.filter(a => a.id_programa_acoes === filter.id_programa_acoes);
+    }
+    if (filter?.status && filter.status !== 'Todos') {
+      result = result.filter(a => a.status === filter.status);
+    }
+    if (filter?.tipo_acao && filter.tipo_acao !== 'Todos') {
+      result = result.filter(a => a.tipo_acao === filter.tipo_acao);
+    }
+    if (filter?.responsavel) {
+      result = result.filter(a => a.responsavel_acao.toLowerCase().includes(filter.responsavel!.toLowerCase()));
+    }
+    if (filter?.search) {
+      const q = filter.search.toLowerCase().trim();
+      result = result.filter(a =>
+        (a.contra_medida && a.contra_medida.toLowerCase().includes(q)) ||
+        (a.causa && a.causa.toLowerCase().includes(q)) ||
+        (a.responsavel_acao && a.responsavel_acao.toLowerCase().includes(q)) ||
+        (a.id_programa_acoes && a.id_programa_acoes.toLowerCase().includes(q))
+      );
+    }
+    return result.sort((a, b) => b.id - a.id);
+  }
+
+  public getActionItemById(id: number): ActionPlanItem | undefined {
+    const activeTenantId = tenantService.getActiveTenantId();
+    return this.actionItems.find(a => (a.tenant_id || PILOT_TENANT_ID) === activeTenantId && a.id === id);
+  }
+
+  public saveActionItem(item: Partial<ActionPlanItem>): ActionPlanItem {
+    const activeTenantId = tenantService.getActiveTenantId();
+    if (item.id) {
+      const idx = this.actionItems.findIndex(a => a.id === item.id && (a.tenant_id || PILOT_TENANT_ID) === activeTenantId);
+      if (idx >= 0) {
+        const old = this.actionItems[idx];
+        const hasDateChanged = item.data_planejada && item.data_planejada !== old.data_planejada;
+        this.actionItems[idx] = {
+          ...old,
+          ...item,
+          data_plan_anterior: hasDateChanged ? old.data_planejada : old.data_plan_anterior,
+          revisao_data: hasDateChanged ? (old.revisao_data || 0) + 1 : old.revisao_data
+        } as ActionPlanItem;
+        this.saveToStorage();
+        return this.actionItems[idx];
+      }
+    }
+
+    // Se a ação veio de um 8D ou app externo (id_programa_acoes preenchido) sem id_rel2 explícito,
+    // garante que o cabeçalho fixo do Plano ('Action plan') exista e vincula id_rel2 a ele
+    let resolvedPlanId = item.id_rel2;
+    if (!resolvedPlanId && item.id_programa_acoes) {
+      const planHeader = this.getOrCreatePlanForExternalApp(item.id_programa_acoes);
+      if (planHeader) {
+        resolvedPlanId = planHeader.id;
+      }
+    }
+
+    const nextId = this.actionItems.length > 0 ? Math.max(...this.actionItems.map(a => a.id)) + 1 : 1;
+    const newItem: ActionPlanItem = {
+      id: nextId,
+      tenant_id: activeTenantId,
+      id_rel2: resolvedPlanId || 1,
+      id_programa_acoes: item.id_programa_acoes || '',
+      causa: item.causa || '',
+      contra_medida: item.contra_medida || '',
+      comentarios_observacoes: item.comentarios_observacoes || '',
+      data_acompanhamento: item.data_acompanhamento || new Date().toISOString().split('T')[0],
+      data_planejada: item.data_planejada || new Date().toISOString().split('T')[0],
+      responsavel_acao: item.responsavel_acao || this.currentUser.nome,
+      email: item.email || this.currentUser.email || '',
+      email_super: item.email_super || '',
+      tipo_acao: item.tipo_acao || 'CORRETIVA',
+      yokoten: item.yokoten || 'NÃO',
+      poka_yoke: item.poka_yoke || 'NÃO',
+      oData_8d_7d: item.oData_8d_7d,
+      oc_nd: item.oc_nd || 'Ocorrência',
+      evidencia_obrigatoria: item.evidencia_obrigatoria || 'SIM',
+      validacao_acao: item.validacao_acao || 'SIM',
+      status: item.status || 'Aberto'
+    };
+    this.actionItems.unshift(newItem);
+    this.saveToStorage();
+    return newItem;
+  }
+
+  public concluirActionItem(
+    id: number, 
+    dataConclusao: string, 
+    comentarios: string, 
+    anexos?: string[]
+  ): ActionPlanItem {
+    const activeTenantId = tenantService.getActiveTenantId();
+    const idx = this.actionItems.findIndex(a => a.id === id && (a.tenant_id || PILOT_TENANT_ID) === activeTenantId);
+    if (idx === -1) throw new Error('Ação não encontrada');
+
+    const item = this.actionItems[idx];
+    const newStatus: ActionItemStatus = item.validacao_acao === 'NÃO' ? 'Validado' : 'Concluído';
+
+    this.actionItems[idx] = {
+      ...item,
+      status: newStatus,
+      data_conclusao: dataConclusao || new Date().toISOString().split('T')[0],
+      comentarios_evidencia: comentarios,
+      anexos_evidencia: anexos || item.anexos_evidencia || []
+    };
+    this.saveToStorage();
+    return this.actionItems[idx];
+  }
+
+  public validarActionItem(
+    id: number, 
+    status: 'Validado' | 'Aberto' | 'Atrasado', 
+    comentarios: string, 
+    statusRevisar?: string
+  ): ActionPlanItem {
+    const activeTenantId = tenantService.getActiveTenantId();
+    const idx = this.actionItems.findIndex(a => a.id === id && (a.tenant_id || PILOT_TENANT_ID) === activeTenantId);
+    if (idx === -1) throw new Error('Ação não encontrada');
+
+    this.actionItems[idx] = {
+      ...this.actionItems[idx],
+      status: status,
+      comentarios_validacao: comentarios,
+      status_revisar: statusRevisar || ''
+    };
+    this.saveToStorage();
+    return this.actionItems[idx];
+  }
+
+  public deleteActionItem(id: number): boolean {
+    const activeTenantId = tenantService.getActiveTenantId();
+    this.actionItems = this.actionItems.filter(a => !(a.id === id && (a.tenant_id || PILOT_TENANT_ID) === activeTenantId));
+    this.saveToStorage();
+    return true;
+  }
+
+  // ============================================================================
+  // METADADOS DO 8D & PARTICIPANTES ('lista_participantes')
+  // ============================================================================
+  public getEightDMetadata(id8d: string): EightDMetadata | undefined {
+    const activeTenantId = tenantService.getActiveTenantId();
+    return this.eightDMetadataList.find(m => (m.tenant_id || PILOT_TENANT_ID) === activeTenantId && m.id8d === id8d);
+  }
+
+  public saveEightDMetadata(metadata: Partial<EightDMetadata>): EightDMetadata {
+    const activeTenantId = tenantService.getActiveTenantId();
+    const targetKey = metadata.id8d || '';
+    const idx = this.eightDMetadataList.findIndex(m => m.id8d === targetKey && (m.tenant_id || PILOT_TENANT_ID) === activeTenantId);
+
+    if (idx >= 0) {
+      this.eightDMetadataList[idx] = { ...this.eightDMetadataList[idx], ...metadata } as EightDMetadata;
+      this.saveToStorage();
+      return this.eightDMetadataList[idx];
+    }
+
+    const nextId = this.eightDMetadataList.length > 0 ? Math.max(...this.eightDMetadataList.map(m => m.id)) + 1 : 1;
+    const newMeta: EightDMetadata = {
+      id: nextId,
+      tenant_id: activeTenantId,
+      id8d: targetKey,
+      participantes_8d: metadata.participantes_8d || this.currentUser.nome,
+      validar_8d: metadata.validar_8d || 'Em Andamento',
+      diretriz_yokoten: metadata.diretriz_yokoten || '',
+      diretriz_pokayoke: metadata.diretriz_pokayoke || '',
+      comentarios_validacao: metadata.comentarios_validacao || ''
+    };
+    this.eightDMetadataList.push(newMeta);
+    this.saveToStorage();
+    return newMeta;
+  }
+
+  // ============================================================================
+  // CAUSAS DO ISHIKAWA & 5 PORQUÊS ('lista_ishikawa')
+  // ============================================================================
+  public getIshikawaCauses(id8d: string): IshikawaCauseItem[] {
+    const activeTenantId = tenantService.getActiveTenantId();
+    return this.ishikawaCauses
+      .filter(c => (c.tenant_id || PILOT_TENANT_ID) === activeTenantId && c.id8d === id8d)
+      .sort((a, b) => a.id - b.id);
+  }
+
+  public saveIshikawaCause(cause: Partial<IshikawaCauseItem>): IshikawaCauseItem {
+    const activeTenantId = tenantService.getActiveTenantId();
+    if (cause.id) {
+      const idx = this.ishikawaCauses.findIndex(c => c.id === cause.id && (c.tenant_id || PILOT_TENANT_ID) === activeTenantId);
+      if (idx >= 0) {
+        this.ishikawaCauses[idx] = { ...this.ishikawaCauses[idx], ...cause } as IshikawaCauseItem;
+        this.saveToStorage();
+        return this.ishikawaCauses[idx];
+      }
+    }
+
+    const nextId = this.ishikawaCauses.length > 0 ? Math.max(...this.ishikawaCauses.map(c => c.id)) + 1 : 1;
+    const newCause: IshikawaCauseItem = {
+      id: nextId,
+      tenant_id: activeTenantId,
+      id8d: cause.id8d || '',
+      descricao_causa: cause.descricao_causa || '',
+      seisms: cause.seisms || 'Máquina',
+      ocnd: cause.ocnd || 'Ocorrência',
+      okng: cause.okng || 'OK',
+      umpq: cause.umpq || '',
+      doispq: cause.doispq || '',
+      trespq: cause.trespq || '',
+      quatropq: cause.quatropq || '',
+      cincopq: cause.cincopq || '',
+      anexos: cause.anexos || []
+    };
+    this.ishikawaCauses.push(newCause);
+    this.saveToStorage();
+    return newCause;
+  }
+
+  public deleteIshikawaCause(id: number): boolean {
+    const activeTenantId = tenantService.getActiveTenantId();
+    this.ishikawaCauses = this.ishikawaCauses.filter(c => !(c.id === id && (c.tenant_id || PILOT_TENANT_ID) === activeTenantId));
+    this.saveToStorage();
+    return true;
+  }
+
+  // ============================================================================
+  // HENKATEN 6M ('lista_henkaten')
+  // ============================================================================
+  public getHenkaten(id8d: string): HenkatenRecord | undefined {
+    const activeTenantId = tenantService.getActiveTenantId();
+    return this.henkatenList.find(h => (h.tenant_id || PILOT_TENANT_ID) === activeTenantId && h.id8d === id8d);
+  }
+
+  public saveHenkaten(data: Partial<HenkatenRecord>): HenkatenRecord {
+    const activeTenantId = tenantService.getActiveTenantId();
+    const targetKey = data.id8d || '';
+    const idx = this.henkatenList.findIndex(h => h.id8d === targetKey && (h.tenant_id || PILOT_TENANT_ID) === activeTenantId);
+
+    if (idx >= 0) {
+      this.henkatenList[idx] = { ...this.henkatenList[idx], ...data } as HenkatenRecord;
+      this.saveToStorage();
+      return this.henkatenList[idx];
+    }
+
+    const nextId = this.henkatenList.length > 0 ? Math.max(...this.henkatenList.map(h => h.id)) + 1 : 1;
+    const newHenk: HenkatenRecord = {
+      id: nextId,
+      tenant_id: activeTenantId,
+      id8d: targetKey,
+      ...data
+    };
+    this.henkatenList.push(newHenk);
+    this.saveToStorage();
+    return newHenk;
+  }
+
+  // ============================================================================
+  // INVESTIGAÇÃO GEMBA & ENTREVISTAS ('lista_entrevista8d')
+  // ============================================================================
+  public getEntrevista8D(id8d: string): Entrevista8DRecord | undefined {
+    const activeTenantId = tenantService.getActiveTenantId();
+    return this.entrevistaList.find(e => (e.tenant_id || PILOT_TENANT_ID) === activeTenantId && e.id8d === id8d);
+  }
+
+  public saveEntrevista8D(data: Partial<Entrevista8DRecord>): Entrevista8DRecord {
+    const activeTenantId = tenantService.getActiveTenantId();
+    const targetKey = data.id8d || '';
+    const idx = this.entrevistaList.findIndex(e => e.id8d === targetKey && (e.tenant_id || PILOT_TENANT_ID) === activeTenantId);
+
+    if (idx >= 0) {
+      this.entrevistaList[idx] = { ...this.entrevistaList[idx], ...data } as Entrevista8DRecord;
+      this.saveToStorage();
+      return this.entrevistaList[idx];
+    }
+
+    const nextId = this.entrevistaList.length > 0 ? Math.max(...this.entrevistaList.map(e => e.id)) + 1 : 1;
+    const newEntr: Entrevista8DRecord = {
+      id: nextId,
+      tenant_id: activeTenantId,
+      id8d: targetKey,
+      ...data
+    };
+    this.entrevistaList.push(newEntr);
+    this.saveToStorage();
+    return newEntr;
+  }
+
+  // ============================================================================
+  // REPOSITÓRIO: DOSSIÊS 8D HOMOLOGADOS E HISTÓRICO
+  // ============================================================================
+  public getConcluded8DDossiers(): {
+    rnc: RNCRecord;
+    meta?: EightDMetadata;
+    causes: IshikawaCauseItem[];
+    actions: ActionPlanItem[];
+  }[] {
+    const activeTenantId = tenantService.getActiveTenantId();
+    const allRncs = this.rncs.filter(r => (r.tenant_id || PILOT_TENANT_ID) === activeTenantId);
+
+    // Considera dossiê concluído se a RNC estiver como 'Concluído' ou se o 8D estiver 'Aprovado' em EightDMetadata
+    return allRncs
+      .filter(r => r.status === 'Concluído' || r.abrir8D === 'Sim')
+      .map(r => {
+        const id8d = `${r.tipoRnc === 'Formal' ? 'C' : 'I'} - ${r.id}`;
+        const meta = this.eightDMetadataList.find(m => m.id8d === id8d && (m.tenant_id || PILOT_TENANT_ID) === activeTenantId);
+        const causes = this.ishikawaCauses.filter(c => c.id8d === id8d && (c.tenant_id || PILOT_TENANT_ID) === activeTenantId);
+        const actions = this.actionItems.filter(a => a.id_programa_acoes === id8d && (a.tenant_id || PILOT_TENANT_ID) === activeTenantId);
+        return { rnc: r, meta, causes, actions };
+      })
+      .sort((a, b) => b.rnc.id - a.rnc.id);
   }
 }
 

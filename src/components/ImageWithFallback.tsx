@@ -105,10 +105,10 @@ export const ImageWithFallback: React.FC<ImageWithFallbackProps> = ({
           <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center mb-2 text-rose-700 shadow-xs">
             <AlertTriangle className="w-5 h-5 text-rose-600" />
           </div>
-          <span className="text-xs font-bold uppercase tracking-wider text-rose-900">
+          <span className="text-xs font-bold text-rose-900">
             {emptyLabel || 'Peça com Defeito (NG)'}
           </span>
-          <span className="text-[11px] text-rose-600 font-medium mt-1">
+          <span className="text-xs text-rose-600 font-medium mt-1">
             Nenhuma evidência fotográfica anexada
           </span>
         </div>
@@ -124,10 +124,10 @@ export const ImageWithFallback: React.FC<ImageWithFallbackProps> = ({
           <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center mb-2 text-emerald-700 shadow-xs">
             <CheckCircle2 className="w-5 h-5 text-emerald-600" />
           </div>
-          <span className="text-xs font-bold uppercase tracking-wider text-emerald-900">
+          <span className="text-xs font-bold text-emerald-900">
             {emptyLabel || 'Padrão Aprovado (OK)'}
           </span>
-          <span className="text-[11px] text-emerald-600 font-medium mt-1">
+          <span className="text-xs text-emerald-600 font-medium mt-1">
             Foto do padrão visual de conformidade
           </span>
         </div>
@@ -142,7 +142,7 @@ export const ImageWithFallback: React.FC<ImageWithFallbackProps> = ({
         <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center mb-2 text-slate-500">
           <Camera className="w-5 h-5" />
         </div>
-        <span className="text-xs font-semibold text-slate-700 uppercase">
+        <span className="text-xs font-semibold text-slate-700">
           {emptyLabel || 'Sem Anexo'}
         </span>
       </div>

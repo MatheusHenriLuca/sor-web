@@ -16,7 +16,23 @@ import {
 } from '../types';
 import { spDirect } from './sharepointDirectService';
 import { DEFAULT_CLIENTE } from '../constants/clientes';
-import { tenantService, PILOT_TENANT_ID } from './tenantService';
+import { tenantService, PILOT_TENANT_ID, normalizeRncRecordCasing } from './tenantService';
+import { normalizeDisplayText, formatOccurrenceId } from '../utils/formatText';
+
+function normalizePecaCasing(p: PecaCatalogo): PecaCatalogo {
+  return {
+    ...p,
+    descricao: normalizeDisplayText(p.descricao),
+    cliente: normalizeDisplayText(p.cliente),
+    cliente1: normalizeDisplayText(p.cliente1),
+    posto: normalizeDisplayText(p.posto),
+    fmds: normalizeDisplayText(p.fmds),
+    componente: p.componente ? normalizeDisplayText(p.componente) : p.componente,
+    carryOver: normalizeDisplayText(p.carryOver),
+    coProduto: (p.coProduto ? normalizeDisplayText(p.coProduto) : p.coProduto) as 'Sim' | 'Não' | undefined,
+    caracteristicaSeguranca: (p.caracteristicaSeguranca ? normalizeDisplayText(p.caracteristicaSeguranca) : p.caracteristicaSeguranca) as 'Sim' | 'Não' | undefined
+  };
+}
 
 // ============================================================================
 // CONFIGURAÇÃO DO SHAREPOINT ONLINE
@@ -908,6 +924,7 @@ class SharePointDataStore {
   }
 
   private indexRNCs() {
+    this.rncs = this.rncs.map(normalizeRncRecordCasing);
     this.rncs.sort((a, b) => b.id - a.id);
     this.rncMap.clear();
     for (let i = 0; i < this.rncs.length; i++) {
@@ -920,6 +937,7 @@ class SharePointDataStore {
   }
 
   private indexPecas() {
+    this.pecas = this.pecas.map(normalizePecaCasing);
     const postos = new Set<string>();
     const fmds = new Set<string>();
     const clientes = new Set<string>();
@@ -1043,8 +1061,8 @@ class SharePointDataStore {
       const storedAtivos = localStorage.getItem('gestamp_sor_ativos');
       const loadedAtivos: ColaboradorBaseAtivos[] = storedAtivos ? JSON.parse(storedAtivos) : [];
       const mapAtivos = new Map<number, ColaboradorBaseAtivos>();
-      INITIAL_BASE_ATIVOS.forEach(a => mapAtivos.set(a.numPessoal, a));
-      loadedAtivos.forEach(a => mapAtivos.set(a.numPessoal, a));
+      INITIAL_BASE_ATIVOS.forEach(a => mapAtivos.set(a.numPessoal, { ...a, nome: normalizeDisplayText(a.nome) }));
+      loadedAtivos.forEach(a => mapAtivos.set(a.numPessoal, { ...a, nome: normalizeDisplayText(a.nome) }));
       this.baseAtivos = Array.from(mapAtivos.values());
 
       const storedRast = localStorage.getItem('gestamp_sor_rast_v2');
@@ -1661,7 +1679,7 @@ class SharePointDataStore {
       console.error("Falha ao registrar novo item no SharePoint:", err);
     });
 
-    return { ...newRecord, success: true, message: `Nova ocorrência RNC #${newRecord.id} registrada com sucesso!` };
+    return { ...newRecord, success: true, message: `Nova ocorrência ${formatOccurrenceId(newRecord.id, newRecord.codOcorrenciaCliente || newRecord.field1)} registrada com sucesso!` };
   }
 
   public updateRNC(id: number, rnc: Partial<RNCRecord>): RNCRecord & { success: boolean; message: string } {

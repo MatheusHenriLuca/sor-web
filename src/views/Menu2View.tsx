@@ -476,10 +476,10 @@ export const Menu2View: React.FC<Menu2ViewProps> = ({
       {/* 3. MÓDULOS OPERACIONAIS (Acesso Direto e Intuitivo) */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xs font-display font-semibold uppercase tracking-wider text-[#94a3b8]">
-            Módulos operacionais
+          <h2 className="text-xs font-semibold text-slate-500">
+            Módulos Operacionais
           </h2>
-          <span className="text-xs text-[#94a3b8]">Ações diretas do sistema</span>
+          <span className="text-xs text-slate-400">Ações diretas do sistema</span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
@@ -493,8 +493,8 @@ export const Menu2View: React.FC<Menu2ViewProps> = ({
               <ClipboardList className="w-5 h-5" />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-display font-bold text-[#0f172a] group-hover:text-[#0f6cbd] transition-colors truncate">
-                Lista de ocorrências (RNC)
+              <div className="text-sm font-bold text-[#0f172a] group-hover:text-[#0f6cbd] transition-colors truncate">
+                Lista de Ocorrências (RNC)
               </div>
               <div className="text-xs text-[#64748b] mt-0.5 line-clamp-2 leading-relaxed">
                 Visualização por lista e blocos com filtros completos.
@@ -511,8 +511,8 @@ export const Menu2View: React.FC<Menu2ViewProps> = ({
               <Users className="w-5 h-5" />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-display font-bold text-[#0f172a] group-hover:text-slate-800 transition-colors truncate">
-                Gestão de usuários
+              <div className="text-sm font-bold text-[#0f172a] group-hover:text-slate-800 transition-colors truncate">
+                Gestão de Usuários
               </div>
               <div className="text-xs text-[#64748b] mt-0.5 line-clamp-2 leading-relaxed">
                 Perfis de acesso da qualidade e colaboradores cadastrados.
@@ -535,8 +535,8 @@ export const Menu2View: React.FC<Menu2ViewProps> = ({
                   <BarChart3 className="w-4 h-4" />
                 </div>
                 <div>
-                  <h2 className="text-sm sm:text-base font-display font-bold text-[#0f172a]">
-                    Volume de ocorrências por montadora
+                  <h2 className="text-sm sm:text-base font-bold text-[#0f172a]">
+                    Volume de Ocorrências por Montadora
                   </h2>
                   <p className="text-xs text-[#64748b]">
                     Distribuição quantitativa e representatividade na base total ({metrics.allClients.length} montadoras)
@@ -811,14 +811,14 @@ export const Menu2View: React.FC<Menu2ViewProps> = ({
                 title="Clique para filtrar Relatório Inicial"
               >
                 <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-sky-700 block">Triagem</span>
+                  <span className="text-xs font-semibold text-sky-700 block">Triagem</span>
                   <span className="text-xs font-bold text-sky-950 block mt-0.5">Relatório Inicial</span>
                 </div>
                 <div className="mt-2.5">
                   <span className="text-lg sm:text-xl font-mono font-extrabold text-sky-950 block tabular-nums">
                     {metrics.statusRelatorioInicial}
                   </span>
-                  <span className="text-[10px] text-sky-700">Aguardando tratativa</span>
+                  <span className="text-xs text-sky-700">Aguardando tratativa</span>
                 </div>
               </div>
 
@@ -833,14 +833,14 @@ export const Menu2View: React.FC<Menu2ViewProps> = ({
                 title="Clique para filtrar RNC Emitida"
               >
                 <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-700 block">Oficializada</span>
+                  <span className="text-xs font-semibold text-indigo-700 block">Oficializada</span>
                   <span className="text-xs font-bold text-indigo-950 block mt-0.5">RNC Emitida</span>
                 </div>
                 <div className="mt-2.5">
                   <span className="text-lg sm:text-xl font-mono font-extrabold text-indigo-950 block tabular-nums">
                     {metrics.statusRncEmitida}
                   </span>
-                  <span className="text-[10px] text-indigo-700">Oficial no cliente</span>
+                  <span className="text-xs text-indigo-700">Oficial no cliente</span>
                 </div>
               </div>
 
@@ -855,14 +855,14 @@ export const Menu2View: React.FC<Menu2ViewProps> = ({
                 title="Clique para filtrar Em Andamento"
               >
                 <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 block">Em Curso</span>
+                  <span className="text-xs font-semibold text-amber-700 block">Em Curso</span>
                   <span className="text-xs font-bold text-amber-950 block mt-0.5">Em Andamento</span>
                 </div>
                 <div className="mt-2.5">
                   <span className="text-lg sm:text-xl font-mono font-extrabold text-amber-950 block tabular-nums">
                     {metrics.statusEmAndamento}
                   </span>
-                  <span className="text-[10px] text-amber-700">Contenção ativa</span>
+                  <span className="text-xs text-amber-700">Contenção ativa</span>
                 </div>
               </div>
 
@@ -877,14 +877,14 @@ export const Menu2View: React.FC<Menu2ViewProps> = ({
                 title="Clique para filtrar Concluídos"
               >
                 <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 block">Finalizadas</span>
+                  <span className="text-xs font-semibold text-slate-600 block">Finalizadas</span>
                   <span className="text-xs font-bold text-slate-900 block mt-0.5">Concluído</span>
                 </div>
                 <div className="mt-2.5">
                   <span className="text-lg sm:text-xl font-mono font-extrabold text-slate-900 block tabular-nums">
                     {metrics.concluidoCount}
                   </span>
-                  <span className="text-[10px] text-slate-600">Resolvidas</span>
+                  <span className="text-xs text-slate-600">Resolvidas</span>
                 </div>
               </div>
 

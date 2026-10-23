@@ -19,6 +19,7 @@ import {
 import { RNCRecord } from '../types';
 import { ImageWithFallback } from './ImageWithFallback';
 import { formatDateBR } from '../utils/date';
+import { formatOccurrenceId } from '../utils/formatText';
 
 interface RncDetalhesModalProps {
   rnc: RNCRecord | null | undefined;
@@ -64,13 +65,8 @@ export const RncDetalhesModal: React.FC<RncDetalhesModalProps> = ({
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="px-2.5 py-0.5 rounded-lg text-xs font-black bg-blue-100 text-[#0b5796] border border-blue-200 font-mono-numbers shrink-0">
-                  RNC #{rnc.id}
+                  {formatOccurrenceId(rnc.id, rnc.codOcorrenciaCliente || rnc.field1)}
                 </span>
-                {rnc.field1 && rnc.field1 !== `RNC #${rnc.id}` && (
-                  <h2 className="text-base sm:text-lg font-bold text-slate-900 truncate font-mono">
-                    {rnc.field1}
-                  </h2>
-                )}
                 <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${
                   rnc.status === 'Concluído' 
                     ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 

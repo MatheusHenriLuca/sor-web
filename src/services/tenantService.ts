@@ -17,6 +17,60 @@ import {
   SaaSUserRole
 } from '../types';
 import { compressImageToWebP, estimateDataUrlSizeKB, CompressedImageResult } from '../utils/imageCompressor';
+import { normalizeDisplayText } from '../utils/formatText';
+
+export function normalizeRncRecordCasing(r: RNCRecord): RNCRecord {
+  const normList = (val?: string) =>
+    val
+      ? val
+          .split(';')
+          .map(s => normalizeDisplayText(s))
+          .filter(Boolean)
+          .join(';')
+      : val;
+
+  return {
+    ...r,
+    cliente: normalizeDisplayText(r.cliente),
+    classificacaoSetor: normalizeDisplayText(r.classificacaoSetor),
+    setorDeteccao: normalizeDisplayText(r.setorDeteccao),
+    impactoCliente: normalizeDisplayText(r.impactoCliente),
+    produto: normalizeDisplayText(r.produto),
+    componente: normalizeDisplayText(r.componente),
+    modoFalha: normalizeDisplayText(r.modoFalha),
+    posto: normalizeDisplayText(r.posto),
+    fmds: normalizeDisplayText(r.fmds),
+    reincidente: normalizeDisplayText(r.reincidente) as any,
+    possivelDetectar: normalizeDisplayText(r.possivelDetectar),
+    caracteristicaSeguranca: normalizeDisplayText(r.caracteristicaSeguranca) as any,
+    coProduto: normalizeDisplayText(r.coProduto) as any,
+    carryOver: normalizeDisplayText(r.carryOver) as any,
+    abrir8D: normalizeDisplayText(r.abrir8D) as any,
+    protcliente: (normalizeDisplayText(r.protcliente) as any),
+    quemFara: normalizeDisplayText(r.quemFara),
+    ondeFara: normalizeDisplayText(r.ondeFara),
+    detector: normalizeDisplayText(r.detector),
+    responsavelConclusao: normalizeDisplayText(r.responsavelConclusao),
+    participantesAtendimento: normList(r.participantesAtendimento),
+    acoesContencao: normList(r.acoesContencao),
+    descricaoProblemaInterno: normalizeDisplayText(r.descricaoProblemaInterno),
+    detalhamentoOcorrencia: normalizeDisplayText(r.detalhamentoOcorrencia),
+    descricaoProblema: normalizeDisplayText(r.descricaoProblema),
+    descricaoCompleta: normalizeDisplayText(r.descricaoCompleta),
+    oQueFazer: normalizeDisplayText(r.oQueFazer),
+    comoFazer: normalizeDisplayText(r.comoFazer),
+    porQueFazer: normalizeDisplayText(r.porQueFazer),
+    recomendacoesProvidencias: normalizeDisplayText(r.recomendacoesProvidencias)
+  };
+}
+
+export function normalizeMasterDataItemCasing(m: MasterDataItem): MasterDataItem {
+  return {
+    ...m,
+    nome: m.tipo === 'criticidade' ? m.nome : normalizeDisplayText(m.nome),
+    detalhe: m.detalhe ? normalizeDisplayText(m.detalhe) : m.detalhe
+  };
+}
 
 // ============================================================================
 // GERADOR DE ILUSTRAÇÕES TÉCNICAS SVG (PEÇA NG / PEÇA OK) PARA AS 10 RNCS PILOTO
@@ -534,7 +588,7 @@ export function getDefaultOptionItemsForTenant(tenantId: string): MasterDataItem
     { id: `${tenantId}-forn-4`, tenant_id: tenantId, tipo: 'origem_fornecedor', nome: 'PPG INDUSTRIAL — Químicos E-Coat', codigo: 'FORN-04', detalhe: 'Tratamento Superficial', ativo: true }
   ];
 
-  return [...baseItems, ...commonOptionItems];
+  return [...baseItems, ...commonOptionItems].map(normalizeMasterDataItemCasing);
 }
 
 // ============================================================================
@@ -1936,7 +1990,8 @@ class SaaSTenantService {
       });
 
       const rawMaster = localStorage.getItem('sor_saas_master_v1');
-      this.masterData = rawMaster ? JSON.parse(rawMaster) : [...INITIAL_MASTER_DATA];
+      const parsedMaster: MasterDataItem[] = rawMaster ? JSON.parse(rawMaster) : [...INITIAL_MASTER_DATA];
+      this.masterData = parsedMaster.map(normalizeMasterDataItemCasing);
 
       const rawOptCats = localStorage.getItem('sor_saas_option_cats_v1');
       this.optionCategories = rawOptCats ? JSON.parse(rawOptCats) : [];
@@ -2352,7 +2407,7 @@ class SaaSTenantService {
     const allProfiles = [
       {
         label: 'Matheus de Luca (Admin MH Lean & Soluções)',
-        roleBadge: 'ADMIN PADRÃO',
+        roleBadge: 'Admin Padrão',
         tenantName: 'MH Lean & Soluções',
         tenantSlug: 'mh-lean-solucoes',
         email: 'mhsolucoes@adimin.com.br',
@@ -2361,7 +2416,7 @@ class SaaSTenantService {
       },
       {
         label: 'Console MH Qualidade Super Admin',
-        roleBadge: 'MH QUALIDADE',
+        roleBadge: 'MH Qualidade',
         tenantName: 'Console Global MH Qualidade',
         tenantSlug: 'super-admin',
         email: 'mhsolucoes@adimin.com.br',
@@ -2371,7 +2426,7 @@ class SaaSTenantService {
       },
       {
         label: 'Carlos Eduardo (Eng. Qualidade)',
-        roleBadge: 'QUALIDADE 8D',
+        roleBadge: 'Qualidade 8D',
         tenantName: 'MH Lean & Soluções',
         tenantSlug: 'mh-lean-solucoes',
         email: 'qualidade@mhleansolucoes.com.br',
@@ -2380,7 +2435,7 @@ class SaaSTenantService {
       },
       {
         label: 'Marcos Vinicius (Operador Fabril)',
-        roleBadge: 'OPERADOR',
+        roleBadge: 'Operador',
         tenantName: 'MH Lean & Soluções',
         tenantSlug: 'mh-lean-solucoes',
         email: 'operador@mhleansolucoes.com.br',
@@ -2389,7 +2444,7 @@ class SaaSTenantService {
       },
       {
         label: 'Ricardo Prado (Tenant 2 Isolado)',
-        roleBadge: 'ADMIN TENANT 2',
+        roleBadge: 'Admin Tenant 2',
         tenantName: 'Metalúrgica Vale',
         tenantSlug: 'metalurgica-vale',
         email: 'admin@metalurgicavale.com.br',
@@ -3128,11 +3183,17 @@ class SaaSTenantService {
   }
 
   public getInitialRncsForSeed(): RNCRecord[] {
-    return [...PILOT_GPM_RNCS, ...SECONDARY_VALE_RNCS];
+    return [...PILOT_GPM_RNCS, ...SECONDARY_VALE_RNCS].map(normalizeRncRecordCasing);
   }
 
   public getInitialTreinamentosForSeed(): RegistroTreinamento[] {
-    return [...INITIAL_SAAS_TREINAMENTOS];
+    return INITIAL_SAAS_TREINAMENTOS.map(t => ({
+      ...t,
+      nomeColaborador: normalizeDisplayText(t.nomeColaborador),
+      produto: normalizeDisplayText(t.produto),
+      defeito: normalizeDisplayText(t.defeito),
+      responsavel: normalizeDisplayText(t.responsavel)
+    }));
   }
 
   public recalculateTenantStorage(rncs: RNCRecord[], tenantId?: string) {

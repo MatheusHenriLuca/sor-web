@@ -24,6 +24,7 @@ import {
 import { RastreabilidadeItem, EtiquetaVivaParsed, LoteSAPParsed, RastCabeceiraParsed, UsuarioQualidade } from '../types';
 import { spStore } from '../services/sharepointService';
 import { formatDateBR } from '../utils/date';
+import { formatOccurrenceId } from '../utils/formatText';
 
 interface RastreabilidadeViewProps {
   onNavigate: (screen: any, params?: any) => void;
@@ -188,11 +189,8 @@ export const RastreabilidadeView: React.FC<RastreabilidadeViewProps> = ({ onNavi
           <div className="flex items-center gap-2 bg-white border border-slate-200 shadow-2xs px-3 py-1.5 rounded-lg text-xs">
             <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse shrink-0" />
             <span className="font-mono font-bold text-slate-900">
-              RNC #{currentRnc.id}
+              {formatOccurrenceId(currentRnc.id, currentRnc.codOcorrenciaCliente || currentRnc.field1)}
             </span>
-            {currentRnc.field1 && currentRnc.field1 !== `RNC-${currentRnc.id}` && (
-              <span className="text-slate-400 font-normal">({currentRnc.field1})</span>
-            )}
             <span className="text-slate-300">•</span>
             <span className="font-semibold text-slate-700">{currentRnc.cliente}</span>
             <span className="text-slate-300">•</span>
@@ -227,7 +225,7 @@ export const RastreabilidadeView: React.FC<RastreabilidadeViewProps> = ({ onNavi
           <div className="flex items-center justify-between pb-3 mb-3 border-b border-blue-100">
             <div className="flex items-center gap-2">
               <Barcode className="w-4 h-4 text-[#0b5796]" />
-              <h2 className="text-xs font-display font-bold text-slate-900 uppercase tracking-wide">
+              <h2 className="text-sm font-bold text-slate-900">
                 Cadastrar Nova Solicitação de Rastreamento no SAP
               </h2>
             </div>
@@ -303,19 +301,19 @@ export const RastreabilidadeView: React.FC<RastreabilidadeViewProps> = ({ onNavi
         <div className="bg-[#002f6c] text-white px-4 py-2 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Barcode className="w-4 h-4 text-sky-200" />
-            <span className="text-xs font-bold tracking-wide uppercase">
+            <span className="text-xs font-bold">
               Solicitações de Rastreabilidade ({solicitacoes.length})
             </span>
           </div>
-          <span className="text-[11px] font-mono text-sky-100">
-            Ocorrência #{currentRnc.id}
+          <span className="text-xs font-mono text-sky-100">
+            {formatOccurrenceId(currentRnc.id, currentRnc.codOcorrenciaCliente || currentRnc.field1)}
           </span>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="bg-[#004b87] text-white text-[11px] font-bold uppercase tracking-wider select-none border-b border-[#003b6e]">
+              <tr className="bg-[#004b87] text-white text-xs font-semibold select-none border-b border-[#003b6e]">
                 <th className="py-2.5 px-3 text-center w-12">Seq.</th>
                 <th className="py-2.5 px-3">Data Solic.</th>
                 <th className="py-2.5 px-3">Prod.</th>
@@ -416,7 +414,7 @@ export const RastreabilidadeView: React.FC<RastreabilidadeViewProps> = ({ onNavi
           >
             <Eraser size={15} />
           </button>
-          <span className="text-xs font-bold text-slate-800 font-mono uppercase tracking-wide">
+          <span className="text-xs font-bold text-slate-800 font-mono">
             {prodCode}
           </span>
         </div>
@@ -434,9 +432,9 @@ export const RastreabilidadeView: React.FC<RastreabilidadeViewProps> = ({ onNavi
         {/* BLOCO 1: LOTES ENCONTRADOS (CABEÇALHO AZUL ESCURO) */}
         <div className="card-saas border-slate-200 overflow-hidden shadow-2xs flex flex-col justify-between bg-white">
           <div>
-            <div className="bg-[#1a4b8c] text-white px-3.5 py-2 font-display font-bold text-xs uppercase tracking-wide flex items-center justify-between">
-              <span>Lotes encontrados</span>
-              <span className="text-[10px] font-mono bg-blue-950/40 px-2 py-0.5 rounded">
+            <div className="bg-[#1a4b8c] text-white px-3.5 py-2 font-bold text-xs flex items-center justify-between">
+              <span>Lotes Encontrados</span>
+              <span className="text-xs font-mono bg-blue-950/40 px-2 py-0.5 rounded">
                 {lotes.length} item(s)
               </span>
             </div>
@@ -444,7 +442,7 @@ export const RastreabilidadeView: React.FC<RastreabilidadeViewProps> = ({ onNavi
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="bg-[#245fa8] text-white text-[10px] font-bold uppercase tracking-wider select-none">
+                  <tr className="bg-[#245fa8] text-white text-xs font-semibold select-none">
                     <th className="py-2 px-3">Item</th>
                     <th className="py-2 px-3">Lote</th>
                     <th className="py-2 px-3 text-right">Qtd</th>
@@ -492,9 +490,9 @@ export const RastreabilidadeView: React.FC<RastreabilidadeViewProps> = ({ onNavi
         {/* BLOCO 2: PEÇAS EM CABECEIRAS (CABEÇALHO VERMELHO) */}
         <div className="card-saas border-slate-200 overflow-hidden shadow-2xs flex flex-col justify-between bg-white">
           <div>
-            <div className="bg-[#c51f1f] text-white px-3.5 py-2 font-display font-bold text-xs uppercase tracking-wide flex items-center justify-between">
-              <span>Peças em cabeceiras</span>
-              <span className="text-[10px] font-mono bg-red-950/40 px-2 py-0.5 rounded">
+            <div className="bg-[#c51f1f] text-white px-3.5 py-2 font-bold text-xs flex items-center justify-between">
+              <span>Peças em Cabeceiras</span>
+              <span className="text-xs font-mono bg-red-950/40 px-2 py-0.5 rounded">
                 {cabeceiras.length} item(s)
               </span>
             </div>
@@ -502,7 +500,7 @@ export const RastreabilidadeView: React.FC<RastreabilidadeViewProps> = ({ onNavi
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="bg-[#dd3333] text-white text-[10px] font-bold uppercase tracking-wider select-none">
+                  <tr className="bg-[#dd3333] text-white text-xs font-semibold select-none">
                     <th className="py-2 px-3">Item</th>
                     <th className="py-2 px-3">Lote</th>
                     <th className="py-2 px-3 text-right">Qtd</th>
@@ -550,9 +548,9 @@ export const RastreabilidadeView: React.FC<RastreabilidadeViewProps> = ({ onNavi
         {/* BLOCO 3: PEÇAS COM ETIQUETAS ATIVAS (CABEÇALHO LARANJA) */}
         <div className="card-saas border-slate-200 overflow-hidden shadow-2xs flex flex-col justify-between bg-white">
           <div>
-            <div className="bg-[#e06500] text-white px-3.5 py-2 font-display font-bold text-xs uppercase tracking-wide flex items-center justify-between">
-              <span>Peças com etiquetas ativas</span>
-              <span className="text-[10px] font-mono bg-orange-950/40 px-2 py-0.5 rounded">
+            <div className="bg-[#e06500] text-white px-3.5 py-2 font-bold text-xs flex items-center justify-between">
+              <span>Peças com Etiquetas Ativas</span>
+              <span className="text-xs font-mono bg-orange-950/40 px-2 py-0.5 rounded">
                 {etiquetas.length} item(s)
               </span>
             </div>
@@ -560,7 +558,7 @@ export const RastreabilidadeView: React.FC<RastreabilidadeViewProps> = ({ onNavi
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="bg-[#f07510] text-white text-[10px] font-bold uppercase tracking-wider select-none">
+                  <tr className="bg-[#f07510] text-white text-xs font-semibold select-none">
                     <th className="py-2 px-2.5">Item</th>
                     <th className="py-2 px-2.5">Etiquetas SAP</th>
                     <th className="py-2 px-2">Lote</th>

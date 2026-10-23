@@ -196,7 +196,7 @@ export const SharePointSyncModal: React.FC<SharePointSyncModalProps> = ({
 
           {/* Connected Bases Summary */}
           <div>
-            <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <h3 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
               <Layers className="w-4 h-4 text-[#092162]" />
               Bases Carregadas na Memória do App (Power Apps Runtime)
             </h3>
@@ -251,7 +251,7 @@ export const SharePointSyncModal: React.FC<SharePointSyncModalProps> = ({
 
           {/* SharePoint Online Endpoint Config */}
           <div className="border-t border-slate-200 pt-5 flex flex-col gap-4">
-            <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+            <h3 className="text-sm font-bold text-slate-700 flex items-center gap-2">
               <Database className="w-4 h-4 text-sky-600" />
               Conexão Direta ao SharePoint Online (Tenant Gestamp)
             </h3>
@@ -303,7 +303,7 @@ export const SharePointSyncModal: React.FC<SharePointSyncModalProps> = ({
 
           {/* Import / Export Tools */}
           <div className="border-t border-slate-200 pt-5 flex flex-col gap-3">
-            <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+            <h3 className="text-sm font-bold text-slate-700 flex items-center gap-2">
               <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
               Importação & Exportação de Dados do SharePoint
             </h3>

@@ -187,7 +187,7 @@ export const VerifUserView: React.FC<VerifUserViewProps> = ({ onLoginSuccess }) 
 
           {/* Teclado Numérico Virtual Compacto */}
           <div className="border-t border-[#e2e8f0] pt-4">
-            <div className="text-[10px] font-display font-semibold uppercase tracking-wider text-[#64748b] text-center mb-3">
+            <div className="text-xs font-semibold text-slate-500 text-center mb-3">
               Teclado Numérico Touch
             </div>
             <div className="grid grid-cols-3 gap-2 max-w-[260px] mx-auto">
@@ -228,7 +228,7 @@ export const VerifUserView: React.FC<VerifUserViewProps> = ({ onLoginSuccess }) 
 
           {/* Perfis Rápidos */}
           <div className="border-t border-[#e2e8f0] pt-4 flex flex-col gap-2.5">
-            <div className="text-[10px] font-display font-semibold uppercase tracking-wider text-[#64748b] text-center">
+            <div className="text-xs font-semibold text-slate-500 text-center">
               Acesso Rápido para Teste
             </div>
             <div className="grid grid-cols-2 gap-2 text-left">

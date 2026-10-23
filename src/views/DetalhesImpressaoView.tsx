@@ -5,6 +5,7 @@ import { spStore } from '../services/sharepointService';
 import { tenantService } from '../services/tenantService';
 import { ImageWithFallback } from '../components/ImageWithFallback';
 import { formatDateBR } from '../utils/date';
+import { formatOccurrenceId } from '../utils/formatText';
 
 interface DetalhesImpressaoViewProps {
   rncId: number;
@@ -119,7 +120,7 @@ export const DetalhesImpressaoView: React.FC<DetalhesImpressaoViewProps> = ({ rn
               />
             ) : (
               <div
-                className="text-white px-3.5 py-1.5 font-black text-base tracking-wider rounded uppercase"
+                className="text-white px-3.5 py-1.5 font-bold text-sm rounded"
                 style={{ backgroundColor: brandColor }}
               >
                 {brandName}
@@ -127,32 +128,27 @@ export const DetalhesImpressaoView: React.FC<DetalhesImpressaoViewProps> = ({ rn
             )}
             <div>
               <h2
-                className="text-base font-black leading-tight"
+                className="text-base font-bold leading-tight"
                 style={{ color: brandColor }}
               >
-                ALERTA DA QUALIDADE & RASTREABILIDADE
+                Alerta da Qualidade & Rastreabilidade
               </h2>
-              <span className="text-[10px] text-slate-500 font-semibold tracking-wide uppercase">
+              <span className="text-xs text-slate-500 font-semibold">
                 {brandSubtitle}
               </span>
             </div>
           </div>
           <div className="text-right">
             <div className="text-base font-black text-rose-600 font-mono">
-              RNC #{rnc.id}
+              {formatOccurrenceId(rnc.id, rnc.codOcorrenciaCliente || rnc.field1)}
             </div>
-            {rnc.field1 && rnc.field1 !== `RNC #${rnc.id}` && (
-              <div className="text-xs font-mono font-bold text-slate-700">
-                Código: {rnc.field1}
-              </div>
-            )}
-            <div className="text-[10px] text-slate-500 font-medium">Data: {formatDateBR(rnc.dataOcorrencia)}</div>
+            <div className="text-xs text-slate-500 font-medium">Data: {formatDateBR(rnc.dataOcorrencia)}</div>
           </div>
         </div>
 
         {/* Informações Gerais */}
         <div className="grid grid-cols-4 gap-2 bg-slate-50 p-2.5 border border-slate-200 mb-3 rounded text-xs">
-          <div><strong className="text-slate-500">ID da RNC:</strong> <span className="font-bold text-blue-700 font-mono">#{rnc.id}</span></div>
+          <div><strong className="text-slate-500">ID / Ocorrência:</strong> <span className="font-bold text-blue-700 font-mono">{formatOccurrenceId(rnc.id, rnc.codOcorrenciaCliente || rnc.field1)}</span></div>
           <div><strong className="text-slate-500">Cliente:</strong> <span className="font-bold">{rnc.cliente}</span></div>
           <div><strong className="text-slate-500">Veículo / Projeto:</strong> <span className="font-bold">{rnc.produto}</span></div>
           <div><strong className="text-slate-500">Componente:</strong> <span className="font-bold">{rnc.componente}</span></div>
@@ -173,8 +169,8 @@ export const DetalhesImpressaoView: React.FC<DetalhesImpressaoViewProps> = ({ rn
           
           {/* Box NG */}
           <div className="border-2 border-rose-500 rounded overflow-hidden flex flex-col">
-            <div className="bg-rose-600 text-white px-2.5 py-1 font-black text-[11px] text-center tracking-wide">
-              PEÇA NÃO CONFORME (DEFEITO REGISTRADO)
+            <div className="bg-rose-600 text-white px-2.5 py-1 font-bold text-xs text-center">
+              Peça Não Conforme (Defeito Registrado)
             </div>
             <div className="h-44 bg-slate-100 relative overflow-hidden flex items-center justify-center">
               <ImageWithFallback 
@@ -187,15 +183,15 @@ export const DetalhesImpressaoView: React.FC<DetalhesImpressaoViewProps> = ({ rn
               />
             </div>
             <div className="p-2 bg-rose-50 text-rose-950 font-bold text-xs min-h-[38px] border-t border-rose-200">
-              <span className="text-[10px] uppercase font-black text-rose-700 block">Sintoma / Falha:</span>
+              <span className="text-xs font-bold text-rose-700 block">Sintoma / Falha:</span>
               {rnc.descricaoProblema || 'Defeito não detalhado'}
             </div>
           </div>
 
           {/* Box OK */}
           <div className="border-2 border-emerald-500 rounded overflow-hidden flex flex-col">
-            <div className="bg-emerald-600 text-white px-2.5 py-1 font-black text-[11px] text-center tracking-wide">
-              PEÇA CONFORME (PADRÃO APROVADO)
+            <div className="bg-emerald-600 text-white px-2.5 py-1 font-bold text-xs text-center">
+              Peça Conforme (Padrão Aprovado)
             </div>
             <div className="h-44 bg-slate-100 relative overflow-hidden flex items-center justify-center">
               <ImageWithFallback 
@@ -208,7 +204,7 @@ export const DetalhesImpressaoView: React.FC<DetalhesImpressaoViewProps> = ({ rn
               />
             </div>
             <div className="p-2 bg-emerald-50 text-emerald-950 font-bold text-xs min-h-[38px] border-t border-emerald-200">
-              <span className="text-[10px] uppercase font-black text-emerald-700 block">Critério de Aceitação:</span>
+              <span className="text-xs font-bold text-emerald-700 block">Critério de Aceitação:</span>
               Livre de rebarbas, trincas, solda com fusão 100% e conformidade geométrica.
             </div>
           </div>

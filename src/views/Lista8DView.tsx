@@ -25,6 +25,7 @@ import { spStore } from '../services/sharepointService';
 import { CLIENTES_LIST, getClientBadgeInfo } from '../constants/clientes';
 import { formatDateBR } from '../utils/date';
 import { handleSafeClick } from '../utils/selection';
+import { formatOccurrenceId } from '../utils/formatText';
 
 interface Lista8DViewProps {
   onNavigate: (screen: string, params?: any) => void;
@@ -423,7 +424,7 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
           : 'bg-slate-100 text-slate-500 border-slate-200'
       }`}>
         <Layers className="w-3 h-3 shrink-0" />
-        <span>8D - {isSim ? 'Sim' : 'Não'}</span>
+        <span>8D: {isSim ? 'Sim' : 'Não'}</span>
       </span>
     );
   };
@@ -547,7 +548,7 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
           
           {/* Dropdown 1: Setor Responsável */}
           <div className="flex flex-col gap-1">
-            <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1">
+            <label className="text-xs font-semibold text-slate-600 flex items-center gap-1">
               <Factory className="w-3.5 h-3.5 text-slate-400" />
               <span>Setor Responsável</span>
             </label>
@@ -565,7 +566,7 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
 
           {/* Dropdown 2: Tipo de RNC */}
           <div className="flex flex-col gap-1">
-            <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1">
+            <label className="text-xs font-semibold text-slate-600 flex items-center gap-1">
               <FileText className="w-3.5 h-3.5 text-slate-400" />
               <span>Tipo de RNC</span>
             </label>
@@ -584,7 +585,7 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
 
           {/* Dropdown 3: Cliente */}
           <div className="flex flex-col gap-1">
-            <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1">
+            <label className="text-xs font-semibold text-slate-600 flex items-center gap-1">
               <Building2 className="w-3.5 h-3.5 text-slate-400" />
               <span>Cliente</span>
             </label>
@@ -602,7 +603,7 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
 
           {/* Dropdown 4: Área */}
           <div className="flex flex-col gap-1">
-            <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1">
+            <label className="text-xs font-semibold text-slate-600 flex items-center gap-1">
               <Layers className="w-3.5 h-3.5 text-slate-400" />
               <span>Área</span>
             </label>
@@ -672,15 +673,62 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
                 ))
               : null;
 
+            const occurrenceId = formatOccurrenceId(r.id, formalCode);
+            const isSim8D = String(r.abrir8D || '').toUpperCase() === 'SIM';
+            const isSap = r.documentoRastreabilidade === 'Etiqueta SAP' || !!r.codigoRastreabilidade;
+            const sapText = isSap && r.codigoRastreabilidade ? `SAP: ${r.codigoRastreabilidade}` : isSap ? 'Etiqueta SAP' : 'SAP: Não inform.';
+
+            let statusStyle = 'bg-slate-50 text-slate-700 border-slate-200';
+            let StatusIcon = Clock;
+            let iconColor = 'text-slate-500';
+
+            if (r.status === 'Concluído') {
+              statusStyle = 'bg-emerald-50/90 text-emerald-800 border-emerald-200/90';
+              StatusIcon = CheckCircle2;
+              iconColor = 'text-emerald-600';
+            } else if (r.status === 'Em Andamento') {
+              statusStyle = 'bg-amber-50/90 text-amber-900 border-amber-300/80';
+              StatusIcon = Clock;
+              iconColor = 'text-amber-600';
+            } else if (r.status === 'RNC Emitida') {
+              statusStyle = 'bg-indigo-50/90 text-indigo-900 border-indigo-200/90';
+              StatusIcon = AlertCircle;
+              iconColor = 'text-indigo-600';
+            } else if (r.status === 'Relatório Inicial') {
+              statusStyle = 'bg-sky-50/90 text-sky-800 border-sky-200/90';
+              StatusIcon = FileText;
+              iconColor = 'text-sky-600';
+            } else if (r.status === 'Reprovado') {
+              statusStyle = 'bg-rose-50/90 text-rose-800 border-rose-200/90';
+              StatusIcon = AlertTriangle;
+              iconColor = 'text-rose-600';
+            }
+
+            const tipo = r.tipoRnc || 'Formal';
+            let tipoStyle = 'bg-slate-50 text-slate-700 border-slate-200/90';
+            let tipoIconColor = 'text-slate-500';
+
+            if (tipo === 'Formal') {
+              tipoStyle = 'bg-rose-50/80 text-rose-800 border-rose-200/90';
+              tipoIconColor = 'text-rose-500';
+            } else if (tipo === 'Informal') {
+              tipoStyle = 'bg-purple-50/80 text-purple-800 border-purple-200/90';
+              tipoIconColor = 'text-purple-500';
+            } else if (tipo === 'Improcedente') {
+              tipoStyle = 'bg-amber-50/80 text-amber-800 border-amber-200/90';
+              tipoIconColor = 'text-amber-500';
+            }
+
             return (
               <div
                 key={r.id}
                 onClick={(e) => handleSafeClick(() => onNavigate('detalhes-8d', { rncId: r.id }), e)}
-                className="card-saas p-3.5 sm:p-4 border-slate-200 hover:border-[#0f6cbd] hover:shadow-md transition-all cursor-pointer flex flex-col md:flex-row items-stretch justify-between gap-4 group"
+                className="card-saas p-3 sm:p-4 border-slate-200 hover:border-[#0f6cbd] hover:shadow-md transition-all cursor-pointer flex flex-col md:flex-row items-stretch justify-between gap-3 md:gap-4 group bg-white"
               >
-                {/* SEÇÃO 1: FOTO / MINIATURA EXPANDIDA (APROVEITANDO O ESPAÇO DO CARD) */}
-                <div className="flex items-center gap-3 shrink-0 self-start md:self-stretch">
-                  <div className="w-28 h-28 sm:w-32 sm:h-32 md:w-36 md:h-36 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shadow-2xs flex items-center justify-center shrink-0 relative group-hover:scale-[1.01] transition-transform">
+                {/* BLOCO SUPERIOR / ESQUERDO: FOTO + DADOS DO PRODUTO (LADO A LADO APROVEITANDO O ESPAÇO NO MOBILE) */}
+                <div className="flex flex-row items-stretch gap-2.5 sm:gap-3.5 flex-1 min-w-0">
+                  {/* FOTO / MINIATURA EXPANDIDA */}
+                  <div className="w-24 min-w-[96px] sm:w-28 sm:min-w-[112px] md:w-36 md:min-w-[144px] h-auto min-h-[96px] md:h-36 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shadow-2xs flex items-center justify-center shrink-0 relative group-hover:scale-[1.01] transition-transform self-stretch">
                     {r.fotoPecaNg ? (
                       <>
                         <img 
@@ -696,218 +744,135 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
                           }}
                         />
                         <div className="hidden flex-col items-center justify-center text-slate-400 p-2 text-center w-full h-full bg-slate-50">
-                          <Image className="w-8 h-8 text-slate-400" />
+                          <Image className="w-7 h-7 sm:w-8 sm:h-8 text-slate-400" />
                           <span className="text-[10px] font-mono mt-1 font-bold">FOTO</span>
                         </div>
                       </>
                     ) : (
                       <div className="flex flex-col items-center justify-center text-slate-400 p-2 text-center">
-                        <Image className="w-8 h-8 text-slate-300" />
+                        <Image className="w-7 h-7 sm:w-8 sm:h-8 text-slate-300" />
                         <span className="text-[10px] font-mono mt-1 font-bold">S/ FOTO</span>
                       </div>
                     )}
 
                     {/* Tag se tiver foto OK e Auxiliar */}
                     {(r.fotoPecaOk || r.fotoAuxiliar) && (
-                      <span className="absolute bottom-2 right-2 bg-slate-900/85 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-md font-mono shadow-xs">
+                      <span className="absolute bottom-1.5 right-1.5 bg-slate-900/85 backdrop-blur-xs text-white text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded font-mono shadow-xs">
                         +2 fotos
                       </span>
                     )}
                   </div>
-                </div>
 
-                {/* SEÇÃO 2: DADOS DO PRODUTO E PROCESSO (3 LINHAS AUTO-DIMENSIONADAS PREENCHENDO O ESPAÇO DISPONÍVEL) */}
-                <div className="flex-1 flex flex-col justify-between gap-2 min-w-0 w-full md:px-1 self-stretch">
-                  {/* Linha 1: Peça Final / Componente */}
-                  <div className="flex-1 min-h-[38px] px-3.5 rounded-xl border border-slate-200/80 bg-slate-50/60 group-hover:bg-blue-50/30 group-hover:border-blue-200/70 transition-colors flex items-center justify-between gap-3 w-full shadow-2xs">
-                    <span 
-                      className="text-xs sm:text-sm lg:text-[15px] font-bold text-slate-900 group-hover:text-[#0b5796] transition-colors truncate"
-                      title={r.produto || r.componente}
-                    >
-                      {r.finalComponente === 'Peça Final + Componente' && r.produto && r.componente ? (
-                        <>Peça Final + Comp.: <strong className="font-mono-numbers">{r.produto} - {r.componente}</strong></>
-                      ) : (
-                        <>Peça Final: <strong className="font-mono-numbers">{r.produto || r.componente}</strong></>
-                      )}
-                    </span>
-                    <span className={`inline-flex px-2.5 py-0.5 rounded-lg text-[10px] sm:text-[11px] font-bold border tracking-wide uppercase shrink-0 ${tpBadge.style}`}>
-                      {tpBadge.label}
-                    </span>
-                  </div>
-
-                  {/* Linha 2: Posto - Máquina - Setor / Área */}
-                  <div className="flex-1 min-h-[38px] px-3.5 rounded-xl border border-slate-200/70 bg-slate-50/40 flex items-center justify-between gap-3 w-full">
-                    <div className="text-xs sm:text-[13px] font-semibold text-slate-700 flex items-center gap-2 min-w-0 truncate">
-                      <Factory className="w-4 h-4 text-[#0b5796]/80 shrink-0" />
-                      <span className="truncate" title={`${r.posto || 'Posto N/A'} ${r.fmds ? `- ${r.fmds}` : ''}`}>
-                        {r.posto || 'Posto N/A'} {r.fmds ? `- ${r.fmds}` : r.classificacaoSetor ? `- ${r.classificacaoSetor}` : ''}
+                  {/* DADOS DO PRODUTO E PROCESSO (3 LINHAS AUTO-DIMENSIONADAS) */}
+                  <div className="flex-1 flex flex-col justify-between gap-1.5 sm:gap-2 min-w-0 w-full md:px-1 self-stretch">
+                    {/* Linha 1: Peça Final / Componente */}
+                    <div className="flex-1 min-h-[34px] sm:min-h-[38px] px-2.5 sm:px-3.5 rounded-xl border border-slate-200/80 bg-slate-50/60 group-hover:bg-blue-50/30 group-hover:border-blue-200/70 transition-colors flex items-center justify-between gap-2 w-full shadow-2xs">
+                      <span 
+                        className="text-xs sm:text-sm lg:text-[15px] font-bold text-slate-900 group-hover:text-[#0b5796] transition-colors truncate"
+                        title={r.produto || r.componente}
+                      >
+                        {r.finalComponente === 'Peça Final + Componente' && r.produto && r.componente ? (
+                          <>Peça Final + Comp.: <strong className="font-mono-numbers">{r.produto} - {r.componente}</strong></>
+                        ) : (
+                          <>Peça Final: <strong className="font-mono-numbers">{r.produto || r.componente}</strong></>
+                        )}
+                      </span>
+                      <span className={`inline-flex px-2 py-0.5 rounded-lg text-[10px] sm:text-xs font-semibold border shrink-0 ${tpBadge.style}`}>
+                        {tpBadge.label}
                       </span>
                     </div>
-                    {r.classificacaoSetor && (
-                      <span className="hidden xl:inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-white text-slate-600 border border-slate-200/80 shrink-0">
-                        Setor: {r.classificacaoSetor}
-                      </span>
-                    )}
-                  </div>
 
-                  {/* Linha 3: Cliente - Data - Turno - Quantidade */}
-                  <div className="flex-1 min-h-[38px] px-3.5 rounded-xl border border-slate-200/70 bg-slate-50/40 flex items-center justify-between gap-3 w-full">
-                    <div className="text-xs sm:text-[13px] text-slate-700 flex items-center gap-2 min-w-0 truncate">
-                      <Building2 className="w-4 h-4 text-[#0b5796]/80 shrink-0" />
-                      <span className="font-bold text-slate-800 truncate">{r.cliente}</span>
-                      <span className="text-slate-300">•</span>
-                      <span className="tabular-nums font-semibold text-slate-700 shrink-0">{formatDateBR(r.dataOcorrencia)}</span>
-                      {r.turno && <span className="text-slate-500 font-medium shrink-0">({r.turno})</span>}
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      {r.reincidente === 'SIM' && (
-                        <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 uppercase tracking-wide">
-                          Reincidente
+                    {/* Linha 2: Posto - Máquina - Setor / Área */}
+                    <div className="flex-1 min-h-[34px] sm:min-h-[38px] px-2.5 sm:px-3.5 rounded-xl border border-slate-200/70 bg-slate-50/40 flex items-center justify-between gap-2 w-full">
+                      <div className="text-xs sm:text-[13px] font-semibold text-slate-700 flex items-center gap-1.5 sm:gap-2 min-w-0 truncate">
+                        <Factory className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#0b5796]/80 shrink-0" />
+                        <span className="truncate" title={`${r.posto || 'Posto N/A'} ${r.fmds ? `- ${r.fmds}` : ''}`}>
+                          {r.posto || 'Posto N/A'} {r.fmds ? `- ${r.fmds}` : r.classificacaoSetor ? `- ${r.classificacaoSetor}` : ''}
+                        </span>
+                      </div>
+                      {r.classificacaoSetor && (
+                        <span className="hidden xl:inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-white text-slate-600 border border-slate-200/80 shrink-0">
+                          Setor: {r.classificacaoSetor}
                         </span>
                       )}
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-mono font-semibold bg-white text-slate-700 border border-slate-200/80">
-                        Qtd: {r.quantidadeAfetada || 1}
-                      </span>
+                    </div>
+
+                    {/* Linha 3: Cliente - Data - Turno - Quantidade */}
+                    <div className="flex-1 min-h-[34px] sm:min-h-[38px] px-2.5 sm:px-3.5 rounded-xl border border-slate-200/70 bg-slate-50/40 flex items-center justify-between gap-2 w-full">
+                      <div className="text-xs sm:text-[13px] text-slate-700 flex items-center gap-1.5 sm:gap-2 min-w-0 truncate">
+                        <Building2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#0b5796]/80 shrink-0" />
+                        <span className="font-bold text-slate-800 truncate">{r.cliente}</span>
+                        <span className="text-slate-300">•</span>
+                        <span className="tabular-nums font-semibold text-slate-700 shrink-0">{formatDateBR(r.dataOcorrencia)}</span>
+                        {r.turno && <span className="text-slate-500 font-medium shrink-0">({r.turno})</span>}
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {r.reincidente === 'SIM' && (
+                          <span className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded-md text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                            Reincidente
+                          </span>
+                        )}
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] sm:text-[11px] font-mono font-semibold bg-white text-slate-700 border border-slate-200/80">
+                          Qtd: {r.quantidadeAfetada || 1}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* SEÇÃO 3: MATRIZ PADRONIZADA 2 COLUNAS x 3 LINHAS PREENCHENDO 100% DA ALTURA DO CONTAINER */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 shrink-0 w-full md:w-auto pt-3 md:pt-0 md:pl-4 border-t md:border-t-0 md:border-l border-slate-100 self-stretch">
-                  
-                  {/* Coluna 1: Status, Tipo e Defeito (Auto-dimensionados na altura total) */}
-                  <div className="flex flex-col justify-between gap-2 w-full sm:w-[175px] h-full">
-                    {/* Linha 1: Status */}
-                    {(() => {
-                      let statusStyle = 'bg-slate-50 text-slate-700 border-slate-200';
-                      let StatusIcon = Clock;
-                      let iconColor = 'text-slate-500';
+                {/* BLOCO INFERIOR / DIREITO: STATUS, TIPO, ID, SAP E DEFEITO + 8D (EM 2 COLUNAS NO MOBILE E DESKTOP) */}
+                <div className="grid grid-cols-2 gap-2 w-full md:w-[380px] shrink-0 pt-2.5 md:pt-0 border-t md:border-t-0 md:border-l md:pl-4 border-slate-100 self-stretch">
+                  {/* Linha 1: Status */}
+                  <div className={`min-h-[36px] sm:min-h-[38px] px-2.5 sm:px-3 rounded-xl border text-xs font-semibold flex items-center gap-1.5 sm:gap-2 shadow-2xs ${statusStyle}`}>
+                    <StatusIcon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 ${iconColor}`} />
+                    <span className="truncate">{r.status}</span>
+                  </div>
 
-                      if (r.status === 'Concluído') {
-                        statusStyle = 'bg-emerald-50/90 text-emerald-800 border-emerald-200/90';
-                        StatusIcon = CheckCircle2;
-                        iconColor = 'text-emerald-600';
-                      } else if (r.status === 'Em Andamento') {
-                        statusStyle = 'bg-amber-50/90 text-amber-900 border-amber-300/80';
-                        StatusIcon = Clock;
-                        iconColor = 'text-amber-600';
-                      } else if (r.status === 'RNC Emitida') {
-                        statusStyle = 'bg-indigo-50/90 text-indigo-900 border-indigo-200/90';
-                        StatusIcon = AlertCircle;
-                        iconColor = 'text-indigo-600';
-                      } else if (r.status === 'Relatório Inicial') {
-                        statusStyle = 'bg-sky-50/90 text-sky-800 border-sky-200/90';
-                        StatusIcon = FileText;
-                        iconColor = 'text-sky-600';
-                      } else if (r.status === 'Reprovado') {
-                        statusStyle = 'bg-rose-50/90 text-rose-800 border-rose-200/90';
-                        StatusIcon = AlertTriangle;
-                        iconColor = 'text-rose-600';
-                      }
+                  {/* Linha 1: Tipo */}
+                  <div className={`min-h-[36px] sm:min-h-[38px] px-2.5 sm:px-3 rounded-xl border text-xs font-semibold flex items-center gap-1.5 sm:gap-2 shadow-2xs ${tipoStyle}`}>
+                    <Tag className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 ${tipoIconColor}`} />
+                    <span className="truncate">Tipo: {tipo}</span>
+                  </div>
 
-                      return (
-                        <div className={`flex-1 min-h-[38px] px-3 rounded-xl border text-xs font-semibold flex items-center justify-between gap-2 w-full shadow-2xs ${statusStyle}`}>
-                          <div className="flex items-center gap-2 min-w-0 truncate">
-                            <StatusIcon className={`w-4 h-4 shrink-0 ${iconColor}`} />
-                            <span className="truncate">{r.status}</span>
-                          </div>
-                        </div>
-                      );
-                    })()}
+                  {/* Linha 2: ID (formato ID:10 ou ID:10 - CODIGO) */}
+                  <div 
+                    className="min-h-[36px] sm:min-h-[38px] px-2.5 sm:px-3 rounded-xl border border-slate-200/90 bg-slate-100/80 text-slate-900 text-xs font-bold font-mono flex items-center gap-1.5 sm:gap-2 shadow-2xs"
+                    title={occurrenceId}
+                  >
+                    <Hash className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-500 shrink-0" />
+                    <span className="tabular-nums truncate">{occurrenceId}</span>
+                  </div>
 
-                    {/* Linha 2: Tipo de RNC */}
-                    {(() => {
-                      const tipo = r.tipoRnc || 'Formal';
-                      let tipoStyle = 'bg-slate-50 text-slate-700 border-slate-200/90';
-                      let iconColor = 'text-slate-500';
+                  {/* Linha 2: SAP */}
+                  <div 
+                    className={`min-h-[36px] sm:min-h-[38px] px-2.5 sm:px-3 rounded-xl border text-xs font-semibold font-mono flex items-center gap-1.5 sm:gap-2 shadow-2xs ${
+                      isSap ? 'border-sky-200/90 bg-sky-50/80 text-sky-800' : 'border-slate-200/80 bg-slate-50 text-slate-400 font-medium'
+                    }`}
+                    title={sapText}
+                  >
+                    <Barcode className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 ${isSap ? 'text-sky-600' : 'text-slate-300'}`} />
+                    <span className="truncate">{sapText}</span>
+                  </div>
 
-                      if (tipo === 'Formal') {
-                        tipoStyle = 'bg-rose-50/80 text-rose-800 border-rose-200/90';
-                        iconColor = 'text-rose-500';
-                      } else if (tipo === 'Informal') {
-                        tipoStyle = 'bg-purple-50/80 text-purple-800 border-purple-200/90';
-                        iconColor = 'text-purple-500';
-                      } else if (tipo === 'Improcedente') {
-                        tipoStyle = 'bg-amber-50/80 text-amber-800 border-amber-200/90';
-                        iconColor = 'text-amber-500';
-                      }
-
-                      return (
-                        <div className={`flex-1 min-h-[38px] px-3 rounded-xl border text-xs font-semibold flex items-center gap-2 w-full shadow-2xs ${tipoStyle}`}>
-                          <Tag className={`w-4 h-4 shrink-0 ${iconColor}`} />
-                          <span className="truncate">Tipo: {tipo}</span>
-                        </div>
-                      );
-                    })()}
-
-                    {/* Linha 3: Defeito Identificado */}
-                    <div 
-                      className="flex-1 min-h-[38px] px-3 rounded-xl border border-amber-300/75 bg-amber-50/60 text-amber-950 text-xs font-bold flex items-center gap-2 w-full shadow-2xs"
-                      title={r.modoFalha || r.descricaoProblema || 'Defeito não informado'}
-                    >
-                      <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                  {/* Linha 3 (Ocupa as 2 colunas): Defeito Identificado na mesma linha de 8D: Sim/Não (sem a palavra Plano) */}
+                  <div 
+                    className="col-span-2 min-h-[36px] sm:min-h-[38px] px-2.5 sm:px-3 rounded-xl border border-amber-300/75 bg-amber-50/60 text-amber-950 text-xs font-bold flex items-center justify-between gap-2 shadow-2xs"
+                    title={r.modoFalha || r.descricaoProblema || 'Defeito não informado'}
+                  >
+                    <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 truncate">
+                      <AlertTriangle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-600 shrink-0" />
                       <span className="truncate">
                         {r.modoFalha || r.descricaoProblema || 'Defeito não informado'}
                       </span>
                     </div>
+                    <span className={`px-2 py-0.5 rounded-lg text-[11px] sm:text-xs font-semibold shrink-0 border ${
+                      isSim8D 
+                        ? 'bg-emerald-100 text-emerald-900 border-emerald-300' 
+                        : 'bg-slate-200/80 text-slate-700 border-slate-300'
+                    }`}>
+                      8D: {isSim8D ? 'Sim' : 'Não'}
+                    </span>
                   </div>
-
-                  {/* Coluna 2: RNC com Código, Etiqueta SAP e Governança 8D (Auto-dimensionados na altura total) */}
-                  <div className="flex flex-col justify-between gap-2 w-full sm:w-[175px] h-full">
-                    {/* Linha 1: RNC # com código */}
-                    <div 
-                      className="flex-1 min-h-[38px] px-3 rounded-xl border border-slate-200/90 bg-slate-100/80 text-slate-900 text-xs font-bold font-mono flex items-center justify-between gap-2 w-full shadow-2xs"
-                      title={formalCode ? `RNC #${r.id} • Código Cliente: ${formalCode}` : `RNC #${r.id}`}
-                    >
-                      <div className="flex items-center gap-2 min-w-0 truncate">
-                        <Hash className="w-4 h-4 text-slate-500 shrink-0" />
-                        <span className="tabular-nums truncate">RNC #{r.id}</span>
-                      </div>
-                      {formalCode && (
-                        <span className="text-[10px] font-semibold text-slate-600 bg-white px-1.5 py-0.5 rounded border border-slate-200 truncate max-w-[65px]">
-                          {formalCode}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Linha 2: Etiqueta SAP */}
-                    {(() => {
-                      const isSap = r.documentoRastreabilidade === 'Etiqueta SAP' || !!r.codigoRastreabilidade;
-                      if (isSap) {
-                        return (
-                          <div 
-                            className="flex-1 min-h-[38px] px-3 rounded-xl border border-sky-200/90 bg-sky-50/80 text-sky-800 text-xs font-semibold font-mono flex items-center gap-2 w-full shadow-2xs"
-                            title={r.codigoRastreabilidade ? `SAP: ${r.codigoRastreabilidade}` : 'Etiqueta SAP'}
-                          >
-                            <Barcode className="w-4 h-4 text-sky-600 shrink-0" />
-                            <span className="truncate">{r.codigoRastreabilidade ? `SAP: ${r.codigoRastreabilidade}` : 'Etiqueta SAP'}</span>
-                          </div>
-                        );
-                      }
-                      return (
-                        <div className="flex-1 min-h-[38px] px-3 rounded-xl border border-slate-200/80 bg-slate-50 text-slate-400 text-xs font-medium flex items-center gap-2 w-full shadow-2xs">
-                          <Barcode className="w-4 h-4 text-slate-300 shrink-0" />
-                          <span className="truncate">SAP: Não inform.</span>
-                        </div>
-                      );
-                    })()}
-
-                    {/* Linha 3: Governança 8D */}
-                    {(() => {
-                      const isSim = String(r.abrir8D || '').toUpperCase() === 'SIM';
-                      return (
-                        <div className={`flex-1 min-h-[38px] px-3 rounded-xl border text-xs font-semibold flex items-center gap-2 w-full shadow-2xs ${
-                          isSim 
-                            ? 'bg-emerald-50/80 text-emerald-800 border-emerald-300/80' 
-                            : 'bg-slate-50 text-slate-600 border-slate-200/90'
-                        }`}>
-                          <Layers className={`w-4 h-4 shrink-0 ${isSim ? 'text-emerald-600' : 'text-slate-400'}`} />
-                          <span className="truncate">Plano 8D: {isSim ? 'Sim' : 'Não'}</span>
-                        </div>
-                      );
-                    })()}
-                  </div>
-
                 </div>
 
               </div>
@@ -920,7 +885,7 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="bg-slate-50/90 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500 select-none">
+                <tr className="bg-slate-50/90 border-b border-slate-200 text-xs font-semibold text-slate-600 select-none">
                   <th className="py-2.5 px-3">Identificador</th>
                   <th className="py-2.5 px-3">Peça / Produto</th>
                   <th className="py-2.5 px-3">Defeito Identificado</th>
@@ -952,14 +917,9 @@ export const Lista8DView: React.FC<Lista8DViewProps> = ({
                       className="hover:bg-blue-50/60 transition-colors cursor-pointer group"
                     >
                       <td className="py-2.5 px-3 whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-bold text-slate-900 font-mono">RNC #{r.id}</span>
-                          {formalCode && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-800 border border-slate-200" title={`Código do Cliente: ${formalCode}`}>
-                              <span className="text-slate-500 mr-0.5">Cód:</span>{formalCode}
-                            </span>
-                          )}
-                        </div>
+                        <span className="font-bold text-slate-900 font-mono tabular-nums">
+                          {formatOccurrenceId(r.id, formalCode)}
+                        </span>
                       </td>
                       <td className="py-2.5 px-3">
                         <div className="font-bold text-slate-900 group-hover:text-[#0b5796] transition-colors line-clamp-1" title={r.componente || r.produto}>

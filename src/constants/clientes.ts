@@ -5,23 +5,23 @@
 // ============================================================================
 
 export const CLIENTES_LIST = [
-  'TDB - SOROCABA',
-  'TDB - INDAIATUBA',
-  'KDB - SOROCABA',
-  'KDB - SALTO',
-  'HYUNDAI',
-  'HONDA',
-  'BOSHOKU',
-  'GPA - PARANÁ',
-  'GSN - SANTA ISABEL',
-  'MBB - TAUBATÉ',
-  'RENAULT',
-  'AISIN'
+  'TDB - Sorocaba',
+  'TDB - Indaiatuba',
+  'KDB - Sorocaba',
+  'KDB - Salto',
+  'Hyundai',
+  'Honda',
+  'Boshoku',
+  'GPA - Paraná',
+  'GSN - Santa Isabel',
+  'MBB - Taubaté',
+  'Renault',
+  'Aisin'
 ] as const;
 
 export type ClienteMontadora = typeof CLIENTES_LIST[number];
 
-export const DEFAULT_CLIENTE: ClienteMontadora = 'TDB - SOROCABA';
+export const DEFAULT_CLIENTE: ClienteMontadora = 'TDB - Sorocaba';
 
 export interface ClientBadgeInfo {
   label: string;

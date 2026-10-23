@@ -127,28 +127,31 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               {brandName.substring(0, 2).toUpperCase()}
             </div>
           )}
-          <div className="flex flex-col">
+          <div className="flex flex-col min-w-0">
             <div className="flex items-baseline gap-1.5">
-              <span className="font-bold text-sm sm:text-base font-display text-slate-900 tracking-tight whitespace-nowrap">
+              <span className="font-bold text-sm sm:text-base text-slate-900 tracking-tight truncate max-w-[140px] sm:max-w-none">
                 {brandName}
               </span>
-              <span className="hidden md:inline text-xs font-mono text-slate-400">
+              <span className="hidden md:inline text-xs font-medium text-slate-400">
                 /{activeTenant.slug}
               </span>
             </div>
+            <span className="md:hidden text-[11px] font-medium text-slate-500 truncate max-w-[165px] leading-tight">
+              {getScreenTitle(currentScreen)}
+            </span>
           </div>
         </div>
       </div>
 
-      {/* Centro: Título Dinâmico da Tela no Topo Superior */}
-      <div className="flex items-center justify-center flex-1 px-3 sm:px-6 text-center max-w-2xl">
-        <h1 className="text-xs sm:text-sm lg:text-[15px] font-display font-bold text-slate-800 tracking-tight truncate">
+      {/* Centro: Título Dinâmico da Tela no Topo Superior (Desktop/Tablet) */}
+      <div className="hidden md:flex items-center justify-center flex-1 px-3 sm:px-6 text-center max-w-2xl">
+        <h1 className="text-xs sm:text-sm lg:text-[15px] font-bold text-slate-800 tracking-tight truncate">
           {getScreenTitle(currentScreen)}
         </h1>
       </div>
 
       {/* Direita: Ações Rápidas & Perfil */}
-      <div className="flex items-center gap-1.5 sm:gap-2">
+      <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
 
         {/* Botão de Acesso Rápido ao Console Super Admin */}
         <button
@@ -168,8 +171,8 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           className="hidden sm:flex items-center gap-2 h-8 px-3 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 transition-all cursor-pointer whitespace-nowrap"
           title="Status de Sincronização e Dados do Tenant"
         >
-          <span className="hidden lg:inline font-display">RNCs</span>
-          <span className="text-slate-700 font-mono text-[11px] font-bold tabular-nums">({totalRncs.toLocaleString('pt-BR')})</span>
+          <span className="hidden lg:inline">RNCs</span>
+          <span className="text-slate-700 text-xs font-bold tabular-nums">({totalRncs.toLocaleString('pt-BR')})</span>
         </button>
 
         {/* Botão Sincronizar */}
@@ -201,10 +204,10 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               {getInitials(currentUser.nome)}
             </div>
             <div className="hidden sm:flex flex-col text-left">
-              <span className="text-xs font-semibold font-display text-slate-900 leading-tight max-w-[130px] truncate">
+              <span className="text-xs font-semibold text-slate-900 leading-tight max-w-[130px] truncate">
                 {currentUser.nome.split(' ')[0]}
               </span>
-              <span className="text-[10px] font-medium text-slate-500 leading-tight">
+              <span className="text-[11px] font-medium text-slate-500 leading-tight">
                 {currentUser.perfil}
               </span>
             </div>
@@ -213,15 +216,15 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
           {/* Menu Dropdown de Troca de Operador */}
           {usersDropdownOpen && (
-            <div className="absolute right-0 mt-1.5 w-76 bg-white/95 backdrop-blur-xl rounded-2xl border border-slate-200/90 shadow-2xl py-1.5 z-50 animate-in fade-in slide-in-from-top-1">
+            <div className="absolute right-0 mt-1.5 w-76 max-w-[calc(100vw-24px)] bg-white/95 backdrop-blur-xl rounded-2xl border border-slate-200/90 shadow-2xl py-1.5 z-50 animate-in fade-in slide-in-from-top-1">
               <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/70 rounded-t-2xl">
-                <div className="text-xs font-bold font-display text-slate-900">{currentUser.nome}</div>
-                <div className="text-[11px] text-slate-500 mt-0.5 font-mono">RE: {currentUser.reAcesso} • {currentUser.cargo || currentUser.perfil}</div>
-                <div className="text-[10px] text-slate-500 mt-0.5 font-semibold">{activeTenant.nome} (/{activeTenant.slug})</div>
+                <div className="text-xs font-bold text-slate-900">{currentUser.nome}</div>
+                <div className="text-[11px] text-slate-500 mt-0.5 tabular-nums">RE: {currentUser.reAcesso} • {currentUser.cargo || currentUser.perfil}</div>
+                <div className="text-[11px] text-slate-500 mt-0.5 font-semibold">{activeTenant.nome} (/{activeTenant.slug})</div>
               </div>
 
               <div className="py-1.5">
-                <div className="px-4 py-1 text-[10px] font-bold text-[#64748b] uppercase tracking-wider">
+                <div className="px-4 py-1 text-xs font-bold text-[#64748b]">
                   Equipe da Empresa ({activeTenant.nome})
                 </div>
                 {usersList.slice(0, 6).map(u => (
@@ -237,7 +240,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                     }`}
                   >
                     <span className="truncate">{u.nome}</span>
-                    <span className="text-[10px] font-mono text-[#64748b] ml-2 shrink-0">{u.perfil}</span>
+                    <span className="text-[11px] font-medium text-[#64748b] ml-2 shrink-0">{u.perfil}</span>
                   </button>
                 ))}
               </div>

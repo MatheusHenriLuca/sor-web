@@ -17,6 +17,7 @@ import {
 import { RNCRecord, UsuarioQualidade } from '../types';
 import { spStore } from '../services/sharepointService';
 import { formatDateBR } from '../utils/date';
+import { formatOccurrenceId } from '../utils/formatText';
 
 interface DashboardViewProps {
   onNavigate: (screen: any, params?: any) => void;
@@ -69,7 +70,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, curren
           className="card-saas p-4 sm:p-5 flex flex-col justify-between hover:border-sky-300 transition-all cursor-pointer group"
         >
           <div className="flex items-center justify-between mb-3">
-            <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 group-hover:text-sky-700 transition">
+            <span className="text-xs font-semibold text-slate-500 group-hover:text-sky-700 transition">
               Total RNCs
             </span>
             <div className="w-8 h-8 rounded-xl bg-sky-50 text-sky-700 flex items-center justify-center">
@@ -79,7 +80,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, curren
           <div className="text-2xl sm:text-3xl font-black text-slate-900 font-mono tracking-tight">
             {totalRncs.toLocaleString('pt-BR')}
           </div>
-          <span className="text-[10px] text-slate-400 font-medium mt-1 block">Base histórica ativa</span>
+          <span className="text-xs text-slate-400 font-medium mt-1 block">Base histórica ativa</span>
         </div>
 
         <div 
@@ -87,7 +88,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, curren
           className="card-saas p-4 sm:p-5 flex flex-col justify-between hover:border-amber-300 transition-all cursor-pointer group"
         >
           <div className="flex items-center justify-between mb-3">
-            <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 group-hover:text-amber-700 transition">
+            <span className="text-xs font-semibold text-slate-500 group-hover:text-amber-700 transition">
               Em Andamento
             </span>
             <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center">
@@ -97,7 +98,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, curren
           <div className="text-2xl sm:text-3xl font-black text-amber-600 font-mono tracking-tight">
             {emAndamento.toLocaleString('pt-BR')}
           </div>
-          <span className="text-[10px] text-amber-700/80 font-bold mt-1 block">Ocorrências em tratativa ativa</span>
+          <span className="text-xs text-amber-700/80 font-semibold mt-1 block">Ocorrências em tratativa ativa</span>
         </div>
 
         <div 
@@ -105,7 +106,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, curren
           className="card-saas p-4 sm:p-5 flex flex-col justify-between hover:border-sky-300 transition-all cursor-pointer group"
         >
           <div className="flex items-center justify-between mb-3">
-            <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 group-hover:text-sky-700 transition">
+            <span className="text-xs font-semibold text-slate-500 group-hover:text-sky-700 transition">
               Relatório Inicial
             </span>
             <div className="w-8 h-8 rounded-xl bg-sky-50 text-sky-700 flex items-center justify-center">
@@ -115,7 +116,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, curren
           <div className="text-2xl sm:text-3xl font-black text-sky-700 font-mono tracking-tight">
             {relInicial.toLocaleString('pt-BR')}
           </div>
-          <span className="text-[10px] text-sky-700/80 font-bold mt-1 block">Fase de triagem D1-D3</span>
+          <span className="text-xs text-sky-700/80 font-semibold mt-1 block">Fase de triagem D1-D3</span>
         </div>
 
         <div 
@@ -123,7 +124,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, curren
           className="card-saas p-4 sm:p-5 flex flex-col justify-between hover:border-emerald-300 transition-all cursor-pointer group"
         >
           <div className="flex items-center justify-between mb-3">
-            <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 group-hover:text-emerald-700 transition">
+            <span className="text-xs font-semibold text-slate-500 group-hover:text-emerald-700 transition">
               Concluídas
             </span>
             <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
@@ -133,7 +134,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, curren
           <div className="text-2xl sm:text-3xl font-black text-emerald-600 font-mono tracking-tight">
             {concluidos.toLocaleString('pt-BR')}
           </div>
-          <span className="text-[10px] text-emerald-700/80 font-bold mt-1 block">Eficácia validada</span>
+          <span className="text-xs text-emerald-700/80 font-semibold mt-1 block">Eficácia validada</span>
         </div>
 
       </section>
@@ -163,7 +164,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, curren
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-slate-50/50 text-[11px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-200">
+                  <tr className="bg-slate-50/50 text-xs font-semibold text-slate-500 border-b border-slate-200">
                     <th className="py-3 px-5">Código</th>
                     <th className="py-3 px-5">Cliente</th>
                     <th className="py-3 px-5">Defeito / Peça</th>
@@ -175,7 +176,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, curren
                   {rncs.slice(0, 6).map(rnc => (
                     <tr key={rnc.id} className="hover:bg-slate-50/80 transition">
                       <td className="py-3 px-5">
-                        <strong className="font-mono text-slate-900 font-bold">{rnc.field1 || `RNC-${rnc.id}`}</strong>
+                        <strong className="font-mono text-slate-900 font-bold">{formatOccurrenceId(rnc.id, rnc.codOcorrenciaCliente || rnc.field1)}</strong>
                         <div className="text-[10px] text-slate-400 font-mono">{formatDateBR(rnc.dataOcorrencia)}</div>
                       </td>
                       <td className="py-3 px-5 font-semibold text-slate-800">
@@ -189,7 +190,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate, curren
                         <div className="text-[10px] text-slate-400 truncate max-w-[200px]">{rnc.componente}</div>
                       </td>
                       <td className="py-3 px-5">
-                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
                           rnc.status === 'Concluído' ? 'bg-emerald-100 text-emerald-800' :
                           rnc.status === 'Em Andamento' ? 'bg-amber-100 text-amber-900' :
                           rnc.status === 'Relatório Inicial' ? 'bg-sky-100 text-sky-800' :

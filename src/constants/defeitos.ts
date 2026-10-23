@@ -4,42 +4,42 @@
 // ============================================================================
 
 export const MODOS_FALHA_LIST = [
-  'Falta / excesso de material',
+  'Falta / Excesso de Material',
   'Deformação',
   'Trinca (Produto)',
   'Contaminação / Respingos / Oxidação',
-  'Marcas na superficie',
-  'Falta de furação',
+  'Marcas na Superfície',
+  'Falta de Furação',
   'Rebarbas',
-  'Solda fora do especificado',
-  'Peças misturadas',
-  'Solda fora de posição',
-  'Falta de componente (V to V)',
-  'V to V deslocado / Fora de posição',
-  'V to V fora do especificado',
-  'Falta de componente (Produto)',
-  'Produto deslocado / Fora de posição',
+  'Solda Fora do Especificado',
+  'Peças Misturadas',
+  'Solda Fora de Posição',
+  'Falta de Componente (V to V)',
+  'V to V Deslocado / Fora de Posição',
+  'V to V Fora do Especificado',
+  'Falta de Componente (Produto)',
+  'Produto Deslocado / Fora de Posição',
   'Falta de Operação',
-  'Processos terceiros',
-  'Dimensional fora do especificado',
-  'Peças juntas',
+  'Processos Terceiros',
+  'Dimensional Fora do Especificado',
+  'Peças Juntas',
   'Ruído',
-  'falta de sealer',
-  'excesso de sealer',
-  'Múltiplo incorreto',
-  'Falta de identificação',
-  'Identificação invertida',
-  'Embalagem danificada',
-  'Embalagem incorreta',
+  'Falta de Sealer',
+  'Excesso de Sealer',
+  'Múltiplo Incorreto',
+  'Falta de Identificação',
+  'Identificação Invertida',
+  'Embalagem Danificada',
+  'Embalagem Incorreta',
   'Falha Poka Yoke',
   'Gota Fria',
-  'Falta de solda'
+  'Falta de Solda'
 ] as const;
 
 export const ACOES_CONTENCAO_LIST = [
-  'SELEÇÃO 100% LOTE SEGREGADO',
-  'INSPEÇÃO 100% NO POSTO DE TRABALHO',
-  'RETRABALHAR'
+  'Seleção 100% Lote Segregado',
+  'Inspeção 100% no Posto de Trabalho',
+  'Retrabalhar'
 ] as const;
 
 export const IMPACTOS_CLIENTE_LIST = [

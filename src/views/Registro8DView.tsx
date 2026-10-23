@@ -41,6 +41,7 @@ import { MODOS_FALHA_LIST, IMPACTOS_CLIENTE_LIST, GRAVIDADE_LIST, ACOES_CONTENCA
 import { SearchableSelect } from '../components/SearchableSelect';
 import { RncDetalhesModal } from '../components/RncDetalhesModal';
 import { formatDateBR } from '../utils/date';
+import { formatOccurrenceId } from '../utils/formatText';
 
 interface Registro8DViewProps {
   onNavigate: (screen: any, params?: any) => void;
@@ -1108,7 +1109,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
           descricaoProblemaInterno: descInternaFinal,
           participantesAtendimento: participantesStr
         });
-        setNotification({ type: 'success', message: `Ocorrência RNC #${rncId} atualizada com sucesso!` });
+        setNotification({ type: 'success', message: `Ocorrência ${formatOccurrenceId(rncId, form.codOcorrenciaCliente || form.field1)} atualizada com sucesso!` });
       } else {
         const payload: Omit<RNCRecord, 'id'> = {
           title: '',
@@ -1168,7 +1169,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
         const novaRnc = spStore.addRNC(payload);
         setNotification({ 
           type: 'success', 
-          message: `Relatório Inicial criado com sucesso! Código: ${novaRnc.field1 || `RNC #${novaRnc.id}`}` 
+          message: `Relatório Inicial criado com sucesso! Identificação: ${formatOccurrenceId(novaRnc.id, novaRnc.codOcorrenciaCliente || novaRnc.field1)}` 
         });
       }
 
@@ -1258,7 +1259,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
           
           <div>
             <h1 className="text-base sm:text-2xl font-display font-bold text-slate-900">
-              {edicao ? `Ocorrência: ${form.field1 || `RNC #${form.id}`}` : 'Relatório Inicial de Não Conformidade'}
+              {edicao ? `Ocorrência: ${formatOccurrenceId(form.id, form.codOcorrenciaCliente || form.field1)}` : 'Relatório Inicial de Não Conformidade'}
             </h1>
             <p className="text-xs text-slate-500 hidden sm:block">
               Preenchimento inicial de fábrica. A equipe da Qualidade complementará a contenção e rastreabilidade posteriormente.
@@ -2272,7 +2273,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                         {/* Coluna 1: Código RNC e Data */}
                         <div className="flex items-center gap-2 shrink-0">
                           <span className="text-xs font-bold text-slate-900 font-mono bg-slate-100 px-2.5 py-1 rounded border border-slate-200">
-                            {item.field1 || `RNC #${item.id}`}
+                            {formatOccurrenceId(item.id, item.codOcorrenciaCliente || item.field1)}
                           </span>
                           <span className="text-[11px] font-semibold text-slate-700 bg-slate-50 px-2 py-0.5 rounded border border-slate-200 flex items-center gap-1">
                             <Calendar className="w-3 h-3 text-slate-400" />
@@ -2774,7 +2775,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
               <div className="p-3 sm:p-4 bg-indigo-50/40 rounded-xl border border-indigo-200/70 flex flex-col gap-3.5" style={{ order: 485 }}>
                 <div className="flex items-center justify-between pb-2 border-b border-indigo-200/60">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-indigo-950 uppercase tracking-wide">
+                    <span className="text-xs font-bold text-indigo-950">
                       Plano de Ação Imediato (5W2H da Contenção)
                     </span>
                   </div>

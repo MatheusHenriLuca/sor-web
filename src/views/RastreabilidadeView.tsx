@@ -1,622 +1,544 @@
-import React, { useState, useMemo } from 'react';
-import { 
-  Barcode, 
-  Search, 
-  Plus, 
-  CheckCircle2, 
-  AlertTriangle, 
-  Layers, 
-  Tag, 
-  Lock, 
-  Unlock,
+import React, { useState, useEffect, useMemo } from 'react';
+import {
   ArrowLeft,
+  Barcode,
+  Plus,
+  Trash2,
+  CheckCircle2,
+  AlertTriangle,
   X,
-  FileText,
-  RotateCw,
-  FileCheck2,
-  MinusCircle,
-  Pencil,
-  Eraser,
-  Hash,
-  ChevronDown,
-  ChevronUp
+  GitBranch,
+  List,
+  Edit3,
+  Printer
 } from 'lucide-react';
-import { RastreabilidadeItem, EtiquetaVivaParsed, LoteSAPParsed, RastCabeceiraParsed, UsuarioQualidade } from '../types';
+import { RNCRecord, LoteSAPParsed, UsuarioQualidade } from '../types';
 import { spStore } from '../services/sharepointService';
 import { formatDateBR } from '../utils/date';
-import { formatOccurrenceId } from '../utils/formatText';
+import { formatOccurrenceId, normalizeDisplayText } from '../utils/formatText';
 
 interface RastreabilidadeViewProps {
+  rncId?: number;
   onNavigate: (screen: any, params?: any) => void;
   currentUser: UsuarioQualidade;
-  rncId?: number;
 }
 
-export const RastreabilidadeView: React.FC<RastreabilidadeViewProps> = ({ onNavigate, currentUser, rncId }) => {
-  const rncs = useMemo(() => spStore.getRNCs(), []);
-  
-  // Resolve o ID da ocorrência ativa vindo de Detalhes8DView (com fallback para a RNC #1 da empresa ativa)
-  const targetRncId = useMemo(() => {
-    if (rncId) {
-      const parsed = Number(rncId);
-      if (!isNaN(parsed) && parsed > 0) return parsed;
-    }
-    const foundFirst = rncs.find(r => r.id === 1);
-    return foundFirst ? 1 : (rncs[0]?.id || 1);
-  }, [rncId, rncs]);
-
-  const currentRnc = useMemo(() => {
-    return rncs.find(r => r.id === targetRncId) || rncs[0] || {
-      id: targetRncId,
-      cliente: 'HYUNDAI',
-      produto: 'U005000B6 - 69100-BX500 - 69100BX500 PNL ASSY-BACK COMPLETE',
-      componente: '69100-BX000',
-      codigoRastreabilidade: '668360689',
-      documentoRastreabilidade: 'Etiqueta SAP'
-    } as any;
-  }, [rncs, targetRncId]);
-
-  const prodCode = useMemo(() => {
-    if (!currentRnc.produto) return 'PRODUTO';
-    return currentRnc.produto.split(' - ')[0].trim();
-  }, [currentRnc]);
-
-  // Estados locais
-  const [showNovoForm, setShowNovoForm] = useState(false);
-  const [novoComp, setNovoComp] = useState(currentRnc.componente ? currentRnc.componente.split(' - ')[0] : '');
-  const [novoLote, setNovoLote] = useState('');
-  const [novaQtd, setNovaQtd] = useState<number>(Number(currentRnc.quantidadeAfetada) || 1);
+export const RastreabilidadeView: React.FC<RastreabilidadeViewProps> = ({
+  rncId,
+  onNavigate,
+  currentUser
+}) => {
+  const allRncs = useMemo(() => spStore.getRNCs(), []);
+  const [selectedRncId, setSelectedRncId] = useState<number | undefined>(
+    rncId || (allRncs.length > 0 ? allRncs[0].id : undefined)
+  );
+  const [rnc, setRnc] = useState<RNCRecord | undefined>(undefined);
+  const [lotesSAP, setLotesSAP] = useState<LoteSAPParsed[]>([]);
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  // Dados sincronizados da ocorrência ativa
-  const solicitacoes = useMemo(() => spStore.getRastreabilidades(targetRncId), [targetRncId, refreshTrigger]);
-  const lotes = useMemo(() => spStore.getLotesSAP(targetRncId), [targetRncId, refreshTrigger]);
-  const etiquetas = useMemo(() => spStore.getEtiquetasVivas(targetRncId), [targetRncId, refreshTrigger]);
-  const cabeceiras = useMemo(() => spStore.getRastCabeceiras(targetRncId), [targetRncId, refreshTrigger]);
+  const [formLote, setFormLote] = useState({
+    lote: '',
+    estoque: '',
+    qtdVerificada: '',
+    qtdNg: '0'
+  });
 
-  // Contadores totais de peças
-  const totalPecasLotes = useMemo(() => lotes.reduce((acc, l) => acc + (Number(l.qtd) || 0), 0), [lotes]);
-  const totalPecasCabeceiras = useMemo(() => cabeceiras.reduce((acc, c) => acc + (Number(c.qtd) || 0), 0), [cabeceiras]);
-  const totalPecasEtiquetas = useMemo(() => etiquetas.reduce((acc, e) => acc + (Number(e.qtd) || 0), 0), [etiquetas]);
+  useEffect(() => {
+    if (rncId) {
+      setSelectedRncId(rncId);
+    }
+  }, [rncId]);
 
-  const handleCadastrarRastreio = (e: React.FormEvent) => {
+  const loadData = (targetId?: number) => {
+    const idToLoad = targetId ?? selectedRncId;
+    if (!idToLoad) {
+      setRnc(undefined);
+      setLotesSAP([]);
+      return;
+    }
+    const found = spStore.getRNCById(idToLoad);
+    setRnc(found);
+    setLotesSAP(spStore.getLotesSAP(idToLoad));
+  };
+
+  useEffect(() => {
+    loadData(selectedRncId);
+  }, [selectedRncId]);
+
+  const pecaAutomatica = useMemo(
+    () => normalizeDisplayText(rnc?.produto || rnc?.componente || 'Peça da Ocorrência'),
+    [rnc?.produto, rnc?.componente]
+  );
+
+  const qtdVerificadaNum = Math.max(0, Number(formLote.qtdVerificada) || 0);
+  const qtdNgNum = Math.min(qtdVerificadaNum, Math.max(0, Number(formLote.qtdNg) || 0));
+  const qtdOkCalc = Math.max(0, qtdVerificadaNum - qtdNgNum);
+
+  const handleSaveLote = (e: React.FormEvent) => {
     e.preventDefault();
-
-    const trimmedLote = novoLote.trim();
-    if (trimmedLote.length < 5) {
+    if (!rnc) {
       setNotification({
         type: 'error',
-        message: 'O código do lote deve conter pelo menos 5 dígitos numéricos!'
+        message: 'Selecione uma ocorrência para registrar o lote verificado.'
       });
       return;
     }
 
-    const nextSeq = solicitacoes.length + 1;
+    if (!formLote.lote.trim() || !formLote.estoque.trim() || qtdVerificadaNum <= 0) {
+      setNotification({
+        type: 'error',
+        message: 'Informe o Lote de Produção, o Nome do Estoque e a Quantidade de Peças Verificadas.'
+      });
+      return;
+    }
 
-    spStore.addRastreabilidade({
-      idRnc: targetRncId,
-      codComp: novoComp || currentRnc.componente || '',
-      produto: prodCode,
-      tipoRastreamento: currentRnc.finalComponente || 'Peça Final',
-      codRastreabilidade: trimmedLote,
-      docRastreabilidade: 'Etiqueta SAP',
-      seqRelacionada: nextSeq,
-      comando: 'rp',
-      statusGeral: 'R',
-      statusVerif: 'OK',
-      dataHora: new Date().toISOString().split('T')[0],
-      ocorrenciaAbrangencia: 'Ocorrência',
-      observacao: '',
-      bloqueado: true
+    spStore.addLoteSAP({
+      idRnc: rnc.id,
+      seqRel: String(lotesSAP.length + 1),
+      produto: pecaAutomatica,
+      lote: formLote.lote.trim(),
+      estoque: formLote.estoque.trim(),
+      qtd: qtdVerificadaNum,
+      qtdVerificada: qtdVerificadaNum,
+      qtdNg: qtdNgNum,
+      qtdOk: qtdOkCalc,
+      data: new Date().toISOString().split('T')[0],
+      responsavel: currentUser.nome
     });
 
-    // Adiciona o lote encontrado correspondente
-    spStore.addLoteSAP({
-      idRnc: targetRncId,
-      seqRel: String(nextSeq),
-      produto: prodCode,
-      lote: trimmedLote,
-      qtd: Number(novaQtd) || 1,
-      data: new Date().toISOString().split('T')[0]
+    setFormLote({
+      lote: '',
+      estoque: '',
+      qtdVerificada: '',
+      qtdNg: '0'
     });
 
     setNotification({
       type: 'success',
-      message: `Solicitação #${nextSeq} e Lote SAP ${trimmedLote} cadastrados com sucesso!`
+      message: 'Lote de rastreabilidade e contenção registrado com sucesso! Os dados já estão sincronizados com o 3º D do 8D.'
     });
-    setNovoLote('');
-    setShowNovoForm(false);
-    setRefreshTrigger(prev => prev + 1);
+    loadData(rnc.id);
   };
 
+  const handleRemoveLote = (idOrIdx: number) => {
+    if (!rnc) return;
+    spStore.deleteLoteSAP(idOrIdx, rnc.id);
+    setNotification({
+      type: 'success',
+      message: 'Registro de lote removido com sucesso.'
+    });
+    loadData(rnc.id);
+  };
+
+  const totalVerificadas = useMemo(
+    () => lotesSAP.reduce((acc, l) => acc + Number(l.qtdVerificada ?? l.qtd ?? 0), 0),
+    [lotesSAP]
+  );
+  const totalOk = useMemo(
+    () =>
+      lotesSAP.reduce(
+        (acc, l) =>
+          acc + Number(l.qtdOk ?? Math.max(0, Number(l.qtdVerificada ?? l.qtd ?? 0) - Number(l.qtdNg ?? 0))),
+        0
+      ),
+    [lotesSAP]
+  );
+  const totalNg = useMemo(
+    () => lotesSAP.reduce((acc, l) => acc + Number(l.qtdNg ?? 0), 0),
+    [lotesSAP]
+  );
+
+  const isFormal = rnc?.tipoRnc === 'Formal';
+  const codigoClienteOuFormal = rnc && isFormal
+    ? (rnc.codOcorrenciaCliente?.trim() || (
+        rnc.field1 &&
+        !['RNC #' + rnc.id, 'RNC-' + rnc.id, 'RNC ' + rnc.id, '#' + rnc.id, String(rnc.id)].includes(rnc.field1.trim())
+          ? rnc.field1.trim()
+          : null
+      ))
+    : null;
+
+  const isOperator = currentUser.perfil === 'User';
+
   return (
-    <div className="w-full flex flex-col gap-4 pb-16 animate-in fade-in duration-150">
-      
-      {/* Toast Notification */}
+    <div className="w-full flex flex-col gap-4 animate-in fade-in duration-150 pb-12">
+      {/* Notificação */}
       {notification && (
-        <div className="fixed top-14 right-6 z-50">
-          <div className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-xs font-semibold shadow-lg border ${
-            notification.type === 'success' 
-              ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
-              : 'bg-rose-50 text-rose-800 border-rose-200'
-          }`}>
-            {notification.type === 'success' ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}
+        <div
+          className={`p-3.5 rounded-xl border text-xs font-semibold flex items-center justify-between shadow-xs ${
+            notification.type === 'success'
+              ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
+              : 'bg-rose-50 text-rose-900 border-rose-200'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            {notification.type === 'success' ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            ) : (
+              <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+            )}
             <span>{notification.message}</span>
-            <button onClick={() => setNotification(null)} className="ml-2 text-inherit opacity-70 hover:opacity-100 cursor-pointer">
-              <X size={14} />
-            </button>
           </div>
+          <button
+            type="button"
+            onClick={() => setNotification(null)}
+            className="p-1 text-slate-400 hover:text-slate-700"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
 
-      {/* =========================================================================
-          CABEÇALHO DA TELA DE RASTREABILIDADE
-          - Botão Voltar direto para os detalhes da ocorrência
-          - Contexto fixo da RNC ativa (sem dropdown de troca conforme solicitação)
-          - Botão de Nova Solicitação e Atualizar
-          ========================================================================= */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200">
-        <div className="flex items-center gap-3">
-          <button 
-            type="button"
-            onClick={() => onNavigate('detalhes-8d', { rncId: targetRncId })}
-            className="btn-secondary h-9 px-3 text-xs font-semibold gap-1.5 shrink-0"
-            title="Voltar para Detalhes da Ocorrência"
-          >
-            <ArrowLeft size={16} />
-            <span>Voltar para Detalhes</span>
-          </button>
-          
-          <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#0b5796] flex items-center justify-center border border-blue-100 shadow-xs shrink-0">
-            <Barcode size={22} />
-          </div>
-          
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-base sm:text-xl font-display font-bold text-slate-900 tracking-tight">
-                Lista de rastreabilidade
-              </h1>
-            </div>
-            <p className="text-xs text-slate-500">
-              Rastreamento de lotes SAP, bloqueio em fábrica e histórico de cabeceiras
-            </p>
-          </div>
-        </div>
-
-        {/* Card Fixo de Identificação da Ocorrência Ativa (Sem lista para escolher outras) */}
-        <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
-          <div className="flex items-center gap-2 bg-white border border-slate-200 shadow-2xs px-3 py-1.5 rounded-lg text-xs">
-            <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse shrink-0" />
-            <span className="font-mono font-bold text-slate-900">
-              {formatOccurrenceId(currentRnc.id, currentRnc.codOcorrenciaCliente || currentRnc.field1)}
-            </span>
-            <span className="text-slate-300">•</span>
-            <span className="font-semibold text-slate-700">{currentRnc.cliente}</span>
-            <span className="text-slate-300">•</span>
-            <span className="font-mono text-slate-600 font-semibold">{prodCode}</span>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setRefreshTrigger(prev => prev + 1)}
-            className="btn-secondary h-8 px-2.5 text-xs font-semibold gap-1 shrink-0"
-            title="Recarregar dados"
-          >
-            <RotateCw size={13} className="text-slate-500" />
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setShowNovoForm(!showNovoForm)}
-            className="btn-primary h-8 px-3 text-xs font-bold gap-1.5 shrink-0 shadow-sm"
-            title="Adicionar nova solicitação de rastreio"
-          >
-            <Plus size={14} />
-            <span>Nova Solicitação</span>
-            {showNovoForm ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-          </button>
-        </div>
-      </div>
-
-      {/* Formulário Colapsável: Nova Solicitação de Rastreio no SAP */}
-      {showNovoForm && (
-        <div className="card-saas p-4 sm:p-5 border-blue-200 bg-blue-50/20 shadow-xs animate-in fade-in duration-200">
-          <div className="flex items-center justify-between pb-3 mb-3 border-b border-blue-100">
-            <div className="flex items-center gap-2">
-              <Barcode className="w-4 h-4 text-[#0b5796]" />
-              <h2 className="text-sm font-bold text-slate-900">
-                Cadastrar Nova Solicitação de Rastreamento no SAP
-              </h2>
-            </div>
+      {/* CABEÇALHO UNIFICADO & EXECUTIVO DA OCORRÊNCIA (Padrão idêntico à tela de Detalhes) */}
+      <div className="card-saas p-4 sm:p-5 flex flex-col gap-4 shadow-xs bg-white border-slate-200 rounded-2xl">
+        {/* Linha 1: Navegação + Identificador + Badges de Status + Seletor / Ações */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+          <div className="flex items-center gap-2.5 flex-wrap">
             <button
               type="button"
-              onClick={() => setShowNovoForm(false)}
-              className="text-slate-400 hover:text-slate-600 p-1"
+              onClick={() =>
+                rnc ? onNavigate('detalhes-8d', { rncId: rnc.id }) : onNavigate('lista-8d')
+              }
+              className="btn-secondary h-9 px-3.5 text-xs font-semibold shrink-0 gap-1.5 shadow-2xs hover:bg-slate-50 inline-flex items-center justify-center"
+              title="Voltar"
             >
-              <X size={15} />
+              <ArrowLeft className="w-4 h-4 text-slate-600" />
+              <span>Voltar</span>
             </button>
+
+            <div className="h-5 w-px bg-slate-200 hidden sm:block" />
+
+            {rnc && (
+              <>
+                <span
+                  className="h-9 inline-flex items-center px-3 rounded-lg text-xs sm:text-sm font-bold bg-blue-50 text-[#0b5796] border border-blue-200 font-mono shrink-0 shadow-2xs"
+                  title={formatOccurrenceId(rnc.id, codigoClienteOuFormal)}
+                >
+                  {formatOccurrenceId(rnc.id, codigoClienteOuFormal)}
+                </span>
+
+                <span
+                  className={`h-9 inline-flex items-center gap-1.5 px-3 rounded-lg text-xs font-bold border shrink-0 ${
+                    rnc.status === 'Concluído'
+                      ? 'bg-emerald-50 text-emerald-900 border-emerald-300'
+                      : rnc.status === 'Em Andamento'
+                      ? 'bg-amber-50 text-amber-950 border-amber-300'
+                      : 'bg-sky-50 text-sky-950 border-sky-300'
+                  }`}
+                >
+                  <span
+                    className={`w-2 h-2 rounded-full ${
+                      rnc.status === 'Concluído'
+                        ? 'bg-emerald-600'
+                        : rnc.status === 'Em Andamento'
+                        ? 'bg-amber-500 ring-2 ring-amber-200'
+                        : 'bg-sky-600'
+                    }`}
+                  />
+                  {rnc.status}
+                </span>
+
+                <span className="h-9 inline-flex items-center px-3 rounded-lg text-xs font-semibold bg-slate-100 text-slate-800 border border-slate-200 shrink-0">
+                  {rnc.tipoRnc || 'Formal'}
+                </span>
+
+                <span
+                  className={`h-9 inline-flex items-center px-3 rounded-lg text-xs font-bold border shrink-0 ${
+                    rnc.abrir8D === 'Sim'
+                      ? 'bg-purple-50 text-purple-800 border-purple-200'
+                      : 'bg-slate-100 text-slate-700 border-slate-200'
+                  }`}
+                >
+                  8D - {rnc.abrir8D === 'Sim' ? 'Sim' : 'Não'}
+                </span>
+              </>
+            )}
           </div>
 
-          <form onSubmit={handleCadastrarRastreio} className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
-            <div className="sm:col-span-4">
-              <label className="form-label block mb-1 text-xs">
-                Código do Componente / Peça
-              </label>
-              <input 
-                type="text" 
-                className="form-input text-xs font-mono" 
-                value={novoComp} 
-                onChange={e => setNovoComp(e.target.value)}
-                placeholder={`Ex: ${prodCode}`}
-              />
-            </div>
+          <div className="flex items-center gap-2 flex-wrap shrink-0">
+            {allRncs.length > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-slate-500 whitespace-nowrap">Ocorrência:</span>
+                <select
+                  value={selectedRncId || ''}
+                  onChange={e => setSelectedRncId(Number(e.target.value))}
+                  className="form-select h-9 text-xs font-bold py-1.5 px-3 rounded-lg border-slate-200 bg-slate-50 text-slate-900"
+                >
+                  {allRncs.map(item => (
+                    <option key={item.id} value={item.id}>
+                      {formatOccurrenceId(item.id, item.codOcorrenciaCliente || item.field1)} — {normalizeDisplayText(item.produto || item.componente)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
-            <div className="sm:col-span-4">
-              <label className="form-label block mb-1 text-xs">
-                Código do Lote SAP (Mín. 5 Dígitos) <span className="text-rose-500">*</span>
-              </label>
-              <input 
-                type="text" 
-                className="form-input text-xs font-mono font-bold" 
-                value={novoLote} 
-                onChange={e => setNovoLote(e.target.value)}
-                placeholder="Ex: 28926"
-                required
-              />
-            </div>
-
-            <div className="sm:col-span-2">
-              <label className="form-label block mb-1 text-xs">
-                Quantidade
-              </label>
-              <input 
-                type="number" 
-                className="form-input text-xs font-mono font-semibold" 
-                value={novaQtd} 
-                onChange={e => setNovaQtd(Number(e.target.value))}
-                min={1}
-              />
-            </div>
-
-            <div className="sm:col-span-2">
-              <button 
-                type="submit" 
-                className="btn-primary w-full h-9 text-xs font-bold gap-1.5"
+            {rnc && !isOperator && (
+              <button
+                type="button"
+                onClick={() => onNavigate('registro-8d', { edicao: true, rncId: rnc.id, fromScreen: 'rastreabilidade' })}
+                className="btn-secondary h-9 px-3 text-xs font-semibold gap-1.5 text-slate-700 hover:text-slate-900 inline-flex items-center justify-center"
               >
-                <Barcode size={14} />
-                <span>Rastrear</span>
+                <Edit3 className="w-3.5 h-3.5 text-slate-500" />
+                <span>Editar</span>
+              </button>
+            )}
+
+            {rnc && (
+              <button
+                type="button"
+                onClick={() => onNavigate('impressao-8d', { rncId: rnc.id })}
+                className="btn-secondary h-9 px-3 text-xs font-semibold gap-1.5 text-slate-700 hover:text-slate-900 inline-flex items-center justify-center"
+              >
+                <Printer className="w-3.5 h-3.5 text-slate-500" />
+                <span>Ver relatório de 8D</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Linha 2: Segmented Control de Modos de Visualização (Padronizado com Detalhes8DView) */}
+        {rnc && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-1">
+            <div className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+              <span>Modo de Exibição:</span>
+            </div>
+
+            <div className="flex flex-wrap items-center p-1 bg-slate-100 border border-slate-200 rounded-xl gap-1.5 w-full sm:w-auto self-start sm:self-auto">
+              <button
+                type="button"
+                onClick={() => onNavigate('detalhes-8d', { rncId: rnc.id, initialViewMode: 'detalhes' })}
+                className="h-8 px-3.5 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer select-none text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 flex-1 sm:flex-initial"
+              >
+                <List className="w-3.5 h-3.5" />
+                <span>Relatório Detalhado</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onNavigate('detalhes-8d', { rncId: rnc.id, initialViewMode: 'alerta' })}
+                className="h-8 px-3.5 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer select-none text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 flex-1 sm:flex-initial"
+              >
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                <span>Alerta Qualidade / Disposição</span>
+              </button>
+
+              {rnc.abrir8D === 'Sim' && (
+                <button
+                  type="button"
+                  onClick={() => onNavigate('detalhes-8d', { rncId: rnc.id, initialViewMode: 'metodologia8d' })}
+                  className="h-8 px-3.5 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer select-none text-slate-600 hover:text-purple-700 hover:bg-slate-200/60 flex-1 sm:flex-initial"
+                >
+                  <GitBranch className="w-3.5 h-3.5 text-purple-600" />
+                  <span>Metodologia 8D (1D - 8D)</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                className="h-8 px-3.5 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer select-none bg-white text-indigo-700 shadow-sm border border-indigo-200 flex-1 sm:flex-initial"
+              >
+                <Barcode className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Rastreabilidade e Contenção</span>
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Card Principal: Rastreabilidade e Contenção (Idêntico ao 3º D do 8D, sem Ações de Contenção) */}
+      {!rnc ? (
+        <div className="card-saas p-8 border-slate-200 bg-white text-center text-xs text-slate-500">
+          Nenhuma ocorrência selecionada ou cadastrada para registrar lotes de rastreabilidade.
+        </div>
+      ) : (
+        <div className="card-saas p-5 border-slate-200 bg-white shadow-2xs flex flex-col gap-4 text-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="font-bold text-slate-900 flex items-center gap-1.5 text-xs sm:text-sm">
+                  <Barcode className="w-4 h-4 text-[#0b5796]" />
+                  <span>Rastreabilidade e Contenção</span>
+                </h2>
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-50 text-[#0b5796] border border-blue-200">
+                  {formatOccurrenceId(rnc.id, rnc.codOcorrenciaCliente || rnc.field1)}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Data, responsável logado e peça da ocorrência são preenchidos automaticamente. Informe o total verificado e as peças NG para cálculo automático das peças OK.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 text-[11px] font-semibold">
+              <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 border border-slate-200">
+                Verificadas: <strong className="font-mono text-slate-900">{totalVerificadas}</strong>
+              </span>
+              <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200">
+                OK: <strong className="font-mono">{totalOk}</strong>
+              </span>
+              <span className="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-800 border border-rose-200">
+                NG: <strong className="font-mono">{totalNg}</strong>
+              </span>
+            </div>
+          </div>
+
+          {/* Formulário de Apontamento de Lote */}
+          <form onSubmit={handleSaveLote} className="p-4 bg-slate-50 rounded-xl border border-slate-200 flex flex-col gap-3.5">
+            {/* Linha 1: Campos Automáticos (Data, Quem está logado, Peça da Ocorrência) */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="p-2.5 rounded-lg bg-white border border-slate-200 flex flex-col gap-0.5">
+                <span className="text-[10px] font-bold uppercase text-slate-400">Data da Verificação (Automático)</span>
+                <span className="font-mono font-bold text-slate-900 text-xs">
+                  {formatDateBR(new Date().toISOString().split('T')[0])}
+                </span>
+              </div>
+
+              <div className="p-2.5 rounded-lg bg-white border border-slate-200 flex flex-col gap-0.5">
+                <span className="text-[10px] font-bold uppercase text-slate-400">Responsável Logado (Automático)</span>
+                <span className="font-bold text-slate-900 text-xs truncate">
+                  {currentUser.nome}
+                </span>
+              </div>
+
+              <div className="p-2.5 rounded-lg bg-blue-50/60 border border-blue-200 flex flex-col gap-0.5">
+                <span className="text-[10px] font-bold uppercase text-blue-700">Peça da Ocorrência (Automático)</span>
+                <span className="font-mono font-bold text-[#0b5796] text-xs truncate" title={pecaAutomatica}>
+                  {pecaAutomatica}
+                </span>
+              </div>
+            </div>
+
+            {/* Linha 2: Campos Preenchidos pelo Usuário + Cálculo Automático OK */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 items-end">
+              <div className="lg:col-span-1">
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">Lote de Produção *</label>
+                <input
+                  type="text"
+                  required
+                  value={formLote.lote}
+                  onChange={e => setFormLote({ ...formLote, lote: e.target.value })}
+                  placeholder="Ex: LOTE-28926"
+                  className="form-input w-full text-xs py-2 px-2.5 border-slate-200 rounded-lg bg-white font-mono font-bold"
+                />
+              </div>
+
+              <div className="lg:col-span-2">
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">Nome do Estoque / Local *</label>
+                <input
+                  type="text"
+                  required
+                  value={formLote.estoque}
+                  onChange={e => setFormLote({ ...formLote, estoque: e.target.value })}
+                  placeholder="Ex: Almoxarifado, Expedição, Linha..."
+                  className="form-input w-full text-xs py-2 px-2.5 border-slate-200 rounded-lg bg-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">Total Verificado *</label>
+                <input
+                  type="number"
+                  min={1}
+                  required
+                  value={formLote.qtdVerificada}
+                  onChange={e => setFormLote({ ...formLote, qtdVerificada: e.target.value })}
+                  placeholder="Ex: 200"
+                  className="form-input w-full text-xs py-2 px-2.5 border-slate-200 rounded-lg bg-white font-mono font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-rose-700 mb-1">Peças NG *</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={qtdVerificadaNum || undefined}
+                  required
+                  value={formLote.qtdNg}
+                  onChange={e => setFormLote({ ...formLote, qtdNg: e.target.value })}
+                  placeholder="0"
+                  className="form-input w-full text-xs py-2 px-2.5 border-rose-200 rounded-lg bg-rose-50/40 text-rose-900 font-mono font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-emerald-700 mb-1">Peças OK (Auto)</label>
+                <div className="h-[34px] px-3 rounded-lg bg-emerald-50 border border-emerald-300 text-emerald-900 font-mono font-extrabold text-xs flex items-center justify-between">
+                  <span>{qtdOkCalc}</span>
+                  <span className="text-[10px] font-sans font-semibold text-emerald-700">pçs OK</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-1">
+              <span className="text-[11px] text-slate-500">
+                Cálculo automático: <strong>Total ({qtdVerificadaNum}) − NG ({qtdNgNum}) = {qtdOkCalc} OK</strong>
+              </span>
+              <button
+                type="submit"
+                className="btn-primary bg-[#0b5796] hover:bg-[#09477d] h-8 px-4 text-xs font-bold text-white gap-1.5"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Registrar Lote Verificado</span>
               </button>
             </div>
           </form>
+
+          {/* Tabela de Lotes Verificados */}
+          {lotesSAP.length === 0 ? (
+            <div className="p-4 bg-slate-50 rounded-xl border border-dashed border-slate-200 text-center text-slate-400 italic">
+              Nenhum lote verificado registrado ainda para esta ocorrência. Preencha o formulário acima para adicionar.
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+                    <th className="py-2.5 px-3">Data</th>
+                    <th className="py-2.5 px-3">Responsável</th>
+                    <th className="py-2.5 px-3">Peça</th>
+                    <th className="py-2.5 px-3">Lote de Produção</th>
+                    <th className="py-2.5 px-3">Estoque / Local</th>
+                    <th className="py-2.5 px-3 text-right">Total Verificado</th>
+                    <th className="py-2.5 px-3 text-right">Qtd OK</th>
+                    <th className="py-2.5 px-3 text-right">Qtd NG</th>
+                    <th className="py-2.5 px-3 text-right">Ação</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {lotesSAP.map((l, i) => {
+                    const total = Number(l.qtdVerificada ?? l.qtd ?? 0);
+                    const ng = Number(l.qtdNg ?? 0);
+                    const ok = l.qtdOk !== undefined ? Number(l.qtdOk) : Math.max(0, total - ng);
+                    return (
+                      <tr key={l.id || i} className="hover:bg-slate-50">
+                        <td className="py-2 px-3 font-mono text-slate-600">{formatDateBR(l.data)}</td>
+                        <td className="py-2 px-3 font-medium text-slate-800">{l.responsavel || currentUser.nome}</td>
+                        <td className="py-2 px-3 font-mono text-slate-700">{l.produto}</td>
+                        <td className="py-2 px-3 font-mono font-bold text-slate-900">{l.lote}</td>
+                        <td className="py-2 px-3 font-semibold text-slate-700">{l.estoque || 'Estoque Geral'}</td>
+                        <td className="py-2 px-3 text-right font-mono font-bold text-slate-900">{total}</td>
+                        <td className="py-2 px-3 text-right font-mono font-bold text-emerald-700 bg-emerald-50/40">{ok}</td>
+                        <td className="py-2 px-3 text-right font-mono font-bold text-rose-700 bg-rose-50/40">{ng}</td>
+                        <td className="py-2 px-3 text-right">
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveLote(l.id || i)}
+                            className="p-1 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 transition"
+                            title="Remover registro de lote"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
-
-      {/* =========================================================================
-          TABELA SUPERIOR: SOLICITAÇÕES DE RASTREABILIDADE
-          Layout e colunas fiéis à tela do PowerApps (imagem 2):
-          Seq. | Data Solic. | Prod. | Comp. | Tipo Rast. | Doc. Rast. | Rast. | Bloq. | Verif. | Ocorr. / Abrang. | Obs. | Ações
-          ========================================================================= */}
-      <div className="card-saas border-slate-200 overflow-hidden shadow-2xs bg-white">
-        <div className="bg-[#002f6c] text-white px-4 py-2 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Barcode className="w-4 h-4 text-sky-200" />
-            <span className="text-xs font-bold">
-              Solicitações de Rastreabilidade ({solicitacoes.length})
-            </span>
-          </div>
-          <span className="text-xs font-mono text-sky-100">
-            {formatOccurrenceId(currentRnc.id, currentRnc.codOcorrenciaCliente || currentRnc.field1)}
-          </span>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr className="bg-[#004b87] text-white text-xs font-semibold select-none border-b border-[#003b6e]">
-                <th className="py-2.5 px-3 text-center w-12">Seq.</th>
-                <th className="py-2.5 px-3">Data Solic.</th>
-                <th className="py-2.5 px-3">Prod.</th>
-                <th className="py-2.5 px-3">Comp.</th>
-                <th className="py-2.5 px-3">Tipo Rast.</th>
-                <th className="py-2.5 px-3">Doc. Rast.</th>
-                <th className="py-2.5 px-2 text-center w-14">Rast.</th>
-                <th className="py-2.5 px-2 text-center w-14">Bloq.</th>
-                <th className="py-2.5 px-2 text-center w-14">Verif.</th>
-                <th className="py-2.5 px-3">Ocorr. / Abrang.</th>
-                <th className="py-2.5 px-3">Obs.</th>
-                <th className="py-2.5 px-3 text-center w-12">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 font-sans">
-              {solicitacoes.length === 0 ? (
-                <tr>
-                  <td colSpan={12} className="py-8 text-center text-slate-500">
-                    Nenhuma solicitação de rastreabilidade cadastrada para esta ocorrência.
-                  </td>
-                </tr>
-              ) : (
-                solicitacoes.map((item, idx) => (
-                  <tr key={item.id || idx} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-2.5 px-3 text-center font-bold text-slate-900 font-mono">
-                      {item.seqRelacionada || idx + 1}
-                    </td>
-                    <td className="py-2.5 px-3 font-semibold text-slate-700 whitespace-nowrap">
-                      {formatDateBR(item.dataHora)}
-                    </td>
-                    <td className="py-2.5 px-3 font-bold text-slate-900 font-mono">
-                      {item.produto || prodCode}
-                    </td>
-                    <td className="py-2.5 px-3 text-slate-600 font-mono">
-                      {item.codComp || '-'}
-                    </td>
-                    <td className="py-2.5 px-3 font-medium text-slate-700">
-                      {item.tipoRastreamento || currentRnc.finalComponente || 'Peça Final'}
-                    </td>
-                    <td className="py-2.5 px-3 font-semibold text-slate-900 whitespace-nowrap">
-                      {item.docRastreabilidade || 'Etiqueta SAP'}: {item.codRastreabilidade || currentRnc.codigoRastreabilidade || '-'} -
-                    </td>
-                    
-                    {/* Status Rast.: Ícone Verde Documento com Texto (idêntico ao PowerApps) */}
-                    <td className="py-2.5 px-2 text-center">
-                      <div className="inline-flex items-center justify-center w-6 h-6 rounded bg-emerald-600 text-white shadow-2xs" title="Rastreamento Realizado">
-                        <FileCheck2 size={13} strokeWidth={2.5} />
-                      </div>
-                    </td>
-
-                    {/* Status Bloq.: Ícone Verde Bloqueio com Traço (idêntico ao PowerApps) */}
-                    <td className="py-2.5 px-2 text-center">
-                      <div className="inline-flex items-center justify-center w-6 h-6 rounded bg-emerald-600 text-white shadow-2xs" title="Bloqueio de Qualidade Ativo">
-                        <MinusCircle size={13} strokeWidth={2.5} />
-                      </div>
-                    </td>
-
-                    {/* Status Verif.: Ícone Lupa de Pesquisa (idêntico ao PowerApps) */}
-                    <td className="py-2.5 px-2 text-center">
-                      <div className="inline-flex items-center justify-center w-6 h-6 rounded bg-slate-100 text-slate-700 hover:bg-slate-200 cursor-pointer" title="Verificar Rastreamento">
-                        <Search size={13} strokeWidth={2.5} />
-                      </div>
-                    </td>
-
-                    <td className="py-2.5 px-3 font-semibold text-slate-700">
-                      {item.ocorrenciaAbrangencia || 'Ocorrência'}
-                    </td>
-                    <td className="py-2.5 px-3 text-slate-500 italic">
-                      {item.observacao || '-'}
-                    </td>
-                    <td className="py-2.5 px-3 text-center">
-                      <button 
-                        type="button"
-                        className="text-slate-400 hover:text-slate-700 p-1 rounded hover:bg-slate-100 transition"
-                        title="Editar solicitação"
-                      >
-                        <Pencil size={13} />
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* =========================================================================
-          BARRA DIVISÓRIA: PRODUTO SELECIONADO & BORRACHA (REFERÊNCIA FOTO 2)
-          ========================================================================= */}
-      <div className="bg-slate-200/90 border border-slate-300/80 rounded-lg px-4 py-1.5 flex items-center justify-between shadow-2xs">
-        <div className="flex items-center gap-2">
-          <button 
-            type="button" 
-            className="text-slate-500 hover:text-slate-800 p-1 hover:bg-slate-300/60 rounded transition cursor-pointer"
-            title="Limpar seleção / Recarregar"
-            onClick={() => setRefreshTrigger(prev => prev + 1)}
-          >
-            <Eraser size={15} />
-          </button>
-          <span className="text-xs font-bold text-slate-800 font-mono">
-            {prodCode}
-          </span>
-        </div>
-        <span className="text-[11px] text-slate-600 font-medium hidden sm:inline">
-          {currentRnc.produto}
-        </span>
-      </div>
-
-      {/* =========================================================================
-          3 BLOCOS INFERIORES: LOTES ENCONTRADOS, CABECEIRAS E ETIQUETAS ATIVAS
-          Layout lado a lado exatamente como na Foto 2 do PowerApps
-          ========================================================================= */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        
-        {/* BLOCO 1: LOTES ENCONTRADOS (CABEÇALHO AZUL ESCURO) */}
-        <div className="card-saas border-slate-200 overflow-hidden shadow-2xs flex flex-col justify-between bg-white">
-          <div>
-            <div className="bg-[#1a4b8c] text-white px-3.5 py-2 font-bold text-xs flex items-center justify-between">
-              <span>Lotes Encontrados</span>
-              <span className="text-xs font-mono bg-blue-950/40 px-2 py-0.5 rounded">
-                {lotes.length} item(s)
-              </span>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="bg-[#245fa8] text-white text-xs font-semibold select-none">
-                    <th className="py-2 px-3">Item</th>
-                    <th className="py-2 px-3">Lote</th>
-                    <th className="py-2 px-3 text-right">Qtd</th>
-                    <th className="py-2 px-3 text-right">Data</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-sans">
-                  {lotes.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} className="py-8 text-center text-slate-400 italic text-[11px]">
-                        Nenhum lote encontrado.
-                      </td>
-                    </tr>
-                  ) : (
-                    lotes.map((l, i) => (
-                      <tr key={i} className="hover:bg-slate-50 transition-colors">
-                        <td className="py-2 px-3 font-mono font-bold text-slate-900">
-                          {l.produto}
-                        </td>
-                        <td className="py-2 px-3 font-mono text-[#0b5796] font-bold">
-                          {l.lote}
-                        </td>
-                        <td className="py-2 px-3 text-right font-semibold text-slate-900 tabular-nums">
-                          {l.qtd}
-                        </td>
-                        <td className="py-2 px-3 text-right text-slate-600 font-mono text-[11px]">
-                          {formatDateBR(l.data)}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div className="bg-slate-50 border-t border-slate-200 px-3.5 py-2 text-xs font-bold text-slate-800 flex items-center justify-between font-mono">
-            <span>Peças:</span>
-            <span className="text-slate-900 font-extrabold text-sm tabular-nums">
-              {totalPecasLotes || ''}
-            </span>
-          </div>
-        </div>
-
-        {/* BLOCO 2: PEÇAS EM CABECEIRAS (CABEÇALHO VERMELHO) */}
-        <div className="card-saas border-slate-200 overflow-hidden shadow-2xs flex flex-col justify-between bg-white">
-          <div>
-            <div className="bg-[#c51f1f] text-white px-3.5 py-2 font-bold text-xs flex items-center justify-between">
-              <span>Peças em Cabeceiras</span>
-              <span className="text-xs font-mono bg-red-950/40 px-2 py-0.5 rounded">
-                {cabeceiras.length} item(s)
-              </span>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="bg-[#dd3333] text-white text-xs font-semibold select-none">
-                    <th className="py-2 px-3">Item</th>
-                    <th className="py-2 px-3">Lote</th>
-                    <th className="py-2 px-3 text-right">Qtd</th>
-                    <th className="py-2 px-3">Local</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-sans">
-                  {cabeceiras.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} className="py-8 text-center text-slate-400 italic text-[11px]">
-                        Nenhuma peça em cabeceira retida.
-                      </td>
-                    </tr>
-                  ) : (
-                    cabeceiras.map((c, i) => (
-                      <tr key={i} className="hover:bg-slate-50 transition-colors">
-                        <td className="py-2 px-3 font-mono font-bold text-slate-900">
-                          {c.produto}
-                        </td>
-                        <td className="py-2 px-3 font-mono text-slate-700">
-                          {c.lote}
-                        </td>
-                        <td className="py-2 px-3 text-right font-semibold text-slate-900 tabular-nums">
-                          {c.qtd}
-                        </td>
-                        <td className="py-2 px-3 text-slate-600">
-                          {c.estoque || '-'}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div className="bg-slate-50 border-t border-slate-200 px-3.5 py-2 text-xs font-bold text-slate-800 flex items-center justify-between font-mono">
-            <span>Peças:</span>
-            <span className="text-slate-900 font-extrabold text-sm tabular-nums">
-              {totalPecasCabeceiras || ''}
-            </span>
-          </div>
-        </div>
-
-        {/* BLOCO 3: PEÇAS COM ETIQUETAS ATIVAS (CABEÇALHO LARANJA) */}
-        <div className="card-saas border-slate-200 overflow-hidden shadow-2xs flex flex-col justify-between bg-white">
-          <div>
-            <div className="bg-[#e06500] text-white px-3.5 py-2 font-bold text-xs flex items-center justify-between">
-              <span>Peças com Etiquetas Ativas</span>
-              <span className="text-xs font-mono bg-orange-950/40 px-2 py-0.5 rounded">
-                {etiquetas.length} item(s)
-              </span>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="bg-[#f07510] text-white text-xs font-semibold select-none">
-                    <th className="py-2 px-2.5">Item</th>
-                    <th className="py-2 px-2.5">Etiquetas SAP</th>
-                    <th className="py-2 px-2">Lote</th>
-                    <th className="py-2 px-2 text-right">Qtd</th>
-                    <th className="py-2 px-2 text-center">Bloq.</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-sans">
-                  {etiquetas.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="py-8 text-center text-slate-400 italic text-[11px]">
-                        Nenhuma etiqueta ativa retida.
-                      </td>
-                    </tr>
-                  ) : (
-                    etiquetas.map((e, i) => (
-                      <tr key={i} className="hover:bg-slate-50 transition-colors">
-                        <td className="py-2 px-2.5 font-mono font-bold text-slate-900">
-                          {e.produto}
-                        </td>
-                        <td className="py-2 px-2.5 font-mono text-slate-800 font-bold">
-                          {e.etiquetasap}
-                        </td>
-                        <td className="py-2 px-2 font-mono text-slate-600">
-                          {e.lote}
-                        </td>
-                        <td className="py-2 px-2 text-right font-semibold text-slate-900 tabular-nums">
-                          {e.qtd}
-                        </td>
-                        <td className="py-2 px-2 text-center">
-                          {e.statusBloqueio === 'bloq' ? (
-                            <span className="inline-flex px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
-                              BLOQ
-                            </span>
-                          ) : (
-                            <span className="inline-flex px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                              LIB
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div className="bg-slate-50 border-t border-slate-200 px-3.5 py-2 text-xs font-bold text-slate-800 flex items-center justify-between font-mono">
-            <span>Peças:</span>
-            <span className="text-slate-900 font-extrabold text-sm tabular-nums">
-              {totalPecasEtiquetas || ''}
-            </span>
-          </div>
-        </div>
-
-      </div>
-
     </div>
   );
 };

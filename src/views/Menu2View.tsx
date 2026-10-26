@@ -558,11 +558,11 @@ export const Menu2View: React.FC<Menu2ViewProps> = ({
                   Repositório 8D
                 </span>
                 <span className="text-[11px] font-mono font-bold text-purple-800 bg-purple-50 px-1.5 py-0.5 rounded">
-                  {actionPlanMetrics.concludedDossiers} dossiês
+                  {actionPlanMetrics.concludedDossiers} relatórios
                 </span>
               </div>
               <div className="text-xs text-[#64748b] mt-0.5 line-clamp-2 leading-relaxed">
-                Dossiês homologados, lições aprendidas e relatórios de auditoria.
+                Relatórios de 8D, lições aprendidas e histórico de auditoria.
               </div>
             </div>
           </div>

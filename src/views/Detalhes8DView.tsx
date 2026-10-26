@@ -34,9 +34,10 @@ import {
   MoreHorizontal,
   Image as ImageIcon,
   Sliders,
-  GitBranch
+  GitBranch,
+  Plus
 } from 'lucide-react';
-import { RNCRecord, UsuarioQualidade, RegistroTreinamento } from '../types';
+import { RNCRecord, UsuarioQualidade, RegistroTreinamento, LoteSAPParsed, ActiveScreen } from '../types';
 import { spStore } from '../services/sharepointService';
 import { ImageWithFallback } from '../components/ImageWithFallback';
 import { RncDetalhesModal } from '../components/RncDetalhesModal';
@@ -49,13 +50,17 @@ interface Detalhes8DViewProps {
   onNavigate: (screen: any, params?: any) => void;
   currentUser: UsuarioQualidade;
   initialViewMode?: 'detalhes' | 'alerta' | 'metodologia8d';
+  initialEtapa8D?: '1D' | '2D' | '3D' | '4D' | '5D' | '6D' | '7D' | '8D';
+  fromScreen?: ActiveScreen;
 }
 
 export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({ 
   rncId, 
   onNavigate, 
   currentUser,
-  initialViewMode
+  initialViewMode,
+  initialEtapa8D,
+  fromScreen = 'lista-8d'
 }) => {
   const [rnc, setRnc] = useState<RNCRecord | undefined>(undefined);
   const [treinamentos, setTreinamentos] = useState<RegistroTreinamento[]>([]);
@@ -63,10 +68,36 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
 
   // Modo de visualização: Detalhado (Lista Completa) vs Alerta da Qualidade vs Metodologia 8D
   const [activeViewMode, setActiveViewMode] = useState<'detalhes' | 'alerta' | 'metodologia8d'>(
-    initialViewMode || 'detalhes'
+    initialViewMode || (fromScreen === 'repositorio-8d' ? 'metodologia8d' : 'detalhes')
   );
   // Seletor dos 3 Blocos Power Apps na visualização detalhada
   const [activeBlockTab, setActiveBlockTab] = useState<'todos' | 'cliente' | 'contencao' | 'disposicao'>('todos');
+
+  useEffect(() => {
+    const item = spStore.getRNCById(rncId);
+    const has8D = item?.abrir8D === 'Sim';
+    if (!has8D) {
+      setActiveViewMode('detalhes');
+      return;
+    }
+    if (initialViewMode) {
+      setActiveViewMode(initialViewMode);
+    } else if (fromScreen === 'repositorio-8d') {
+      setActiveViewMode('metodologia8d');
+    } else {
+      setActiveViewMode('detalhes');
+    }
+  }, [rncId, initialViewMode, fromScreen, rnc?.abrir8D]);
+
+  const targetBackScreen: ActiveScreen = fromScreen || 'lista-8d';
+  const backButtonLabel =
+    targetBackScreen === 'repositorio-8d'
+      ? 'Voltar para o Repositório 8D'
+      : targetBackScreen === 'plano-acao'
+      ? 'Voltar para Planejamento & Ações'
+      : targetBackScreen === 'menu-2'
+      ? 'Voltar para o Menu Principal'
+      : 'Voltar para a Lista de Ocorrências';
 
   // Modais
   const [modalAlertaOpen, setModalAlertaOpen] = useState(false);
@@ -96,11 +127,19 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
   const [alertaPostos, setAlertaPostos] = useState('');
   const [treinRe, setTreinRe] = useState<string>('');
   const [obsConclusao, setObsConclusao] = useState('');
+  const [lotesSAP, setLotesSAP] = useState<LoteSAPParsed[]>([]);
+  const [formLoteOcorrencia, setFormLoteOcorrencia] = useState({
+    lote: '',
+    estoque: '',
+    qtdVerificada: '',
+    qtdNg: '0'
+  });
 
   const reloadData = () => {
     const item = spStore.getRNCById(rncId);
     setRnc(item);
     setTreinamentos(spStore.getTreinamentos(rncId));
+    setLotesSAP(spStore.getLotesSAP(rncId));
   };
 
   useEffect(() => {
@@ -135,9 +174,9 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
         <p className="text-xs text-[#64748b]">O registro {formatOccurrenceId(rncId)} não foi localizado na base de dados.</p>
         <button 
           className="btn-primary"
-          onClick={() => onNavigate('lista-8d')}
+          onClick={() => onNavigate(targetBackScreen)}
         >
-          Voltar para a Lista
+          Voltar
         </button>
       </div>
     );
@@ -158,6 +197,50 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
 
     setNotification({ type: 'success', message: res.message });
     setModalConcluirOpen(false);
+    reloadData();
+  };
+
+  const pecaAutomaticaOcorrencia = normalizeDisplayText(rnc.produto || rnc.componente || 'Peça da Ocorrência');
+  const qtdVerificadaNumOc = Math.max(0, Number(formLoteOcorrencia.qtdVerificada) || 0);
+  const qtdNgNumOc = Math.min(qtdVerificadaNumOc, Math.max(0, Number(formLoteOcorrencia.qtdNg) || 0));
+  const qtdOkCalcOc = Math.max(0, qtdVerificadaNumOc - qtdNgNumOc);
+
+  const handleSaveLoteOcorrencia = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formLoteOcorrencia.lote.trim() || !formLoteOcorrencia.estoque.trim() || qtdVerificadaNumOc <= 0) {
+      setNotification({
+        type: 'error',
+        message: 'Informe o Lote de Produção, o Nome do Estoque e o Total de Peças Verificadas.'
+      });
+      return;
+    }
+
+    spStore.addLoteSAP({
+      idRnc: rnc.id,
+      seqRel: String(lotesSAP.length + 1),
+      produto: pecaAutomaticaOcorrencia,
+      lote: formLoteOcorrencia.lote.trim(),
+      estoque: formLoteOcorrencia.estoque.trim(),
+      qtd: qtdVerificadaNumOc,
+      qtdVerificada: qtdVerificadaNumOc,
+      qtdNg: qtdNgNumOc,
+      qtdOk: qtdOkCalcOc,
+      data: new Date().toISOString().split('T')[0],
+      responsavel: currentUser.nome
+    });
+
+    setFormLoteOcorrencia({
+      lote: '',
+      estoque: '',
+      qtdVerificada: '',
+      qtdNg: '0'
+    });
+    setNotification({ type: 'success', message: 'Lote de contenção e rastreabilidade registrado com sucesso!' });
+    reloadData();
+  };
+
+  const handleDeleteLoteOcorrencia = (idOrIdx: number) => {
+    spStore.deleteLoteSAP(idOrIdx, rnc.id);
     reloadData();
   };
 
@@ -208,7 +291,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
     setNotification({ type: 'success', message: 'Ocorrência excluída com sucesso.' });
     setModalDeleteOpen(false);
     setTimeout(() => {
-      onNavigate('lista-8d');
+      onNavigate(targetBackScreen);
     }, 1000);
   };
 
@@ -231,6 +314,24 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
   const dataIncidenciaMaisRecente = historicoReincidencias.length > 0 
     ? historicoReincidencias[0].dataOcorrencia 
     : (rnc.dataReincidente || null);
+
+  // Busca dados complementares da peça/componente no catálogo (Peça comum, Co-produto Espelho, Aspecto de Segurança)
+  const catalogPecaMatch = (() => {
+    const catalogo = spStore.getColPecasGeraisAA3();
+    const compKey = (rnc.componente || '').trim().toLowerCase();
+    const prodKey = (rnc.produto || '').trim().toLowerCase();
+    return (
+      catalogo.find(
+        p =>
+          (compKey && (p.componente?.toLowerCase() === compKey || p.codCliText.toLowerCase() === compKey || p.descricao.toLowerCase() === compKey)) ||
+          (prodKey && (p.codCliText.toLowerCase() === prodKey || `${p.codCliText} - ${p.descricao}`.toLowerCase() === prodKey || prodKey.includes(p.codCliText.toLowerCase())))
+      ) || null
+    );
+  })();
+
+  const pecasComunsTexto = rnc.pecasComuns || catalogPecaMatch?.pecasComuns || 'Aplicação compartilhada no catálogo de produtos do cliente';
+  const pecaEspelhoTexto = rnc.pecaEspelho || catalogPecaMatch?.pecaEspelho || 'Conjunto simétrico LH / RH correspondente';
+  const aspectoSegurancaTexto = rnc.aspectoSeguranca || catalogPecaMatch?.aspectoSeguranca || 'Característica Crítica de Segurança Veicular (FMEA)';
 
   return (
     <div className="w-full flex flex-col gap-4 animate-in fade-in duration-150 pb-16">
@@ -260,9 +361,9 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
           <div className="flex items-center gap-2.5 flex-wrap">
             <button 
               type="button"
-              onClick={() => onNavigate('lista-8d')}
+              onClick={() => onNavigate(targetBackScreen)}
               className="btn-secondary h-9 px-3.5 text-xs font-semibold shrink-0 gap-1.5 shadow-2xs hover:bg-slate-50 inline-flex items-center justify-center"
-              title="Voltar para a Lista de Ocorrências"
+              title={backButtonLabel}
             >
               <ArrowLeft className="w-4 h-4 text-slate-600" />
               <span>Voltar</span>
@@ -358,23 +459,25 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                     className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition text-left"
                   >
                     <Printer className="w-4 h-4 text-slate-500" />
-                    <span>Imprimir Ficha A4</span>
+                    <span>Ver relatório de 8D</span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => { setActiveViewMode('metodologia8d'); setActionsMenuOpen(false); }}
-                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-medium text-purple-700 hover:bg-purple-50 transition text-left"
-                  >
-                    <GitBranch className="w-4 h-4 text-purple-500" />
-                    <span>Metodologia 8D & Ações</span>
-                  </button>
+                  {rnc.abrir8D === 'Sim' && (
+                    <button
+                      type="button"
+                      onClick={() => { setActiveViewMode('metodologia8d'); setActionsMenuOpen(false); }}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-medium text-purple-700 hover:bg-purple-50 transition text-left"
+                    >
+                      <GitBranch className="w-4 h-4 text-purple-500" />
+                      <span>Metodologia 8D & Ações</span>
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => { onNavigate('rastreabilidade', { rncId: rnc.id }); setActionsMenuOpen(false); }}
                     className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-medium text-indigo-700 hover:bg-indigo-50 transition text-left"
                   >
-                    <Barcode className="w-4 h-4 text-indigo-500" />
-                    <span>Rastrear SAP</span>
+                    <Barcode className="w-4 h-4 text-indigo-500 shrink-0" />
+                    <span>Rastreabilidade e Contenção</span>
                   </button>
                   {!isOperator && (
                     <>
@@ -451,30 +554,30 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                 <span>Alerta Qualidade / Disposição</span>
               </button>
 
-              <button
-                type="button"
-                onClick={() => setActiveViewMode('metodologia8d')}
-                className={`h-8 px-3.5 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer select-none flex-1 sm:flex-initial ${
-                  activeViewMode === 'metodologia8d'
-                    ? 'bg-white text-purple-700 shadow-sm border border-purple-200'
-                    : 'text-slate-600 hover:text-purple-700 hover:bg-slate-200/60'
-                }`}
-              >
-                <GitBranch className="w-3.5 h-3.5 text-purple-600" />
-                <span>Metodologia 8D (1D - 8D)</span>
-                {rnc.abrir8D === 'Sim' && (
+              {rnc.abrir8D === 'Sim' && (
+                <button
+                  type="button"
+                  onClick={() => setActiveViewMode('metodologia8d')}
+                  className={`h-8 px-3.5 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer select-none flex-1 sm:flex-initial ${
+                    activeViewMode === 'metodologia8d'
+                      ? 'bg-white text-purple-700 shadow-sm border border-purple-200'
+                      : 'text-slate-600 hover:text-purple-700 hover:bg-slate-200/60'
+                  }`}
+                >
+                  <GitBranch className="w-3.5 h-3.5 text-purple-600" />
+                  <span>Metodologia 8D (1D - 8D)</span>
                   <span className="w-2 h-2 rounded-full bg-purple-600 shrink-0" />
-                )}
-              </button>
+                </button>
+              )}
 
               <button
                 type="button"
                 onClick={() => onNavigate('rastreabilidade', { rncId: rnc.id })}
                 className="h-8 px-3.5 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer select-none text-slate-600 hover:text-indigo-700 hover:bg-slate-200/60 flex-1 sm:flex-initial"
-                title="Abrir tela de Rastreabilidade desta ocorrência"
+                title="Abrir tela de Rastreabilidade e Contenção desta ocorrência"
               >
                 <Barcode className="w-3.5 h-3.5 text-indigo-600" />
-                <span>Rastrear SAP</span>
+                <span>Rastreabilidade e Contenção</span>
               </button>
             </div>
           </div>
@@ -554,7 +657,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
           {/* ========================================================================= */}
 
           {/* ========================================================================= */}
-          {/* BLOCO 1: INFORMAÇÕES DO CLIENTE & RELATO DA OCORRÊNCIA (FOTO 3)          */}
+          {/* BLOCO 1: 1. DADOS GERAIS & CLIENTE + 2. INFORMAÇÕES DO POSTO E PRODUTO    */}
           {/* ========================================================================= */}
           {(activeBlockTab === 'todos' || activeBlockTab === 'cliente') && (
             <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden flex flex-col w-full">
@@ -567,133 +670,288 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                   <Car className="w-4 h-4 text-sky-300" />
                 </div>
                 <h2 className="font-bold text-sm sm:text-base tracking-tight text-white !text-white" style={{ color: '#ffffff' }}>
-                  Informações do Cliente & Relato da Ocorrência
+                  1. Dados Gerais & Cliente • 2. Informações do posto e produto
                 </h2>
               </div>
 
               {/* Corpo do Bloco 1 */}
               <div className="p-4 sm:p-6 flex flex-col gap-5 text-xs text-slate-700">
-                {/* Linha 1 do Bloco 1: Montadora, Setor Responsável, Data de Abertura & Turno, Data Final de Contenção */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-4 rounded-xl bg-white border border-slate-200 shadow-2xs">
-                  <div className="flex flex-col gap-1">
-                    <span className="text-xs font-semibold text-slate-500">Montadora:</span>
-                    <span className="text-[13px] sm:text-sm font-semibold text-slate-900" title={normalizeDisplayText(rnc.cliente || 'Não informada')}>
-                      {normalizeDisplayText(rnc.cliente || 'Não informada')}
-                    </span>
+                
+                {/* Seção 1: 1. Dados Gerais & Cliente (mesma sequência do formulário RNC) */}
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-2 text-xs font-bold text-[#0b5796] uppercase tracking-wider">
+                    <Car className="w-3.5 h-3.5" />
+                    <span>1. Dados Gerais & Cliente</span>
                   </div>
 
-                  <div className="flex flex-col gap-1">
-                    <span className="text-xs font-semibold text-slate-500">Setor Responsável:</span>
-                    <span className="text-[13px] sm:text-sm font-semibold text-slate-900">
-                      {normalizeDisplayText(rnc.classificacaoSetor || 'Qualidade')}
-                    </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-4 rounded-xl bg-slate-50/60 border border-slate-200 shadow-2xs">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs font-semibold text-slate-500">Cliente:</span>
+                      <span className="text-[13px] sm:text-sm font-bold text-slate-900" title={normalizeDisplayText(rnc.cliente || 'Não informado')}>
+                        {normalizeDisplayText(rnc.cliente || 'Não informado')}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs font-semibold text-slate-500">Tipo de Ocorrência:</span>
+                      <span className="text-[13px] sm:text-sm font-bold text-slate-900">
+                        {normalizeDisplayText(rnc.tipoRnc || 'Formal')}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs font-semibold text-slate-500 flex items-center gap-1">
+                        <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                        <span>Data da Ocorrência:</span>
+                      </span>
+                      <strong className="text-slate-900 tabular-nums text-[13px] sm:text-sm font-bold">
+                        {formatDateBR(rnc.dataOcorrencia)}
+                      </strong>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs font-semibold text-slate-500">Turno de Detecção:</span>
+                      <strong className="text-slate-900 text-[13px] sm:text-sm font-bold">
+                        {normalizeDisplayText(rnc.turno || '1º Turno')}
+                      </strong>
+                    </div>
                   </div>
 
-                  <div className="flex flex-col gap-1">
-                    <span className="text-xs font-semibold text-slate-500 flex items-center gap-1">
-                      <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                      <span>Data de Abertura & Turno:</span>
-                    </span>
-                    <strong className="text-slate-900 tabular-nums text-[13px] sm:text-sm font-semibold">
-                      {formatDateBR(rnc.dataOcorrencia)} - {normalizeDisplayText(rnc.turno || '1º Turno')}
-                    </strong>
+                  {/* Campos condicionais por Tipo de Ocorrência */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {rnc.tipoRnc === 'Formal' && (
+                      <>
+                        <div className="p-3 bg-white rounded-lg border border-slate-200 flex flex-col gap-1">
+                          <span className="text-xs font-semibold text-slate-500">Código / ID no Portal do Cliente:</span>
+                          <strong className="text-slate-900 text-[13px] sm:text-sm font-semibold font-mono">
+                            {rnc.codOcorrenciaCliente || '-'}
+                          </strong>
+                        </div>
+                        <div className="p-3 bg-white rounded-lg border border-slate-200 flex flex-col gap-1">
+                          <span className="text-xs font-semibold text-slate-500">Data de Oficialização no Portal:</span>
+                          <strong className="text-slate-900 text-[13px] sm:text-sm font-semibold tabular-nums">
+                            {formatDateBR(rnc.dataOficializacao || rnc.dataOcorrencia)}
+                          </strong>
+                        </div>
+                      </>
+                    )}
+
+                    <div className={`p-3 bg-white rounded-lg border border-slate-200 flex flex-col gap-1 ${rnc.tipoRnc === 'Interno' ? 'sm:col-span-2 lg:col-span-4' : ''}`}>
+                      <span className="text-xs font-semibold text-slate-500">
+                        {rnc.tipoRnc === 'Interno' ? 'Setor de Detecção:' : 'Local de Detecção do Cliente:'}
+                      </span>
+                      <strong className="text-slate-900 text-[13px] sm:text-sm font-semibold">
+                        {normalizeDisplayText(rnc.setorDeteccao || '-')}
+                      </strong>
+                    </div>
+
+                    {rnc.tipoRnc !== 'Interno' && (
+                      <div className="p-3 bg-white rounded-lg border border-slate-200 flex flex-col gap-1">
+                        <span className="text-xs font-semibold text-slate-500">Impacto no Cliente:</span>
+                        <strong className="text-slate-900 text-[13px] sm:text-sm font-semibold break-words">
+                          {normalizeDisplayText(rnc.impactoCliente || '-')}
+                        </strong>
+                      </div>
+                    )}
                   </div>
 
-                  <div className="flex flex-col gap-1">
-                    <span className="text-xs font-semibold text-slate-500 flex items-center gap-1">
-                      <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
-                      <span>Data Final de Contenção:</span>
+                  {/* Detalhamento da Ocorrência (Cliente) */}
+                  {rnc.tipoRnc !== 'Interno' && (
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-xs font-semibold text-slate-500 flex items-center gap-1.5">
+                        <FileText className="w-3.5 h-3.5 text-slate-400" />
+                        <span>Detalhamento da Ocorrência (Cliente):</span>
+                      </span>
+                      <div className="p-3.5 bg-white rounded-xl border border-slate-200 text-slate-900 text-[13px] sm:text-sm font-semibold leading-relaxed whitespace-pre-wrap">
+                        {normalizeDisplayText(rnc.detalhamentoOcorrencia || rnc.descricaoCompleta || rnc.descricaoProblema || '-')}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Participantes do Atendimento */}
+                  <div className="p-3.5 bg-white rounded-xl border border-slate-200 flex flex-col gap-2">
+                    <span className="text-xs font-semibold text-slate-500 flex items-center gap-1.5">
+                      <Users className="w-3.5 h-3.5 text-indigo-500" />
+                      <span>Participantes do Atendimento:</span>
                     </span>
-                    <strong className="text-slate-900 tabular-nums text-[13px] sm:text-sm font-semibold">
-                      {formatDateBR(rnc.dataContencao || rnc.dataOcorrencia)}
-                    </strong>
+                    <div className="flex flex-wrap gap-1.5">
+                      {(rnc.participantesAtendimento || rnc.detector || '-').split(';').map((p, idx) => (
+                        <span key={idx} className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-900 border border-indigo-200">
+                          {normalizeDisplayText(p.trim())}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
-                {/* Grid Intermediário: Especificações de Engenharia e Origem */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {/* 1. Posto / Linha / Área (Célula Fabril) */}
-                  <div className="p-3.5 bg-white rounded-lg border border-slate-200 flex flex-col gap-1">
-                    <span className="text-xs font-semibold text-slate-500 block">Posto / Linha / Área:</span>
-                    <strong className="text-slate-900 text-[13px] sm:text-sm font-semibold block truncate" title={normalizeDisplayText(`${rnc.posto || ''} ${rnc.fmds || ''} ${rnc.classificacaoSetor || ''}`)}>
-                      {normalizeDisplayText(rnc.posto || 'B643033 - Robô 33 - Solda 3')} {rnc.fmds ? `- ${normalizeDisplayText(rnc.fmds)}` : ''} {rnc.classificacaoSetor ? `• ${normalizeDisplayText(rnc.classificacaoSetor)}` : ''}
-                    </strong>
+                {/* Seção 2: 2. Informações do posto e produto */}
+                <div className="flex flex-col gap-3 pt-3 border-t border-slate-100">
+                  <div className="flex items-center gap-2 text-xs font-bold text-indigo-800 uppercase tracking-wider">
+                    <Wrench className="w-3.5 h-3.5" />
+                    <span>2. Informações do posto e produto</span>
                   </div>
 
-                  {/* 2. Código da Peça (com divisão identificada) */}
-                  <div className="p-3.5 bg-white rounded-lg border border-slate-200 flex flex-col gap-1">
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="text-xs font-semibold text-slate-500">Código da Peça:</span>
-                      <span className="inline-flex items-center gap-1.5 font-semibold text-[#0b5796] bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-200 text-[11px] shadow-2xs">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#0f6cbd]" />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                    <div className="p-3.5 bg-white rounded-lg border border-slate-200 flex flex-col gap-1">
+                      <span className="text-xs font-semibold text-slate-500">Tipo de Peça Rastreada:</span>
+                      <strong className="text-slate-900 text-[13px] sm:text-sm font-semibold">
                         {normalizeDisplayText(rnc.finalComponente || 'Peça Final')}
-                      </span>
+                      </strong>
                     </div>
-                    <strong className="text-slate-900 tabular-nums text-[13px] sm:text-sm font-semibold block" title={normalizeDisplayText(rnc.componente || rnc.produto)}>
-                      {codigoPeca9 || '-'}
-                    </strong>
-                  </div>
 
-                  {/* 3. Código do Componente */}
-                  <div className="p-3.5 bg-white rounded-lg border border-slate-200 flex flex-col gap-1">
-                    <span className="text-xs font-semibold text-slate-500 block">Código do Componente:</span>
-                    <strong className="text-slate-900 tabular-nums text-[13px] sm:text-sm font-semibold block truncate" title={normalizeDisplayText(rnc.componente || 'Não possui componente associado')}>
-                      {rnc.componente ? normalizeDisplayText(rnc.componente.trim()) : '-'}
-                    </strong>
-                  </div>
+                    <div className="p-3.5 bg-white rounded-lg border border-slate-200 flex flex-col gap-1">
+                      <span className="text-xs font-semibold text-slate-500">Produto / Conjunto:</span>
+                      <strong className="text-slate-900 text-[13px] sm:text-sm font-semibold truncate" title={normalizeDisplayText(rnc.produto || '-')}>
+                        {normalizeDisplayText(rnc.produto || codigoPeca9 || '-')}
+                      </strong>
+                    </div>
 
-                  {/* 4. Quantidade com Defeito */}
-                  <div className="p-3.5 bg-white rounded-lg border border-slate-200 flex flex-col gap-1">
-                    <span className="text-xs font-semibold text-slate-500 block">Quantidade com Defeito:</span>
-                    <div className="text-[13px] sm:text-sm font-semibold text-rose-700 tabular-nums">
-                      {rnc.quantidadeAfetada || 1} peça(s) ({normalizeDisplayText(rnc.modoFalha || rnc.descricaoProblema || 'Não especificado')})
+                    <div className="p-3.5 bg-white rounded-lg border border-slate-200 flex flex-col gap-1">
+                      <span className="text-xs font-semibold text-slate-500">Componente:</span>
+                      <strong className="text-slate-900 text-[13px] sm:text-sm font-semibold truncate" title={normalizeDisplayText(rnc.componente || '-')}>
+                        {rnc.componente ? normalizeDisplayText(rnc.componente.trim()) : '-'}
+                      </strong>
+                    </div>
+
+                    <div className="p-3.5 bg-white rounded-lg border border-slate-200 flex flex-col gap-1">
+                      <span className="text-xs font-semibold text-slate-500">Posto de Trabalho Cadastrado:</span>
+                      <strong className="text-slate-900 text-[13px] sm:text-sm font-semibold truncate" title={normalizeDisplayText(rnc.posto || '-')}>
+                        {normalizeDisplayText(rnc.posto || '-')}
+                      </strong>
+                    </div>
+
+                    <div className="p-3.5 bg-white rounded-lg border border-slate-200 flex flex-col gap-1 sm:col-span-2">
+                      <span className="text-xs font-semibold text-slate-500">Área / Setor Fabril:</span>
+                      <strong className="text-slate-900 text-[13px] sm:text-sm font-semibold truncate" title={normalizeDisplayText(rnc.fmds || rnc.classificacaoSetor || '-')}>
+                        {normalizeDisplayText(rnc.fmds || rnc.classificacaoSetor || '-')}
+                      </strong>
                     </div>
                   </div>
 
-                  {/* 5. Local de Detecção do Cliente */}
-                  <div className="p-3.5 bg-white rounded-lg border border-slate-200 flex flex-col gap-1">
-                    <span className="text-xs font-semibold text-slate-500 block">Local de Detecção do Cliente:</span>
-                    <strong className="text-slate-900 text-[13px] sm:text-sm font-semibold block">
-                      {normalizeDisplayText(rnc.setorDeteccao || '-')}
-                    </strong>
-                  </div>
+                  {/* Atributos da Peça: Peça comum, Co-produto (Espelho), Peça de Segurança (FMEA) e Reincidente */}
+                  <div className="p-3.5 rounded-xl bg-slate-50/70 border border-slate-200 flex flex-col gap-3">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <span className="text-xs font-semibold text-slate-600">Atributos da Peça:</span>
 
-                  {/* 6. Impacto no Cliente */}
-                  <div className="p-3.5 bg-white rounded-lg border border-slate-200 flex flex-col gap-1">
-                    <span className="text-xs font-semibold text-slate-500 block">Impacto no Cliente:</span>
-                    <strong className="text-slate-900 text-[13px] sm:text-sm font-semibold block break-words" title={normalizeDisplayText(rnc.impactoCliente || '-')}>
-                      {normalizeDisplayText(rnc.impactoCliente || '-')}
-                    </strong>
+                      <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold ${
+                        rnc.carryOver === 'Sim'
+                          ? 'bg-amber-50 border-amber-200 text-amber-900'
+                          : 'bg-white border-slate-200 text-slate-700'
+                      }`}>
+                        <span>Peça comum:</span>
+                        <strong className="font-bold">{normalizeDisplayText(rnc.carryOver || 'Não')}</strong>
+                      </div>
+
+                      <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold ${
+                        rnc.coProduto === 'Sim'
+                          ? 'bg-purple-50 border-purple-200 text-purple-900'
+                          : 'bg-white border-slate-200 text-slate-700'
+                      }`}>
+                        <Layers className="w-3.5 h-3.5 text-purple-600" />
+                        <span>Co-produto (Espelho):</span>
+                        <strong className="font-bold">{normalizeDisplayText(rnc.coProduto || 'Não')}</strong>
+                      </div>
+
+                      <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold ${
+                        rnc.caracteristicaSeguranca === 'Sim'
+                          ? 'bg-rose-50 border-rose-200 text-rose-800'
+                          : 'bg-white border-slate-200 text-slate-700'
+                      }`}>
+                        {rnc.caracteristicaSeguranca === 'Sim' ? (
+                          <ShieldAlert className="w-3.5 h-3.5 text-rose-600" />
+                        ) : (
+                          <ShieldCheck className="w-3.5 h-3.5 text-slate-400" />
+                        )}
+                        <span>Peça de Segurança (FMEA):</span>
+                        <strong className="font-bold">{rnc.caracteristicaSeguranca === 'Sim' ? 'Sim' : 'Não'}</strong>
+                      </div>
+
+                      <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold ml-auto ${
+                        isReincidenteCalculado
+                          ? 'bg-amber-100 text-amber-900 border-amber-300'
+                          : 'bg-white border-slate-200 text-slate-700'
+                      }`}>
+                        <span>Reincidente:</span>
+                        <strong className="font-bold">
+                          {isReincidenteCalculado
+                            ? `Sim (${formatDateBR(dataIncidenciaMaisRecente || rnc.dataOcorrencia)})`
+                            : 'Não'}
+                        </strong>
+                      </div>
+                    </div>
+
+                    {/* Detalhamento quando Peça comum, Co-produto ou Peça de Segurança for Sim */}
+                    {(rnc.carryOver === 'Sim' || rnc.coProduto === 'Sim' || rnc.caracteristicaSeguranca === 'Sim') && (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+                        {rnc.carryOver === 'Sim' && (
+                          <div className="p-2.5 rounded-lg bg-amber-50/80 border border-amber-200 flex flex-col gap-0.5">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800">
+                              Peças com este Componente em Comum:
+                            </span>
+                            <span className="text-xs font-semibold text-amber-950">
+                              {pecasComunsTexto}
+                            </span>
+                          </div>
+                        )}
+
+                        {rnc.coProduto === 'Sim' && (
+                          <div className="p-2.5 rounded-lg bg-purple-50/80 border border-purple-200 flex flex-col gap-0.5">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-purple-800">
+                              Peça Espelho do Item Selecionado:
+                            </span>
+                            <span className="text-xs font-semibold text-purple-950">
+                              {pecaEspelhoTexto}
+                            </span>
+                          </div>
+                        )}
+
+                        {rnc.caracteristicaSeguranca === 'Sim' && (
+                          <div className="p-2.5 rounded-lg bg-rose-50/80 border border-rose-200 flex flex-col gap-0.5">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-rose-800">
+                              Aspecto de Segurança do Item (FMEA):
+                            </span>
+                            <span className="text-xs font-semibold text-rose-950">
+                              {aspectoSegurancaTexto}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                {/* Participantes do Atendimento - Fundo Branco Unificado */}
-                <div className="p-3.5 bg-white rounded-xl border border-slate-200 flex flex-col gap-2">
-                  <span className="text-xs font-semibold text-slate-500 flex items-center gap-1.5">
-                    <Users className="w-3.5 h-3.5 text-indigo-500" />
-                    <span>Participantes do Atendimento:</span>
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {(rnc.participantesAtendimento || rnc.detector || 'Leandro Serafim de Lima;Paulo Henrique Vicente;Luis Henrique Camargo Felicio').split(';').map((p, idx) => (
-                      <span key={idx} className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-900 border border-indigo-200">
-                        {normalizeDisplayText(p.trim())}
-                      </span>
-                    ))}
+                {/* Seção 3: 3. Descrição do Defeito, Quantidade & Evidências */}
+                <div className="flex flex-col gap-3 pt-3 border-t border-slate-100">
+                  <div className="flex items-center gap-2 text-xs font-bold text-rose-800 uppercase tracking-wider">
+                    <AlertCircle className="w-3.5 h-3.5" />
+                    <span>3. Descrição do Defeito & Quantidade Não Conforme</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                    <div className="p-3.5 bg-white rounded-lg border border-slate-200 flex flex-col gap-1">
+                      <span className="text-xs font-semibold text-slate-500">Classificação do Defeito:</span>
+                      <strong className="text-slate-900 text-[13px] sm:text-sm font-semibold">
+                        {normalizeDisplayText(rnc.modoFalha || '-')}
+                      </strong>
+                    </div>
+
+                    <div className="p-3.5 bg-white rounded-lg border border-slate-200 flex flex-col gap-1">
+                      <span className="text-xs font-semibold text-slate-500">Quantidade Não Conforme:</span>
+                      <strong className="text-rose-700 text-[13px] sm:text-sm font-bold tabular-nums">
+                        {rnc.quantidadeAfetada || 1} peça(s)
+                      </strong>
+                    </div>
+
+                    <div className="p-3.5 bg-white rounded-lg border border-slate-200 flex flex-col gap-1">
+                      <span className="text-xs font-semibold text-slate-500">Data Final de Contenção:</span>
+                      <strong className="text-slate-900 text-[13px] sm:text-sm font-semibold tabular-nums">
+                        {formatDateBR(rnc.dataContencao || rnc.dataOcorrencia)}
+                      </strong>
+                    </div>
                   </div>
                 </div>
 
-                {/* Detalhamento da Ocorrência (Cliente) - Fundo Branco Unificado */}
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-xs font-semibold text-slate-500 flex items-center gap-1.5">
-                    <FileText className="w-3.5 h-3.5 text-slate-400" />
-                    <span>Detalhamento da Ocorrência (Cliente):</span>
-                  </span>
-                  <div className="p-3.5 bg-white rounded-xl border border-slate-200 text-slate-900 text-[13px] sm:text-sm font-semibold leading-relaxed whitespace-pre-wrap">
-                    {normalizeDisplayText(rnc.detalhamentoOcorrencia || rnc.descricaoCompleta || rnc.descricaoProblema || 'Ponto de solda pegou fora devido à peça amassada')}
-                  </div>
-                </div>
-
-                {/* Fotos Comparativas da Base do Bloco 1 (Foto 3) */}
+                {/* Fotos Comparativas da Base do Bloco 1 (Lado a Lado: OK e NG) */}
                 <div className="pt-2">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {/* Foto OK */}
@@ -742,7 +1000,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
           )}
 
           {/* ========================================================================= */}
-          {/* BLOCO 2: CONTENÇÃO IMEDIATA & DIRETRIZES OPERACIONAIS (5W2H)               */}
+          {/* BLOCO 2: RASTREABILIDADE, CONTENÇÃO IMEDIATA & DIRETRIZES (5W2H)          */}
           {/* ========================================================================= */}
           {(activeBlockTab === 'todos' || activeBlockTab === 'contencao') && (
             <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden flex flex-col w-full">
@@ -755,107 +1013,145 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                   <ShieldCheck className="w-4 h-4 text-emerald-300" />
                 </div>
                 <h2 className="font-bold text-sm sm:text-base tracking-tight text-white !text-white" style={{ color: '#ffffff' }}>
-                  Contenção Imediata & Diretrizes Operacionais (5W2H)
+                  Rastreabilidade, Contenção Imediata & Diretrizes Operacionais (5W2H)
                 </h2>
               </div>
 
               {/* Corpo do Bloco 2 */}
               <div className="p-4 sm:p-6 flex flex-col gap-5 text-xs text-slate-700">
-                {/* Grid 1: Governança de Rastreabilidade & Parâmetros Críticos */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-4 rounded-xl bg-white border border-slate-200">
-                  <div className="flex items-center justify-between bg-white p-3.5 rounded-lg border border-slate-200">
-                    <span className="text-xs font-semibold text-slate-500">Co-Produto:</span>
-                    <strong className="text-[13px] sm:text-sm font-semibold text-slate-900">{normalizeDisplayText(rnc.coProduto || '-')}</strong>
-                  </div>
-
-                  <div className="flex items-center justify-between bg-white p-3.5 rounded-lg border border-slate-200">
-                    <span className="text-xs font-semibold text-slate-500">Carry Over:</span>
-                    <strong className="text-[13px] sm:text-sm font-semibold text-slate-900">{normalizeDisplayText(rnc.carryOver || 'Não -')}</strong>
-                  </div>
-
-                  <div className="flex items-center justify-between bg-white p-3.5 rounded-lg border border-slate-200">
-                    <span className="text-xs font-semibold text-slate-500">Reincidente:</span>
-                    <span className={`px-2 py-0.5 rounded font-semibold text-xs ${
-                      isReincidenteCalculado
-                        ? 'bg-amber-100 text-amber-900 border border-amber-300'
-                        : 'text-[13px] sm:text-sm text-slate-900'
-                    }`}>
-                      {isReincidenteCalculado 
-                        ? `Sim - Data: ${formatDateBR(dataIncidenciaMaisRecente || rnc.dataOcorrencia)}` 
-                        : normalizeDisplayText(rnc.reincidente || 'Não')}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between bg-white p-3.5 rounded-lg border border-slate-200">
-                    <span className="text-xs font-semibold text-slate-500">Peça de Segurança:</span>
-                    <span className={`px-2 py-0.5 rounded font-semibold text-xs ${
-                      rnc.caracteristicaSeguranca === 'Sim'
-                        ? 'bg-rose-100 text-rose-800 border border-rose-300'
-                        : 'text-[13px] sm:text-sm text-slate-900'
-                    }`}>
-                      {rnc.caracteristicaSeguranca === 'Sim' ? 'Sim (Crítico)' : 'Não'}
-                    </span>
-                  </div>
-
-                  <div className="sm:col-span-2 flex items-center justify-between bg-white p-3.5 rounded-lg border border-slate-200">
-                    <span className="text-xs font-semibold text-slate-500">Documento de Rastreabilidade:</span>
-                    <strong className="text-[13px] sm:text-sm font-semibold text-slate-900">{normalizeDisplayText(rnc.documentoRastreabilidade || 'Etiqueta SAP')}</strong>
-                  </div>
-
-                  <div className="sm:col-span-2 flex items-center justify-between bg-white p-3.5 rounded-lg border border-slate-200">
-                    <span className="text-xs font-semibold text-slate-500">Código de Rastreabilidade:</span>
-                    <div className="flex items-center gap-2">
-                      <strong className="tabular-nums text-[13px] sm:text-sm text-slate-900 bg-slate-50 px-2.5 py-0.5 rounded border border-slate-200 font-semibold">
-                        {rnc.codigoRastreabilidade || '668360689'}
-                      </strong>
-                      {rnc.codigoRastreabilidade && (
-                        <button
-                          type="button"
-                          onClick={() => onNavigate('rastreabilidade', { rncId: rnc.id })}
-                          className="text-xs text-[#0f6cbd] font-semibold hover:underline cursor-pointer"
-                        >
-                          Ver Lotes SAP
-                        </button>
-                      )}
+                {/* Informações de Rastreabilidade preenchidas no Formulário de RNC */}
+                <div className="p-4 rounded-xl bg-slate-50/70 border border-slate-200 flex flex-col gap-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-200/80">
+                    <div className="flex items-center gap-2 text-xs font-bold text-slate-800">
+                      <Barcode className="w-4 h-4 text-[#0b5796]" />
+                      <span>Dados de Rastreabilidade Informados na Abertura da RNC</span>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => onNavigate('rastreabilidade', { rncId: rnc.id })}
+                      className="btn-secondary h-7 px-3 text-xs font-bold text-[#0b5796] border-blue-200 hover:bg-blue-50 inline-flex items-center gap-1.5 self-start sm:self-auto cursor-pointer"
+                    >
+                      <Barcode className="w-3.5 h-3.5" />
+                      <span>Rastreabilidade e Contenção</span>
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="p-3 bg-white rounded-lg border border-slate-200 flex flex-col gap-1">
+                      <span className="text-xs font-semibold text-slate-500">Documento para Rastreabilidade:</span>
+                      <strong className="text-[13px] sm:text-sm font-bold text-slate-900">
+                        {normalizeDisplayText(rnc.documentoRastreabilidade || 'Não Informado')}
+                      </strong>
+                    </div>
+
+                    {rnc.documentoRastreabilidade === 'Não Informado' ? (
+                      <>
+                        <div className="p-3 bg-white rounded-lg border border-slate-200 flex flex-col gap-1">
+                          <span className="text-xs font-semibold text-slate-500">Data Inicial (Rastreabilidade):</span>
+                          <strong className="text-[13px] sm:text-sm font-bold text-slate-900 tabular-nums">
+                            {formatDateBR(rnc.dataInicioRastreabilidade || rnc.dataOcorrencia)}
+                          </strong>
+                        </div>
+                        <div className="p-3 bg-white rounded-lg border border-slate-200 flex flex-col gap-1">
+                          <span className="text-xs font-semibold text-slate-500">Data Final (Rastreabilidade):</span>
+                          <strong className="text-[13px] sm:text-sm font-bold text-slate-900 tabular-nums">
+                            {formatDateBR(rnc.dataFimRastreabilidade || rnc.dataOcorrencia)}
+                          </strong>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="sm:col-span-2 p-3 bg-white rounded-lg border border-slate-200 flex flex-col gap-1">
+                        <span className="text-xs font-semibold text-slate-500">
+                          Código / Número do Documento ({normalizeDisplayText(rnc.documentoRastreabilidade || 'Documento')}):
+                        </span>
+                        <strong className="text-[13px] sm:text-sm font-bold text-[#0b5796] font-mono">
+                          {rnc.codigoRastreabilidade || 'Não informado'}
+                        </strong>
+                      </div>
+                    )}
                   </div>
                 </div>
 
                 {/* Contadores de Triagem no Processo */}
                 <div className="flex flex-col gap-2">
-                  <span className="text-xs font-bold text-slate-700 block">Contadores de Triagem no Processo:</span>
+                  <span className="text-xs font-bold text-slate-700 block">Resumo de Triagem e Verificação de Peças:</span>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
-                    <div className="p-4 bg-amber-50/80 rounded-xl border border-amber-200">
-                      <span className="text-xs font-bold text-amber-900 block truncate">Qtd. Peças Suspeitas</span>
-                      <span className="text-2xl sm:text-3xl font-extrabold tabular-nums text-amber-900 mt-1.5 block">
-                        {rnc.qtdSuspeita || 1}
+                    <div className="p-4 bg-white rounded-xl border border-slate-200">
+                      <span className="text-xs font-bold text-slate-700 block truncate">Total de Peças Verificadas</span>
+                      <span className="text-2xl sm:text-3xl font-extrabold tabular-nums text-slate-900 mt-1.5 block">
+                        {lotesSAP.length > 0
+                          ? lotesSAP.reduce((acc, l) => acc + Number(l.qtdVerificada ?? l.qtd ?? 0), 0)
+                          : (rnc.qtdInspecionada || rnc.qtdSuspeita || 0)}
                       </span>
-                      <span className="text-xs text-amber-700/90 block mt-1">Em quarentena para inspeção</span>
+                      <span className="text-xs text-slate-500 block mt-1">Total verificado nos estoques</span>
                     </div>
 
-                    <div className="p-4 bg-white rounded-xl border border-slate-200">
-                      <span className="text-xs font-bold text-slate-700 block truncate">Qtd. Peças Inspecionadas</span>
-                      <span className="text-2xl sm:text-3xl font-extrabold tabular-nums text-slate-900 mt-1.5 block">
-                        {rnc.qtdInspecionada || 1}
+                    <div className="p-4 bg-emerald-50/80 rounded-xl border border-emerald-200">
+                      <span className="text-xs font-bold text-emerald-900 block truncate">Qtd. Peças OK (Liberadas)</span>
+                      <span className="text-2xl sm:text-3xl font-extrabold tabular-nums text-emerald-800 mt-1.5 block">
+                        {lotesSAP.length > 0
+                          ? lotesSAP.reduce((acc, l) => acc + Number(l.qtdOk ?? Math.max(0, Number(l.qtdVerificada ?? l.qtd ?? 0) - Number(l.qtdNg ?? 0))), 0)
+                          : Math.max(0, (rnc.qtdInspecionada || 0) - (rnc.qtdBloqueada || 0))}
                       </span>
-                      <span className="text-xs text-slate-500 block mt-1">Total verificado na linha</span>
+                      <span className="text-xs text-emerald-700/90 block mt-1">Diferença automática (Total − NG)</span>
                     </div>
 
                     <div className="p-4 bg-rose-50/80 rounded-xl border border-rose-200">
-                      <span className="text-xs font-bold text-rose-900 block truncate">Qtd. Peças Bloqueadas</span>
+                      <span className="text-xs font-bold text-rose-900 block truncate">Qtd. Peças NG (Bloqueadas)</span>
                       <span className="text-2xl sm:text-3xl font-extrabold tabular-nums text-rose-900 mt-1.5 block">
-                        {rnc.qtdBloqueada || 0}
+                        {lotesSAP.length > 0
+                          ? lotesSAP.reduce((acc, l) => acc + Number(l.qtdNg ?? 0), 0)
+                          : (rnc.qtdBloqueada || 0)}
                       </span>
                       <span className="text-xs text-rose-700/90 block mt-1">Retidas para retrabalho / refugo</span>
                     </div>
                   </div>
                 </div>
 
+                {/* Tabela somente leitura de lotes verificados (se houver) */}
+                {lotesSAP.length > 0 && (
+                  <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+                          <th className="py-2.5 px-3">Data</th>
+                          <th className="py-2.5 px-3">Responsável</th>
+                          <th className="py-2.5 px-3">Peça</th>
+                          <th className="py-2.5 px-3">Lote de Produção</th>
+                          <th className="py-2.5 px-3">Estoque / Local</th>
+                          <th className="py-2.5 px-3 text-right">Total Verificado</th>
+                          <th className="py-2.5 px-3 text-right">Qtd OK</th>
+                          <th className="py-2.5 px-3 text-right">Qtd NG</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {lotesSAP.map((l, i) => {
+                          const total = Number(l.qtdVerificada ?? l.qtd ?? 0);
+                          const ng = Number(l.qtdNg ?? 0);
+                          const ok = l.qtdOk !== undefined ? Number(l.qtdOk) : Math.max(0, total - ng);
+                          return (
+                            <tr key={l.id || i} className="hover:bg-slate-50">
+                              <td className="py-2 px-3 font-mono text-slate-600">{formatDateBR(l.data)}</td>
+                              <td className="py-2 px-3 font-medium text-slate-800">{l.responsavel || currentUser.nome}</td>
+                              <td className="py-2 px-3 font-mono text-slate-700">{l.produto}</td>
+                              <td className="py-2 px-3 font-mono font-bold text-slate-900">{l.lote}</td>
+                              <td className="py-2 px-3 font-semibold text-slate-700">{l.estoque || 'Estoque Geral'}</td>
+                              <td className="py-2 px-3 text-right font-mono font-bold text-slate-900">{total}</td>
+                              <td className="py-2 px-3 text-right font-mono font-bold text-emerald-700 bg-emerald-50/40">{ok}</td>
+                              <td className="py-2 px-3 text-right font-mono font-bold text-rose-700 bg-rose-50/40">{ng}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
                 {/* Banner de Ações de Contenção Adotadas */}
                 <div className="p-4 bg-white rounded-xl border border-slate-200 flex flex-col gap-1.5">
                   <span className="font-semibold text-slate-500 flex items-center gap-1.5 text-xs">
                     <ShieldAlert className="w-4 h-4 text-amber-600" />
-                    <span>Ações de Contenção Adotadas:</span>
+                    <span>Ações de Contenção Imediata:</span>
                   </span>
                   <div className="text-slate-900 text-[13px] sm:text-sm font-semibold leading-relaxed">
                     {normalizeDisplayText(rnc.acoesContencao || 'Inspeção 100% no posto de trabalho; retrabalhar')}
@@ -1204,7 +1500,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
             {/* 1. TOPO: INFORMAÇÕES DO PRODUTO & OCORRÊNCIA */}
             <div className="flex flex-col gap-3 pb-4 border-b border-slate-100">
               
-              {/* Cabeçalho do Bloco com Produto e Badge de Volume */}
+              {/* Cabeçalho do Bloco com Produto */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-xl bg-sky-100 text-sky-800 flex items-center justify-center font-bold shrink-0">
@@ -1217,16 +1513,6 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
                     <h3 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight tabular-nums mt-0.5">
                       {normalizeDisplayText(rnc.produto || rnc.componente || 'Produto Não Especificado')}
                     </h3>
-                  </div>
-                </div>
-
-                {/* Quantidade em Destaque */}
-                <div className="flex items-center gap-2 self-start sm:self-auto">
-                  <div className="px-3 py-1.5 bg-amber-50 rounded-xl border border-amber-200 text-right flex items-center gap-2">
-                    <span className="text-xs font-semibold text-amber-800">Quantidade Afetada:</span>
-                    <span className="text-sm font-bold text-amber-950 tabular-nums">
-                      {rnc.quantidadeAfetada || 1} Peça(s)
-                    </span>
                   </div>
                 </div>
               </div>
@@ -1625,6 +1911,7 @@ export const Detalhes8DView: React.FC<Detalhes8DViewProps> = ({
             currentUser={currentUser}
             onNavigate={onNavigate}
             onRefreshRnc={reloadData}
+            initialEtapa={initialEtapa8D}
           />
         </div>
       )}

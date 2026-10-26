@@ -1,6 +1,6 @@
 {
-  "summary":  "Plano de implementação dos módulos de Planejamento (Plano de Ação) e Repositório 8D integrado ao ecossistema SOR/SharePoint, contemplando navegação dedicada, Kanban corporativo, gaveta integrada nas etapas 5D a 8D, automação de 1 clique do 4D (5 Porquês) para 5D, e repositório centralizado de dossiês 8D homologados e relatórios técnicos.",
-  "updatedAt":  "2026-10-23T12:56:53.514730763Z",
+  "summary":  "Plano de implementação completo contemplando as 16 solicitações de ajustes no formulário de abertura/edição de RNC, catálogo de peças e componentes, regra global de campos dropdown (SearchableSelect), tela de detalhamento da ocorrência, cabeçalho padronizado de Rastreabilidade e Contenção, regras de validação do fluxo 8D (2D, 4D e 8D), modal de nova ação vinculada e navegação de retorno entre o 8D e o Plano de Ação.",
+  "updatedAt":  "2026-10-25T13:11:39.150125341Z",
   "requestFeedback":  true,
   "userFacing":  true
 }

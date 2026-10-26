@@ -1,216 +1,94 @@
-# Módulos de Planejamento (Plano de Ação) & Repositório 8D Integrado
+# Plano de Implementação — Revisão Geral do Fluxo RNC, Detalhamento, Rastreabilidade, Metodologia 8D e Plano de Ação
 
-Plano estratégico de engenharia para implementação dos módulos de **Planejamento (Plano de Ação corporativo)** e **Repositório de Dossiês 8D**, 100% integrados às bases de dados do SharePoint atuais (`Action plan`, `Action plan_acoes`, `lista_participantes`, `lista_ishikawa`, `lista_henkaten`, `lista_entrevista8d`), com fluxo integrado de 1D a 8D e visão global para a fábrica.
-
----
-
-### User Review & Critical Decisions
-
-> [!IMPORTANT]
-> Decisões confirmadas pelo usuário na etapa de alinhamento interativo (Fase 1):
-
-- **Navegação do Planejamento**: **Menu dedicado** na barra lateral/superior para gestão de todos os planos de ação da fábrica (Kanban corporativo) **E gaveta/painel embutido** nas etapas 5D, 6D, 7D e 8D do fluxo 8D (sem necessidade de abrir abas externas ou perder o contexto).
-- **Escopo do Módulo de Repositório**: Central de **Dossiês 8D Concluídos**, planos homologados pela Qualidade e geração/impressão de **Relatórios Técnicos Oficiais** para auditorias IATF 16949 e montadoras.
-- **Transição 4D ➔ 5D**: **Botão de 1 clique** na análise de causa raiz (5 Porquês / Ishikawa) que gera automaticamente uma contramedida no 5D já preenchida com a causa raiz (último porquê preenchido da hipótese "NG").
-- **Compatibilidade com Bases SharePoint**: Modelo de dados espelhando fielmente os esquemas das listas `'Action plan'` (mestre) e `'Action plan_acoes'` (detalhe) com duplo vínculo relacional (`id_rel2` e `id_programa_acoes`), mantendo suporte total a tenants e usuários locais.
+Este plano organiza e detalha todas as alterações solicitadas para o formulário de RNC, telas de Detalhamento da Ocorrência, Rastreabilidade e Contenção, Metodologia 8D e Plano de Ação.
 
 ---
 
-### 1. Overview & Core Concept
+## 1. Padronização Global de Nomenclaturas e Campos de Seleção (`SearchableSelect`)
 
-- **O que faz**: 
-  1. **Módulo de Planejamento (Plano de Ação Geral da Fábrica)**: Centraliza todos os planos de ação originados de 8D, Kaizen, Fast Response, Auditorias e Melhorias. Oferece visualização Kanban por status (`Aberto`, `Atrasado`, `Concluído`, `Validado`), filtros multicritério por indicador/programa, prioridade, responsável e setor, e ciclo completo de aprovação pela Qualidade.
-  2. **Integração Fluida no Fluxo 8D (1D a 8D)**: As etapas 5D (Ações Corretivas), 6D (Abrangência Yokoten / Poka-Yoke), 7D (Ações Preventivas: FMEA, Trabalho Padronizado, Auditoria Escalonada) e 8D (Validação & Homologação) gerenciam suas ações diretamente na tela da ocorrência através de gaveta embutida com sincronização em tempo real.
-  3. **Módulo de Repositório 8D**: Hub corporativo onde líderes e auditores encontram todos os 8D finalizados e homologados, com busca rápida, filtros por montadora/produto, visualização da árvore de investigação completa e exportação de relatórios técnicos padronizados.
-- **Público-Alvo**: Engenheiros e Técnicos da Qualidade, Supervisores de Produção, Inspetores, Auditores de Linha e Gestão de Planta.
-- **Valor Principal**: Elimina a fragmentação entre sistemas e abas externas do Power Apps (`Launch`), assegura integridade referencial absoluta entre causas raízes e contramedidas, e oferece visão executiva dos planos de ação de toda a fábrica em uma única interface responsiva.
+### 1.1. Substituição Global de `"Montadora"` por `"Cliente"` e Remoção de `"FMDS"`
+- **Formulário de Abertura/Edição (`Registro8DView.tsx`)**:
+  - Alterar o título do Bloco 1 de `"1. Dados Gerais & Montadora"` para **`"1. Dados Gerais & Cliente"`**.
+  - Alterar o rótulo do campo `"Cliente (Montadora)"` para **`"Cliente"`**.
+  - Alterar o título do Bloco 2 de `"2. Peça, Posto & FMDS (Autopreenchimento ProEPS)"` para **`"2. Informações do posto e produto"`**.
+  - Alterar o rótulo `"Área FMDS / Setor Fabril"` para **`"Área / Setor Fabril"`**.
+- **Metodologia 8D (`Metodologia8DPanel.tsx`), Detalhamento (`Detalhes8DView.tsx`), Relatório 8D (`DetalhesImpressaoView.tsx` e `export8DPdf.ts`) e demais listagens**:
+  - No 1D e cabeçalhos de resumo, substituir `"Montadora:"` por **`"Cliente:"`** e `"Posto / Linha / FMDS:"` por **`"Posto / Linha:"`**.
+  - Remover menções a `"FMDS"` e `"Montadora"` nos rótulos visíveis em todas as telas do sistema.
 
----
-
-### 2. User Experience & Visual Design
-
-#### A. Estrutura de Navegação & Layout
-- **Barra Lateral (`AppSidebar`)**: 
-  - Novo item **"Planejamento"** (`plano-acao`) no grupo de Acesso Principal com ícone de checklist/cronograma e badge numérico de ações sob responsabilidade do usuário.
-  - Novo item **"Repositório 8D"** (`repositorio-8d`) no grupo de Acesso Principal com ícone de arquivo/arquivo-morto para consulta de dossiês homologados.
-- **Tela de Planejamento (`PlanoAcaoView`)**:
-  - Cabeçalho executivo com KPIs imediatos: Total de Ações, Abertas, Atrasadas (em vermelho), Aguardando Validação e Validadas.
-  - Alternador de visão: **Quadro Kanban** (4 colunas com arrastar/mover rápido ou avançar de etapa) vs. **Lista Tabular de Alta Densidade** (com ordenação e busca instantânea).
-  - Barra de filtros: Programa/Indicador (`Atendimento ao Cliente`, `Fast Response`, etc.), Prioridade (`Alta`, `Média`, `Baixa`), Minhas Ações vs. Todas as Ações, e busca por texto.
-  - Botão de ação primária: `+ Novo Plano de Ação` e `+ Nova Ação`.
-- **Tela de Repositório (`Repositorio8DView`)**:
-  - Grid responsivo de Dossiês 8D Concluídos exibindo Código da RNC (`ID:XX`), Cliente, Veículo, Defeito, Data de Conclusão, Auditor Responsável e Parecer Final.
-  - Drawer lateral para leitura rápida da investigação (linha do tempo 1D a 8D, Ishikawa, causas raízes e ações validadas).
-  - Botão de Ação: `Imprimir Dossiê 8D Oficial` (utilizando a estilização padronizada já existente no app).
-- **Fluxo 8D Unificado (`Detalhes8DView`)**:
-  - Barra superior de navegação por disciplinas: `1D`, `2D`, `3D`, `4D`, `5D`, `6D`, `7D`, `8D`.
-  - No **4D**: Diagrama de Ishikawa 6M com causas e 5 Porquês; para cada causa classificada como "NG", botão destacado: `Gerar Ação Corretiva no 5D` com badge verde.
-  - Nos **5D, 6D e 7D**: Painel integrado exibindo ações vinculadas ao programa (`varid8d`), permitindo adicionar novas ações sem sair da tela.
-  - No **8D**: Tabela de homologação com validação individual de cada ação e formulário de parecer técnico final com opções de aprovação ou devolução para revisão com registro de pendências por etapa.
-
-#### B. Paleta de Cores & Tipografia (Alinhada com MH Qualidade)
-- **Canvas Neutro (60%)**: Fundo limpo `#f8fafc` com cartões em `#ffffff` e bordas sutis `border-slate-200`.
-- **Superfícies Estruturais (30%)**: Barras de ferramentas em `#f1f5f9`, divisores elegantes de 1px e tipografia corporativa em `#0f172a` (títulos) e `#475569` (textos de apoio).
-- **Acentos Funcionais (10%)**:
-  - Azul Institucional (`#0b5796` / `#0f6cbd`): Ações primárias, abas ativas e seleção de itens.
-  - Esmeralda (`#16a34a`): Status Validado / Concluído, hipótese OK.
-  - Âmbar (`#d97706`): Em Andamento, Aguardando Validação da Qualidade, hipótese NG.
-  - Rosa / Carmesim (`#dc2626`): Atrasado, Reprovado / Solicitação de Revisão.
-- **Tipografia**: `Plus Jakarta Sans` para títulos e botões, `tabular-nums` / `font-mono` para códigos de peça, datas e números de identificação (`ID:10`).
+### 1.2. Regra Global para Dropdowns até 5 Opções (`SearchableSelect.tsx`)
+- Em `/src/components/SearchableSelect.tsx`, ajustar a renderização do cabeçalho de busca (`"Digite para pesquisar..."` e contador de opções):
+  - Quando a lista de opções tiver **até 5 itens (`options.length <= 5`)**, **ocultar o campo de pesquisa** e exibir diretamente as opções para seleção imediata.
+  - Exibir a barra de pesquisa apenas quando houver **mais de 5 opções (`options.length > 5`)**.
 
 ---
 
-### 3. Key Product Decisions & Trade-Offs
+## 2. Formulário de RNC (`Registro8DView.tsx`) e Catálogo de Produtos (`sharepointService.ts` / `types/index.ts`)
 
-1. **Gestão de Dados: Mock Local Estruturado com Espelhamento Exato do SharePoint**
-   - *Decisão*: Implementar as coleções `'Action plan'`, `'Action plan_acoes'`, `'lista_participantes'`, `'lista_henkaten'`, `'lista_entrevista8d'` e `'lista_ishikawa'` dentro do serviço `sharepointService.ts` com persistência em `localStorage` e tipagem estrita TypeScript.
-   - *Por que*: Atende integralmente a diretriz do usuário de "focar na implementação usando já os tipos de bases que já estão hoje no nosso ambiente", garantindo que a aplicação funcione imediatamente no navegador e esteja pronta para sincronização via Microsoft Graph API.
-2. **Duplo Link Relacional (`id_rel2` e `id_programa_acoes`)**
-   - *Decisão*: Ao cadastrar qualquer ação vinculada a uma RNC (ex: `ID:10`), o sistema preenche simultaneamente o `id_programa_acoes` (chave textual como `I - 10` ou `C - 10`) e o `id_rel2` (ID numérico do cabeçalho `'Action plan'`).
-   - *Por que*: Garante compatibilidade bidirecional total com a lógica histórica dos Canvas Apps do Power Apps mapeados.
-3. **Automação 4D ➔ 5D sem fricção**
-   - *Decisão*: Ao clicar em "Gerar Ação Corretiva" em uma causa NG no 4D, abre-se a gaveta de criação de ação com a causa raiz (último porquê preenchido) já injetada no campo `causa`, o tipo de ação setado como `CORRETIVA` e o vínculo com a ocorrência ativo.
-   - *Por que*: Reduz drasticamente o tempo de preenchimento e evita inconsistências textuais entre a investigação e o plano de ação.
+### 2.1. Seleção de Componentes vinculados à Peça Final (Bloco 2)
+- Em `sharepointService.ts` (`INITIAL_PECAS` e `getComponentesPorProduto`), estruturar os componentes filhos (`nestingLevel: 1`) vinculados aos produtos finais (`nestingLevel: 0`) de cada família/cliente.
+- Quando o usuário selecionar `"Peça Final + Componente"` em **Tipo de Peça Rastreada** e escolher um **Produto Final**, o campo **Componente (Item Filho)** exibirá a lista de componentes daquele produto final no seletor (permitindo escolher qual componente específico apresentou defeito, em vez de preencher apenas uma descrição estática).
 
----
+### 2.2. Atributos da Peça: `"Peça comum"`, `"Co-produto (Espelho)"` e `"Peça de Segurança (FMEA)"` (Bloco 2)
+- Alterar o rótulo `"Carry Over"` para **`"Peça comum"`** em todo o sistema.
+- Expandir `PecaCatalogo` e `RNCRecord` (`/src/types/index.ts`) com os campos de detalhamento vindos do cadastro do produto:
+  - `pecasComuns?: string` — lista/descrição de quais peças compartilham esse componente em comum (exibido quando `Peça comum = Sim`).
+  - `pecaEspelho?: string` — código e descrição da peça espelho correspondente ao item selecionado (exibido quando `Co-produto (Espelho) = Sim`).
+  - `aspectoSeguranca?: string` — informação sobre qual aspecto/requisito de segurança FMEA se aplica ao item (exibido quando `Peça de Segurança (FMEA) = Sim`).
+- Ao selecionar a Peça Final ou Componente, preencher automaticamente tanto os indicadores (`Sim`/`Não`) quanto os detalhes (`pecasComuns`, `pecaEspelho`, `aspectoSeguranca`) a partir da lista cadastrada de produtos (`master_pecas_produtos`), mantendo os campos editáveis no formulário caso o usuário altere manualmente para `"Sim"`.
 
-### 4. Technical Architecture & Data Strategy
-
-```
-┌────────────────────────────────────────────────────────────────────────┐
-│                        MH QUALIDADE (REACT SPA)                        │
-├────────────────────────────────────────────────────────────────────────┤
-│  Navegação Global: AppSidebar & Header                                 │
-│  ├─ Menu Principal (menu-2)                                            │
-│  ├─ Lista de Ocorrências (lista-8d)                                    │
-│  ├─ [NOVO] Planejamento / Plano de Ação (plano-acao)                   │
-│  │   ├─ Kanban Corporativo (Aberto | Atrasado | Concluído | Validado)   │
-│  │   ├─ Lista Tabular com Filtros (Programa, Prioridade, Responsável)  │
-│  │   ├─ Modal Criar/Editar Plano & Ação                                │
-│  │   └─ Modais de Conclusão (Evidência) e Validação (Auditoria)        │
-│  ├─ [NOVO] Repositório 8D (repositorio-8d)                             │
-│  │   ├─ Catálogo de Dossiês Homologados com Busca Multicritério        │
-│  │   ├─ Visualizador do Dossiê Completo (Timeline 1D-8D)               │
-│  │   └─ Exportador & Impressão Técnica Oficial                         │
-│  └─ Fluxo 8D Detalhado (detalhes-8d)                                   │
-│      ├─ 1D: Contenção & Detalhes da RNC                                │
-│      ├─ 2D: Equipe Multidisciplinar (BASE_ATIVOS)                      │
-│      ├─ 3D: Rastreabilidade & Bloqueios SAP                            │
-│      ├─ 4D: Ishikawa 6M + 5 Porquês + [Botão 1-Clique p/ 5D]           │
-│      ├─ 5D: Ações Corretivas (Gaveta de Ações Integrada)               │
-│      ├─ 6D: Abrangência (Yokoten) & Poka-Yoke                          │
-│      ├─ 7D: Ações Preventivas (FMEA / Trab. Padronizado / Auditoria)   │
-│      └─ 8D: Validação das Ações & Aprovação Final do 8D                │
-├────────────────────────────────────────────────────────────────────────┤
-│                    CAMADA DE DADOS & SERVIÇOS                          │
-│  sharepointService.ts (spStore)                                        │
-│  ├─ tratativa_produto_nao_conforme (RNCs)                              │
-│  ├─ lista_participantes (Equipe, Status 8D, Revisões 4D-7D)            │
-│  ├─ lista_ishikawa (Causas 6M, 5 Porquês, OK/NG)                       │
-│  ├─ lista_henkaten & lista_entrevista8d (Diagnóstico 4D)               │
-│  ├─ Action plan (Mestre de Planos de Ação)                             │
-│  ├─ Action plan_acoes (Ações Detalhadas, Prazos, Status, Evidências)  │
-│  └─ BASE_ATIVOS (Colaboradores e Responsáveis)                         │
-└────────────────────────────────────────────────────────────────────────┘
-```
-
-#### Modelo de Dados das Novas Entidades no `sharepointService.ts`:
-
-1. **`ActionPlanHeader` (Espelho da lista `'Action plan'`):**
-   - `id`: number
-   - `tenant_id`: string
-   - `indicador_programa_estrategico`: string (ex: `'ATENDIMENTO AO CLIENTE'`, `'FAST RESPONSE'`, `'KAIZEN'`)
-   - `sub1`?: string
-   - `sub2`?: string
-   - `posto_`?: string
-   - `produto_`?: string
-   - `setor_`: string
-   - `prioridade`: `'Alta'` | `'Média'` | `'Baixa'`
-   - `descricao_problema_oportunidade`: string
-   - `foto_acao`?: string
-   - `idprograma`: string (ex: `'I - 10'`)
-   - `id_rel1`: string (GUID)
-   - `data_abertura`: string
-   - `status`: `'Aberto'` | `'Concluído'` | `'Cancelado'`
-   - `responsavel_abertura`: string
-
-2. **`ActionPlanItem` (Espelho da lista `'Action plan_acoes'`):**
-   - `id`: number
-   - `tenant_id`: string
-   - `id_rel2`: number (ID do cabeçalho)
-   - `id_programa_acoes`: string (ID do programa / 8D, ex: `'I - 10'`)
-   - `causa`: string (preenchida automaticamente via 5 Porquês do 4D)
-   - `contra_medida`: string
-   - `comentarios_observacoes`?: string
-   - `data_acompanhamento`: string
-   - `data_planejada`: string
-   - `data_plan_anterior`?: string
-   - `responsavel_acao`: string (selecionado de `BASE_ATIVOS`)
-   - `email`?: string
-   - `email_super`?: string
-   - `tipo_acao`: `'CONTENÇÃO'` | `'CORRETIVA'` | `'PREVENTIVA'` | `'MELHORIA'`
-   - `yokoten`: `'SIM'` | `'NÃO'`
-   - `poka_yoke`: `'SIM'` | `'NÃO'`
-   - `oData_8d_7d`?: `'FMEA'` | `'Trabalho Padronizado'` | `'Auditoria Escalonada'`
-   - `oc_nd`?: `'Ocorrência'` | `'Não Detecção'`
-   - `evidencia_obrigatoria`: `'SIM'` | `'NÃO'`
-   - `validacao_acao`: `'SIM'` | `'NÃO'`
-   - `status`: `'Aberto'` | `'Atrasado'` | `'Concluído'` | `'Validado'`
-   - `data_conclusao`?: string
-   - `comentarios_evidencia`?: string
-   - `anexos_evidencia`?: string[]
-   - `comentarios_validacao`?: string
-   - `status_revisar`?: string
-
-3. **`EightDMetadata` (Espelho da lista `'lista_participantes'`):**
-   - `id`: number
-   - `tenant_id`: string
-   - `id8d`: string (ex: `'I - 10'`)
-   - `participantes_8d`: string (nomes separados por vírgula)
-   - `validar_8d`: `'Aprovado'` | `'Reprovado'` | `'Em Andamento'` | `'Pendente'`
-   - `comentarios_validacao`?: string
-   - `revisado_4d`?: boolean; `comentarios_revisao_4d`?: string
-   - `revisado_5d`?: boolean; `comentarios_revisao_5d`?: string
-   - `revisado_6d`?: boolean; `comentarios_revisao_6d`?: string
-   - `revisado_7d`?: boolean; `comentarios_revisao_7d`?: string
-
-4. **`IshikawaCauseItem` (Espelho da lista `'lista_ishikawa'`):**
-   - `id`: number
-   - `tenant_id`: string
-   - `id8d`: string
-   - `descricao_causa`: string
-   - `seisms`: `'Máquina'` | `'Mão de Obra'` | `'Método'` | `'Material'` | `'Medição'` | `'Meio Ambiente'`
-   - `ocnd`: `'Ocorrência'` | `'Não Detecção'`
-   - `okng`: `'OK'` | `'NG'`
-   - `umpq`?: string; `doispq`?: string; `trespq`?: string; `quatropq`?: string; `cincopq`?: string
+### 2.3. Ajustes do Bloco 3 — Evidências & Classificação da Falha
+- **Remoção do badge `"Modo de Falha"`**: Remover a tag/pílula `"Modo de Falha"` exibida ao lado do título `"Classificação do Defeito (Modo de Falha)"`.
+- **Independência entre os campos de Detalhamento**: Desvincular o campo `"Detalhamento da ocorrência (cliente)"` (`detalhamentoOcorrencia`, do Bloco 1) do campo `"Detalhamento Técnico da Não Conformidade"` (`descricaoProblema`, do Bloco 3), garantindo que o texto digitado no Bloco 1 não sobrescreva nem duplique o detalhamento técnico do Bloco 3.
+- **Correção das opções de `"Detecção no Processo?"` (`possivelDetectar`)**: Corrigir a formatação das opções em `Registro8DView.tsx` e `tenantService.ts` para eliminar a duplicação `"Sim (Sim (Falha de Inspeção...))"` e `"Não (Não (Defeito Latente...))"`, exibindo o texto limpo e sem repetição.
 
 ---
 
-### 5. Plano de Implementação em Fases
+## 3. Tela de Detalhamento da Ocorrência (`Detalhes8DView.tsx`)
 
-- **Fase 1: Tipagem & Métodos de Repositório e Planos no `sharepointService.ts`**
-  - Criação das interfaces tipadas correspondentes às tabelas SharePoint.
-  - Implementação dos métodos de CRUD e filtros no `spStore`: `getActionPlans()`, `getActionItems()`, `saveActionPlan()`, `saveActionItem()`, `concluirActionItem()`, `validarActionItem()`, `getEightDMetadata()`, `saveEightDMetadata()`, `getIshikawaCauses()`, `saveIshikawaCause()`.
-  - Dados sementes industriais realistas já vinculados às RNCs piloto.
+### 3.1. Alinhamento com o Formulário de RNC e Layout de Fotos
+- Atualizar todos os títulos, rótulos e a sequência de informações na aba **Relatório Detalhado** para refletir fielmente os blocos do formulário de RNC:
+  - Bloco 1: `"Cliente"`, dados de abertura, turno, severidade e detalhamento da ocorrência (cliente).
+  - Bloco 2: `"Informações do posto e produto"`, `"Área / Setor Fabril"`, Peça Final, Componente e os **Atributos da Peça** (`Peça comum` + quais peças têm em comum, `Co-produto (Espelho)` + peça espelho, `Peça de Segurança (FMEA)` + aspecto de segurança).
+  - Bloco 3: Manter as fotos padrão **OK** e **NG** lado a lado e a foto de **Detalhamento Adicional / Auxiliar** logo abaixo, ao lado da seção de **Operadores Treinados**.
 
-- **Fase 2: Tela de Planejamento Geral (`PlanoAcaoView.tsx`)**
-  - Implementação da visão Kanban com colunas inteligentes (calculando automaticamente atraso com base na `data_planejada`).
-  - Implementação da visão em Lista com filtros avançados.
-  - Modais para nova ação, conclusão de evidência e validação pela Qualidade.
-  - Adição da rota `'plano-acao'` no `App.tsx` e no menu lateral `AppSidebar.tsx`.
+### 3.2. Substituição do Formulário de Lotes por Resumo de Rastreabilidade
+- **Remover** o `"Formulário de Rastreabilidade e Verificação de Lotes (3D)"` da tela de Detalhamento da Ocorrência (pois o lançamento de lotes é feito exclusivamente na tela de **Rastreabilidade e Contenção**).
+- No lugar do formulário de inserção, exibir as informações de **Rastreabilidade Inicial** preenchidas na abertura da RNC (`Tipo de Documento`, `Código do Documento` ou `Data Inicial / Data Final`) acompanhadas da tabela de consulta dos lotes já apontados.
 
-- **Fase 3: Mapeamento Completo 1D a 8D em `Detalhes8DView.tsx`**
-  - Barra de abas 1D–8D.
-  - Sub-tela 4D com Ishikawa 6M interativo, árvore de 5 Porquês e botão de 1 clique para gerar ação corretiva.
-  - Sub-telas 5D, 6D e 7D integradas com a gaveta de ações embutida.
-  - Sub-tela 8D com aprovação das ações e validação final com feedback técnico.
+### 3.3. Alerta da Qualidade / Disposição (Imagem 6)
+- Na visualização **Alerta Qualidade / Disposição**, remover o indicador duplicado `"Quantidade Afetada: X Peça(s)"` do canto superior direito do cabeçalho do card, mantendo apenas o campo `"Quantidade de Peças"` na grade principal logo abaixo.
 
-- **Fase 4: Módulo de Repositório 8D (`Repositorio8DView.tsx`)**
-  - Catálogo de ocorrências com 8D aprovado/homologado.
-  - Filtros por cliente, produto, ano e visualização rápida do dossiê.
-  - Integração com o fluxo de impressão técnica oficial.
-  - Adição da rota `'repositorio-8d'` no `App.tsx` e `AppSidebar.tsx`.
+---
 
-- **Fase 5: Verificação, Compilação e Testes de Responsividade**
-  - Execução de `compile_applet` e `lint_applet`.
-  - Verificação de layout desktop e mobile, garantindo zero quebras visuais e usabilidade em chão de fábrica.
+## 4. Tela de Rastreabilidade e Contenção (`RastreabilidadeView.tsx` e `Detalhes8DView.tsx`)
+
+- No seletor superior de modos da ocorrência (`Detalhes8DView.tsx`), alterar o rótulo do botão `"Rastrear SAP"` para **`"Rastreabilidade e Contenção"`**.
+- Em `/src/views/RastreabilidadeView.tsx`:
+  - Alterar o título da tela para **`"Rastreabilidade e Contenção"`**.
+  - Padronizar a barra de cabeçalho superior para seguir exatamente o mesmo layout executivo da tela de Detalhamento da Ocorrência (com botão Voltar, código da RNC, status, responsável e a barra de alternância entre `Relatório Detalhado`, `Alerta Qualidade / Disposição`, `Metodologia 8D (1D - 8D)` e `Rastreabilidade e Contenção`).
+
+---
+
+## 5. Metodologia 8D (`Metodologia8DPanel.tsx`) e Integração com Plano de Ação (`PlanoAcaoView.tsx`)
+
+### 5.1. Regras e Layout da Etapa 2D (Equipe Multifuncional)
+- **Mínimo de 3 participantes**: Alterar a regra de conclusão da etapa **2D** (`isEtapaConcluida('2D')`) para exigir **no mínimo 3 integrantes** na equipe multifuncional (`participantesList.length >= 3`) antes de liberar o avanço para o **3D**.
+- **Correção visual da barra de busca do 2D**: Ajustar o posicionamento do ícone de lupa no campo `"Buscar colaborador ativo por nome, RE ou departamento..."` para que o ícone fique perfeitamente alinhado à esquerda sem sobrepor o texto digitado ou o placeholder.
+
+### 5.2. Navegação de Retorno entre 8D (`3D`, `5D`, `6D`, `7D`, `8D`) e Plano de Ação
+- Ao clicar em **"Ver no Plano de Ação"** (ou **"Abrir Plano de Ação"**) dentro de qualquer etapa do 8D (`3D`, `5D`, `6D`, `7D` ou `8D`), enviar no contexto de navegação a origem `{ planHeaderId, fromScreen: 'detalhes-8d', rncId: rnc.id, returnEtapa8D: activeEtapa }`.
+- Em `PlanoAcaoView.tsx`, ao clicar no botão **"Voltar"** dentro da visualização detalhada do plano, verificar se o usuário veio da tela do 8D (`fromScreen === 'detalhes-8d'`) e, nesse caso, **retornar diretamente para a tela do 8D na mesma etapa em que estava**, em vez de levá-lo para o Kanban geral de Planos de Ação.
+
+### 5.3. Obrigatoriedade Completa de Gemba e Henkaten na Etapa 4D
+- **Gemba Investigation (`isGembaDone`)**: Tornar **todos os 4 campos** (`O que foi observado no Gemba?`, `Entrevista com Operadores / Liderança`, `Teste / Simulação do Defeito` e `Análise de Rastreabilidade / Histórico`) obrigatórios para considerar o Gemba concluído, liberar a sub-aba **Henkaten (6M)** e permitir salvar/concluir o 4D.
+- **Henkaten 6M (`isHenkatenDone`)**: Exigir que todos os 6 fatores (`Mão de Obra`, `Máquina`, `Material`, `Método`, `Meio Ambiente`, `Medida`) estejam avaliados e, para qualquer item marcado como `"Sim"`, que a descrição da mudança também esteja preenchida e salva, antes de liberar a sub-aba **Ishikawa + 5 Porquês** e antes de considerar a etapa **4D** concluída.
+
+### 5.4. Ampliação do Pop-up `"Nova Ação Vinculada ao Plano"` (`3D`, `5D`, `6D`, `7D`)
+- Aumentar a largura do modal **"Nova Ação Vinculada ao Plano"** de `max-w-lg` para **`max-w-2xl`** com espaçamento interno otimizado, garantindo que os seletores de Causa Raiz (5D), Descrição da Ação, Responsável, Prazo e Eixo 7D fiquem amplos e sem truncamento visual.
+
+### 5.5. Etapa 8D — Fluxo de Aprovação Final e Solicitação de Revisão com Assinatura Digital
+- Reformular o painel de decisão final do **8D** (exclusivo para Admin Qualidade) para que, ao **Aprovar** ou **Solicitar Revisão**:
+  - Exiba claramente os **dados do aprovador logado** (Nome completo, Cargo/Perfil `"Admin Qualidade"`, Matrícula/RE) e o **registro de data e hora da assinatura digital**.
+  - Disponibilize o **campo de comentário/parecer final da Qualidade** (`parecerAprovacao8D`) tanto para aprovação quanto para revisão.
+  - Apresente os botões claros de confirmação (**"Confirmar Aprovação Final 8D"** e **"Solicitar Revisão"**), gravando o parecer, o responsável e o carimbo de data/hora exato na assinatura digital do relatório 8D.

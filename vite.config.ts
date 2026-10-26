@@ -2,6 +2,64 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig, loadEnv } from 'vite';
 import type { Plugin } from 'vite';
+import fs from 'node:fs';
+import path from 'node:path';
+
+const CLOUD_SYNC_FILE = path.resolve(process.cwd(), '.aistudio', 'cloud_sync_store.json');
+
+interface CloudSyncPayload {
+  rncs?: any[];
+  actionPlans?: any[];
+  actionItems?: any[];
+  eightDMetadataList?: any[];
+  ishikawaCauses?: any[];
+  henkatenList?: any[];
+  entrevistaList?: any[];
+  lotesSAP?: any[];
+  treinamentos?: any[];
+  masterData?: any[];
+  optionCategories?: any[];
+  formFields?: any[];
+  deletedRncKeys?: string[];
+  updatedAt?: string;
+}
+
+function readCloudStore(): CloudSyncPayload {
+  try {
+    if (fs.existsSync(CLOUD_SYNC_FILE)) {
+      return JSON.parse(fs.readFileSync(CLOUD_SYNC_FILE, 'utf-8'));
+    }
+  } catch (e) {
+    console.warn('[Cloud Sync] Erro ao ler store:', e);
+  }
+  return {};
+}
+
+function writeCloudStore(data: CloudSyncPayload) {
+  try {
+    const dir = path.dirname(CLOUD_SYNC_FILE);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(CLOUD_SYNC_FILE, JSON.stringify(data), 'utf-8');
+  } catch (e) {
+    console.warn('[Cloud Sync] Erro ao salvar store:', e);
+  }
+}
+
+function mergeByKey<T>(existing: T[] = [], incoming: T[] = [], keyFn: (item: T) => string, deletedKeys: Set<string> = new Set()): T[] {
+  const map = new Map<string, T>();
+  existing.forEach(item => {
+    const k = keyFn(item);
+    if (!deletedKeys.has(k)) map.set(k, item);
+  });
+  incoming.forEach(item => {
+    const k = keyFn(item);
+    if (!deletedKeys.has(k)) map.set(k, item);
+  });
+  return Array.from(map.values());
+}
+
 
 // ============================================================================
 // MICROSOFT GRAPH / SHAREPOINT ONLINE DIRECT PROXY MIDDLEWARE
@@ -141,6 +199,92 @@ function sharepointDirectProxyPlugin(env: Record<string, string>): Plugin {
     name: 'sharepoint-direct-proxy',
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
+        if (req.url && req.url.startsWith('/api/cloud-sync')) {
+          res.setHeader('Content-Type', 'application/json; charset=utf-8');
+          if (req.method === 'GET') {
+            const store = readCloudStore();
+            res.end(JSON.stringify(store));
+            return;
+          }
+          if (req.method === 'POST') {
+            let body = '';
+            req.on('data', chunk => {
+              body += chunk;
+            });
+            req.on('end', () => {
+              try {
+                const incoming: CloudSyncPayload = JSON.parse(body || '{}');
+                const current = readCloudStore();
+                const deletedSet = new Set<string>([
+                  ...(current.deletedRncKeys || []),
+                  ...(incoming.deletedRncKeys || [])
+                ]);
+
+                const merged: CloudSyncPayload = {
+                  rncs: mergeByKey(
+                    current.rncs,
+                    incoming.rncs,
+                    r => `${r.tenant_id || '11111111-1111-4111-8111-111111111111'}::${r.id}`,
+                    deletedSet
+                  ),
+                  actionPlans: mergeByKey(
+                    current.actionPlans,
+                    incoming.actionPlans,
+                    p => `${p.tenant_id || '11111111-1111-4111-8111-111111111111'}::${p.id}`
+                  ),
+                  actionItems: mergeByKey(
+                    current.actionItems,
+                    incoming.actionItems,
+                    a => `${a.tenant_id || '11111111-1111-4111-8111-111111111111'}::${a.id}`
+                  ),
+                  eightDMetadataList: mergeByKey(
+                    current.eightDMetadataList,
+                    incoming.eightDMetadataList,
+                    m => `${m.tenant_id || '11111111-1111-4111-8111-111111111111'}::${m.id8d}`
+                  ),
+                  ishikawaCauses: mergeByKey(
+                    current.ishikawaCauses,
+                    incoming.ishikawaCauses,
+                    c => `${c.tenant_id || '11111111-1111-4111-8111-111111111111'}::${c.id}`
+                  ),
+                  henkatenList: mergeByKey(
+                    current.henkatenList,
+                    incoming.henkatenList,
+                    h => `${h.tenant_id || '11111111-1111-4111-8111-111111111111'}::${h.id8d}`
+                  ),
+                  entrevistaList: mergeByKey(
+                    current.entrevistaList,
+                    incoming.entrevistaList,
+                    e => `${e.tenant_id || '11111111-1111-4111-8111-111111111111'}::${e.id8d}`
+                  ),
+                  lotesSAP: mergeByKey(
+                    current.lotesSAP,
+                    incoming.lotesSAP,
+                    l => `${l.tenant_id || '11111111-1111-4111-8111-111111111111'}::${l.id || l.lote}`
+                  ),
+                  treinamentos: mergeByKey(
+                    current.treinamentos,
+                    incoming.treinamentos,
+                    t => `${t.tenant_id || '11111111-1111-4111-8111-111111111111'}::${t.id}`
+                  ),
+                  masterData: incoming.masterData && incoming.masterData.length > 0 ? incoming.masterData : current.masterData,
+                  optionCategories: incoming.optionCategories && incoming.optionCategories.length > 0 ? incoming.optionCategories : current.optionCategories,
+                  formFields: incoming.formFields && incoming.formFields.length > 0 ? incoming.formFields : current.formFields,
+                  deletedRncKeys: Array.from(deletedSet),
+                  updatedAt: new Date().toISOString()
+                };
+
+                writeCloudStore(merged);
+                res.end(JSON.stringify(merged));
+              } catch (err: any) {
+                res.statusCode = 400;
+                res.end(JSON.stringify({ error: err.message }));
+              }
+            });
+            return;
+          }
+        }
+
         if (!req.url || !req.url.startsWith('/api/sp')) {
           return next();
         }
@@ -343,7 +487,11 @@ export default defineConfig(({ mode }) => {
     server: {
       host: '0.0.0.0',
       port: 3000,
-      allowedHosts: true
+      allowedHosts: true,
+      hmr: false,
+      watch: {
+        ignored: ['**/.aistudio/**']
+      }
     }
   };
 });

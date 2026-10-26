@@ -92,14 +92,14 @@ export const Repositorio8DView: React.FC<Repositorio8DViewProps> = ({ onNavigate
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-lg sm:text-2xl font-display font-bold text-slate-900 tracking-tight">
-                Repositório de Dossiês 8D &amp; Histórico
+                Repositório de Relatórios de 8D &amp; Histórico
               </h1>
               <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded border border-emerald-200">
                 Auditoria IATF / VDA
               </span>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              Acervo de investigações 8D concluídas, causas raízes homologadas e relatórios técnicos oficiais
+              Acervo de investigações 8D, causas raízes validadas e relatórios de 8D completos para exportação em PDF
             </p>
           </div>
         </div>
@@ -119,7 +119,7 @@ export const Repositorio8DView: React.FC<Repositorio8DViewProps> = ({ onNavigate
       {/* 2. CARDS DE KPIS */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="card-saas p-3 border-slate-200 bg-white shadow-2xs">
-          <span className="text-[11px] font-semibold text-slate-500">Dossiês no Repositório</span>
+          <span className="text-[11px] font-semibold text-slate-500">Relatórios de 8D</span>
           <div className="text-xl sm:text-2xl font-bold text-slate-900 font-mono-numbers mt-1">
             {stats.total}
           </div>
@@ -194,7 +194,7 @@ export const Repositorio8DView: React.FC<Repositorio8DViewProps> = ({ onNavigate
         {filteredDossiers.length === 0 ? (
           <div className="card-saas p-12 text-center text-slate-400 border-slate-200 bg-white">
             <Archive className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-            <p className="text-sm font-semibold text-slate-700">Nenhum dossiê 8D encontrado</p>
+            <p className="text-sm font-semibold text-slate-700">Nenhum relatório de 8D encontrado</p>
             <p className="text-xs text-slate-500 mt-1">Ajuste os filtros de pesquisa para visualizar outros registros.</p>
           </div>
         ) : (
@@ -208,25 +208,62 @@ export const Repositorio8DView: React.FC<Repositorio8DViewProps> = ({ onNavigate
             // Causa raiz identificada (NG)
             const mainCause = dossier.causes.find(c => c.okng === 'NG');
 
-            // Validação de preenchimento dos 8Ds
-            const d1Done = Boolean(r.produto && (r.modoFalha || r.descricaoProblema));
-            const d2Done = Boolean(meta?.participantes_8d && meta.participantes_8d.trim().length > 0);
-            const d3Done = dossier.actions.some(a => a.tipo_acao === 'CONTENÇÃO') || Boolean(r.acoesContencao && r.acoesContencao.trim().length > 0);
-            const d4Done = dossier.causes.length > 0 && dossier.causes.some(c => c.okng === 'NG' && Boolean(c.cincopq || c.descricao_causa));
-            const d5Done = dossier.actions.some(a => a.tipo_acao === 'CORRETIVA');
-            const d6Done = dossier.actions.some(a => a.yokoten === 'SIM' || a.poka_yoke === 'SIM') || Boolean(meta?.diretriz_yokoten && meta?.diretriz_pokayoke);
-            const d7Done = dossier.actions.some(a => a.tipo_acao === 'PREVENTIVA' || Boolean(a.oData_8d_7d));
-            const d8Done = isHomologado;
+            // Validação de preenchimento sequencial dos 8Ds
+            const id8dKey = `${r.tipoRnc === 'Formal' ? 'C' : 'I'} - ${r.id}`;
+            const entr = spStore.getEntrevista8D(id8dKey);
+            const henk = spStore.getHenkaten(id8dKey);
+            const lotesRnc = spStore.getLotesSAP(r.id);
+
+            const raw1D = Boolean(r.produto && (r.modoFalha || r.descricaoProblema));
+            const raw2D = Boolean(meta?.participantes_8d && meta.participantes_8d.trim().length > 0);
+            const raw3D = dossier.actions.some(a => a.etapa_8d === '3D' || a.tipo_acao === 'CONTENÇÃO') && lotesRnc.length > 0;
+            const ngCauses = dossier.causes.filter(c => c.okng === 'NG');
+            const raw4D =
+              Boolean(entr && (entr.gemba || entr.entrevista || entr.simulacao || entr.rastreabilidade)) &&
+              Boolean(henk) &&
+              ngCauses.length > 0 &&
+              ngCauses.every(c => Boolean(c.umpq && c.umpq.trim().length > 0 && c.cincopq && c.cincopq.trim().length > 0));
+            const raw5D = dossier.actions.some(
+              a =>
+                a.etapa_8d === '5D' ||
+                (!a.etapa_8d && a.tipo_acao === 'CORRETIVA' && a.yokoten !== 'SIM' && a.poka_yoke !== 'SIM')
+            );
+            const raw6D =
+              dossier.actions.some(
+                a =>
+                  a.etapa_8d === '6D' ||
+                  (!a.etapa_8d && a.tipo_acao === 'CORRETIVA' && (a.yokoten === 'SIM' || a.poka_yoke === 'SIM'))
+              ) || Boolean(meta?.yokoten_na || meta?.pokayoke_na);
+            const raw7D = dossier.actions.some(a => a.etapa_8d === '7D' || a.tipo_acao === 'PREVENTIVA' || Boolean(a.oData_8d_7d));
+            const raw8D = isHomologado;
+
+            const d1Done = raw1D;
+            const d2Done = d1Done && raw2D;
+            const d3Done = d2Done && raw3D;
+            const d4Done = d3Done && raw4D;
+            const d5Done = d4Done && raw5D;
+            const d6Done = d5Done && raw6D;
+            const d7Done = d6Done && raw7D;
+            const d8Done = d7Done && raw8D;
+
+            const getStepRevStatus = (stepId: string): 'none' | 'pendente' | 'revisado' | 'ok' => {
+              if (meta?.validar_8d === 'Aprovado') return 'ok';
+              if (stepId === '4D') return meta?.status_revisao_4d || 'none';
+              if (stepId === '5D') return meta?.status_revisao_5d || 'none';
+              if (stepId === '6D') return meta?.status_revisao_6d || 'none';
+              if (stepId === '7D') return meta?.status_revisao_7d || 'none';
+              return 'none';
+            };
 
             const steps8D = [
-              { id: '1D', name: 'Ocorrência', done: d1Done },
-              { id: '2D', name: 'Equipe', done: d2Done },
-              { id: '3D', name: 'Contenção', done: d3Done },
-              { id: '4D', name: 'Causa Raiz', done: d4Done },
-              { id: '5D', name: 'Corretivas', done: d5Done },
-              { id: '6D', name: 'Abrangência', done: d6Done },
-              { id: '7D', name: 'Prevenção', done: d7Done },
-              { id: '8D', name: 'Homologação', done: d8Done },
+              { id: '1D', name: 'Ocorrência', done: d1Done, revStatus: getStepRevStatus('1D') },
+              { id: '2D', name: 'Equipe', done: d2Done, revStatus: getStepRevStatus('2D') },
+              { id: '3D', name: 'Contenção', done: d3Done, revStatus: getStepRevStatus('3D') },
+              { id: '4D', name: 'Causa Raiz', done: d4Done, revStatus: getStepRevStatus('4D') },
+              { id: '5D', name: 'Corretivas', done: d5Done, revStatus: getStepRevStatus('5D') },
+              { id: '6D', name: 'Abrangência', done: d6Done, revStatus: getStepRevStatus('6D') },
+              { id: '7D', name: 'Prevenção', done: d7Done, revStatus: getStepRevStatus('7D') },
+              { id: '8D', name: 'Validação', done: d8Done, revStatus: getStepRevStatus('8D') },
             ];
 
             const completedCount = steps8D.filter(s => s.done).length;
@@ -300,29 +337,48 @@ export const Repositorio8DView: React.FC<Repositorio8DViewProps> = ({ onNavigate
                   </div>
                 </div>
 
-                {/* Linha 3: CARDS DO 1º AO 8º D (Indicação Visual Verde / OK de preenchimento) */}
+                {/* Linha 3: CARDS DO 1º AO 8º D (Indicação Visual Verde / OK, Amarelo / Revisar, Azul Claro / Revisado) */}
                 <div className="grid grid-cols-4 sm:grid-cols-8 gap-2 p-2.5 bg-slate-100/60 rounded-xl border border-slate-200">
                   {steps8D.map(step => (
-                    <div
+                    <button
+                      type="button"
                       key={step.id}
-                      className={`py-2 px-1.5 rounded-lg border text-center flex flex-col items-center justify-center transition-all ${
-                        step.done
+                      onClick={() => onNavigate('detalhes-8d', { rncId: r.id, initialViewMode: 'metodologia8d', fromScreen: 'repositorio-8d' })}
+                      title={`Abrir etapa ${step.id} (${step.name}) no 8D`}
+                      className={`py-2 px-1.5 rounded-lg border text-center flex flex-col items-center justify-center transition-all cursor-pointer hover:brightness-95 ${
+                        step.revStatus === 'pendente'
+                          ? 'bg-amber-100 border-amber-400 text-amber-950 shadow-2xs'
+                          : step.revStatus === 'revisado'
+                          ? 'bg-sky-100 border-sky-300 text-sky-900 shadow-2xs'
+                          : step.done
                           ? 'bg-emerald-50 border-emerald-300 text-emerald-800 shadow-2xs'
-                          : 'bg-white border-slate-200 text-slate-400'
+                          : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300'
                       }`}
                     >
                       <div className="flex items-center gap-1 font-bold text-xs font-mono">
                         <span>{step.id}</span>
-                        {step.done ? (
+                        {step.revStatus === 'pendente' ? (
+                          <span className="text-[10px] font-extrabold text-amber-700">!</span>
+                        ) : step.revStatus === 'revisado' ? (
+                          <CheckCircle2 className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                        ) : step.done ? (
                           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                         ) : (
                           <span className="text-[10px] text-slate-300 font-bold">•</span>
                         )}
                       </div>
-                      <span className={`text-[10px] font-semibold truncate max-w-full mt-0.5 ${step.done ? 'text-emerald-700' : 'text-slate-400'}`}>
-                        {step.name}
+                      <span className={`text-[10px] font-semibold truncate max-w-full mt-0.5 ${
+                        step.revStatus === 'pendente'
+                          ? 'text-amber-900 font-bold'
+                          : step.revStatus === 'revisado'
+                          ? 'text-sky-800 font-bold'
+                          : step.done
+                          ? 'text-emerald-700'
+                          : 'text-slate-400'
+                      }`}>
+                        {step.revStatus === 'pendente' ? 'Revisar' : step.revStatus === 'revisado' ? 'Revisado' : step.name}
                       </span>
-                    </div>
+                    </button>
                   ))}
                 </div>
 
@@ -337,31 +393,21 @@ export const Repositorio8DView: React.FC<Repositorio8DViewProps> = ({ onNavigate
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => setSelectedDossier(dossier)}
-                      className="btn-secondary h-8 px-3 text-xs font-semibold gap-1.5"
-                      title="Visualizar dossiê completo"
+                      onClick={() => onNavigate('impressao-8d', { rncId: r.id, fromScreen: 'repositorio-8d' })}
+                      className="btn-secondary h-8 px-3 text-xs font-semibold gap-1.5 text-[#0b5796] border-blue-200 hover:bg-blue-50"
+                      title="Ver relatório de 8D completo e exportar em PDF"
                     >
-                      <Eye className="w-3.5 h-3.5" />
-                      <span>Ver Dossiê</span>
+                      <FileText className="w-3.5 h-3.5" />
+                      <span>Ver relatório de 8D</span>
                     </button>
 
                     <button
                       type="button"
-                      onClick={() => onNavigate('impressao-8d', { rncId: r.id })}
-                      className="btn-secondary h-8 px-3 text-xs font-semibold gap-1.5 text-slate-700 hover:text-slate-900"
-                      title="Imprimir relatório técnico oficial"
-                    >
-                      <Printer className="w-3.5 h-3.5" />
-                      <span>Imprimir</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => onNavigate('detalhes-8d', { rncId: r.id })}
+                      onClick={() => onNavigate('detalhes-8d', { rncId: r.id, initialViewMode: 'metodologia8d', fromScreen: 'repositorio-8d' })}
                       className="btn-primary h-8 px-3.5 text-xs font-semibold gap-1.5 bg-[#0b5796] text-white"
                       title="Abrir tratativa 8D completa"
                     >
-                      <span>Abrir</span>
+                      <span>Abrir 8D</span>
                       <ChevronRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -386,7 +432,7 @@ export const Repositorio8DView: React.FC<Repositorio8DViewProps> = ({ onNavigate
                 </div>
                 <div>
                   <h3 className="font-display font-bold text-base text-slate-900">
-                    Dossiê Técnico 8D: {formatOccurrenceId(selectedDossier.rnc.id, selectedDossier.rnc.codOcorrenciaCliente || selectedDossier.rnc.field1)}
+                    Relatório de 8D: {formatOccurrenceId(selectedDossier.rnc.id, selectedDossier.rnc.codOcorrenciaCliente || selectedDossier.rnc.field1)}
                   </h3>
                   <p className="text-xs text-slate-500">
                     {selectedDossier.rnc.cliente} • {selectedDossier.rnc.produto} • {formatDateBR(selectedDossier.rnc.dataOcorrencia)}
@@ -523,12 +569,24 @@ export const Repositorio8DView: React.FC<Repositorio8DViewProps> = ({ onNavigate
                   onClick={() => {
                     const rncId = selectedDossier.rnc.id;
                     setSelectedDossier(null);
-                    onNavigate('impressao-8d', { rncId });
+                    onNavigate('impressao-8d', { rncId, fromScreen: 'repositorio-8d' });
+                  }}
+                  className="btn-secondary h-8 px-4 text-xs font-semibold gap-1.5"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Ver relatório de 8D</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const rncId = selectedDossier.rnc.id;
+                    setSelectedDossier(null);
+                    onNavigate('detalhes-8d', { rncId, initialViewMode: 'metodologia8d', fromScreen: 'repositorio-8d' });
                   }}
                   className="btn-primary bg-[#0b5796] h-8 px-4 text-xs font-semibold gap-1.5"
                 >
-                  <Printer className="w-3.5 h-3.5" />
-                  <span>Imprimir Dossiê Oficial</span>
+                  <span>Abrir 8D</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>

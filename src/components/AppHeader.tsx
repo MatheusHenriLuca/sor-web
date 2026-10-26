@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Grip, 
   RefreshCw, 
@@ -7,9 +7,12 @@ import {
   Menu,
   X,
   Shield,
-  Palette
+  Palette,
+  CheckSquare,
+  Layers,
+  ArrowRightLeft
 } from 'lucide-react';
-import { UsuarioQualidade, ActiveScreen } from '../types';
+import { UsuarioQualidade, ActiveScreen, ActiveApp } from '../types';
 import { spStore } from '../services/sharepointService';
 import { tenantService } from '../services/tenantService';
 
@@ -24,6 +27,8 @@ interface AppHeaderProps {
   backScreen?: ActiveScreen;
   onToggleMobileMenu?: () => void;
   isMobileMenuOpen?: boolean;
+  activeApp?: ActiveApp;
+  onAppChange?: (app: ActiveApp) => void;
 }
 
 export const AppHeader: React.FC<AppHeaderProps> = ({
@@ -34,24 +39,46 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   onRefreshData,
   onUserChange,
   onToggleMobileMenu,
-  isMobileMenuOpen = false
+  isMobileMenuOpen = false,
+  activeApp,
+  onAppChange
 }) => {
   const [usersDropdownOpen, setUsersDropdownOpen] = useState(false);
+  const [appSwitcherOpen, setAppSwitcherOpen] = useState(false);
   const [usersList, setUsersList] = useState<UsuarioQualidade[]>([]);
+  const switcherRef = useRef<HTMLDivElement>(null);
 
   const activeTenant = tenantService.getActiveTenant();
   const brandColor = activeTenant.customizacao.cor_primaria || '#0b5796';
   const brandName = activeTenant.customizacao.nome_exibicao || activeTenant.nome;
   const brandLogo = activeTenant.customizacao.logo_url;
 
+  const currentApp: ActiveApp = activeApp || (currentScreen === 'plano-acao' ? 'plano_acao' : 'qualidade_8d');
+
   useEffect(() => {
     setUsersList(spStore.getUsuarios());
   }, [activeTenant.id]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (switcherRef.current && !switcherRef.current.contains(event.target as Node)) {
+        setAppSwitcherOpen(false);
+      }
+    };
+    if (appSwitcherOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [appSwitcherOpen]);
 
   const totalRncs = spStore.getRNCs().length;
 
   const getScreenTitle = (screen: ActiveScreen): string => {
     switch (screen) {
+      case 'plano-acao':
+        return 'Planejamento & Planos de Ação da Fábrica';
       case 'menu-2':
         return 'Painel de Gerenciamento de Não Conformidades';
       case 'lista-8d':
@@ -61,18 +88,22 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
       case 'registro-8d':
         return 'Lançamento de Ocorrência • Relatório Inicial';
       case 'rastreabilidade':
-        return 'Rastreabilidade SAP • Lotes e Etiquetas';
+        return 'Rastreabilidade e Contenção • Triagem de Lotes';
       case 'cadastro-usuarios':
         return 'Gestão de Usuários e Permissões';
       case 'configuracoes-empresa':
-        return 'Gestão de Campos do Formulário, Listas de Opções & Marca';
+        return currentApp === 'plano_acao'
+          ? 'Configurações do Planejamento & Plano de Ação'
+          : 'Gestão de Campos RNC, Listas de Opções & Marca';
       case 'impressao-8d':
-        return 'Ficha Física de Posto de Trabalho (A4)';
+        return 'Relatório de 8D • Exportação PDF (A4)';
+      case 'repositorio-8d':
+        return 'Repositório de Relatórios de 8D';
       case 'verif-user':
       case 'saas-login':
         return 'Autenticação de Usuário';
       default:
-        return 'Painel de Gerenciamento de Não Conformidades';
+        return 'Painel Corporativo';
     }
   };
 
@@ -87,7 +118,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   return (
     <header className="h-14 glass-nav px-3 sm:px-6 flex items-center justify-between select-none sticky top-0 z-40 border-b border-slate-200/80">
       
-      {/* Esquerda: Menu Hamburguer Mobile + Marca White-Label do Tenant */}
+      {/* Esquerda: Menu Hamburguer Mobile + Marca White-Label + Seletor de Apps */}
       <div className="flex items-center gap-2 sm:gap-3">
         <button
           type="button"
@@ -100,16 +131,28 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 
         <button 
           type="button"
-          onClick={() => onNavigate('menu-2')}
+          onClick={() => {
+            if (currentApp === 'plano_acao') {
+              onNavigate('plano-acao');
+            } else {
+              onNavigate('menu-2');
+            }
+          }}
           className="hidden sm:flex w-8 h-8 rounded-xl items-center justify-center text-slate-500 hover:bg-slate-100/80 hover:text-slate-900 transition-all cursor-pointer active:scale-95"
-          title="Início / Painel Principal"
+          title="Início do Aplicativo Atual"
         >
           <Grip className="w-4 h-4" />
         </button>
 
         {/* Logotipo Dinâmico White-Label e Nome da Empresa */}
         <div 
-          onClick={() => onNavigate('menu-2')}
+          onClick={() => {
+            if (currentApp === 'plano_acao') {
+              onNavigate('plano-acao');
+            } else {
+              onNavigate('menu-2');
+            }
+          }}
           className="flex items-center gap-2.5 cursor-pointer pl-0.5 group"
         >
           {brandLogo ? (
@@ -129,23 +172,119 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
           )}
           <div className="flex flex-col min-w-0">
             <div className="flex items-baseline gap-1.5">
-              <span className="font-bold text-sm sm:text-base text-slate-900 tracking-tight truncate max-w-[140px] sm:max-w-none">
+              <span className="font-bold text-sm sm:text-base text-slate-900 tracking-tight truncate max-w-[130px] sm:max-w-none">
                 {brandName}
               </span>
-              <span className="hidden md:inline text-xs font-medium text-slate-400">
+              <span className="hidden xl:inline text-xs font-medium text-slate-400">
                 /{activeTenant.slug}
               </span>
             </div>
-            <span className="md:hidden text-[11px] font-medium text-slate-500 truncate max-w-[165px] leading-tight">
-              {getScreenTitle(currentScreen)}
+            <span className="md:hidden text-[11px] font-medium text-slate-500 truncate max-w-[140px] leading-tight">
+              {currentApp === 'plano_acao' ? 'Planos de Ação' : 'Gestão RNC (8D)'}
             </span>
           </div>
+        </div>
+
+        {/* SELETOR CORPORATIVO DE APLICATIVOS (SUITE SWITCHER) */}
+        <div className="relative ml-1 sm:ml-2" ref={switcherRef}>
+          <button
+            type="button"
+            onClick={() => setAppSwitcherOpen(prev => !prev)}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition cursor-pointer shadow-2xs ${
+              currentApp === 'plano_acao'
+                ? 'bg-amber-50/80 border-amber-200 text-amber-900 hover:bg-amber-100'
+                : 'bg-blue-50/80 border-blue-200 text-[#0b5796] hover:bg-blue-100'
+            }`}
+            title="Clique para alternar entre Gestão 8D e Planos de Ação"
+          >
+            {currentApp === 'plano_acao' ? (
+              <>
+                <span className="w-2 h-2 rounded-full bg-amber-500 ring-2 ring-amber-300" />
+                <span className="font-bold hidden sm:inline">Planejamento &amp; Ações</span>
+                <span className="font-bold sm:hidden">Planos</span>
+              </>
+            ) : (
+              <>
+                <span className="w-2 h-2 rounded-full bg-[#0b5796] ring-2 ring-blue-300" />
+                <span className="font-bold hidden sm:inline">Qualidade &amp; RNC (8D)</span>
+                <span className="font-bold sm:hidden">8D</span>
+              </>
+            )}
+            <ChevronDown className={`w-3.5 h-3.5 text-slate-500 transition-transform ${appSwitcherOpen ? 'rotate-180' : ''}`} />
+          </button>
+
+          {/* Menu Dropdown de Aplicativos */}
+          {appSwitcherOpen && (
+            <div className="absolute left-0 mt-2 w-72 sm:w-80 bg-white rounded-2xl shadow-xl border border-slate-200 p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+              <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                Seletor de Aplicativos da Fábrica
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setAppSwitcherOpen(false);
+                  if (onAppChange) onAppChange('qualidade_8d');
+                  onNavigate('menu-2');
+                }}
+                className={`w-full flex items-start gap-3 p-2.5 rounded-xl text-left transition cursor-pointer ${
+                  currentApp === 'qualidade_8d'
+                    ? 'bg-blue-50/80 text-[#0b5796] ring-1 ring-blue-200 font-semibold'
+                    : 'text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                <div className="w-8 h-8 rounded-lg bg-blue-100 text-[#0b5796] flex items-center justify-center shrink-0 mt-0.5">
+                  <Layers className="w-4 h-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs text-slate-900">Gestão da Qualidade &amp; RNC</span>
+                    {currentApp === 'qualidade_8d' && (
+                      <span className="px-1.5 py-0.2 rounded bg-blue-200 text-[#0b5796] text-[10px] font-bold">Ativo</span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-snug mt-0.5">
+                    Ocorrências, Ishikawa, 5 Porquês, Metodologia 8D e Rastreabilidade
+                  </p>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setAppSwitcherOpen(false);
+                  if (onAppChange) onAppChange('plano_acao');
+                  onNavigate('plano-acao');
+                }}
+                className={`w-full flex items-start gap-3 p-2.5 rounded-xl text-left transition cursor-pointer mt-1 ${
+                  currentApp === 'plano_acao'
+                    ? 'bg-amber-50/80 text-amber-900 ring-1 ring-amber-200 font-semibold'
+                    : 'text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 mt-0.5">
+                  <CheckSquare className="w-4 h-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs text-slate-900">Planejamento &amp; Planos de Ação</span>
+                    {currentApp === 'plano_acao' && (
+                      <span className="px-1.5 py-0.2 rounded bg-amber-200 text-amber-800 text-[10px] font-bold">Ativo</span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-snug mt-0.5">
+                    Kanban global, ações gerais da fábrica, prazos e validação
+                  </p>
+                </div>
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Centro: Título Dinâmico da Tela no Topo Superior (Desktop/Tablet) */}
-      <div className="hidden md:flex items-center justify-center flex-1 px-3 sm:px-6 text-center max-w-2xl">
-        <h1 className="text-xs sm:text-sm lg:text-[15px] font-bold text-slate-800 tracking-tight truncate">
+      <div className="hidden lg:flex items-center justify-center flex-1 px-3 sm:px-6 text-center max-w-xl">
+        <h1 className="text-xs sm:text-sm font-bold text-slate-800 tracking-tight truncate">
           {getScreenTitle(currentScreen)}
         </h1>
       </div>
@@ -250,12 +389,18 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                   type="button"
                   onClick={() => {
                     setUsersDropdownOpen(false);
-                    onNavigate('configuracoes-empresa');
+                    onNavigate('configuracoes-empresa', {
+                      tab: currentApp === 'plano_acao' ? 'plano_config' : 'form_builder'
+                    });
                   }}
                   className="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-slate-100 flex items-center gap-2 cursor-pointer font-semibold transition"
                 >
                   <Palette className="w-3.5 h-3.5 text-[#0b5796]" />
-                  <span>Configurações White-Label & Mestres</span>
+                  <span>
+                    {currentApp === 'plano_acao'
+                      ? 'Configurações do Planejamento & Marca'
+                      : 'Configurações RNC & Marca'}
+                  </span>
                 </button>
 
                 <button

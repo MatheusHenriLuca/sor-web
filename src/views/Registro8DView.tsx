@@ -241,11 +241,14 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
           : '';
 
       const optionsFromCat = cf.optionCategory
-        ? tenantService.getActiveOptions(cf.optionCategory, activeTenant.id).map(o => ({
-            value: o.nome,
-            label: o.nome,
-            badge: o.codigo
-          }))
+        ? tenantService
+            .getFieldResolvedOptions(cf.key, 'rnc', cf.optionCategory, activeTenant.id)
+            .options.map(o => ({
+              value: o.value,
+              label: o.label,
+              sublabel: o.sublabel,
+              badge: o.rawItem.codigo
+            }))
         : (cf.customOptions || []).map(o => ({ value: o, label: o }));
 
       return (
@@ -374,13 +377,15 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
     if (edicao && rncId) {
       const existente = spStore.getRNCById(rncId);
       if (existente) {
-        const detalhamento = existente.detalhamentoOcorrencia || existente.descricaoCompleta || existente.descricaoProblema || '';
         setForm({
           ...existente,
-          detalhamentoOcorrencia: detalhamento,
-          descricaoProblema: detalhamento,
-          descricaoCompleta: detalhamento,
-          descricaoProblemaInterno: existente.descricaoProblemaInterno || ''
+          detalhamentoOcorrencia: existente.detalhamentoOcorrencia || '',
+          descricaoProblema: existente.descricaoProblema || existente.descricaoCompleta || '',
+          descricaoCompleta: existente.descricaoCompleta || existente.descricaoProblema || '',
+          descricaoProblemaInterno: existente.descricaoProblemaInterno || '',
+          pecasComuns: existente.pecasComuns || '',
+          pecaEspelho: existente.pecaEspelho || '',
+          aspectoSeguranca: existente.aspectoSeguranca || ''
         });
         setQualidadeExpandida(true);
         if (existente.participantesAtendimento) {
@@ -419,6 +424,9 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
         caracteristicaSeguranca: 'Não',
         coProduto: 'Não',
         carryOver: 'Não',
+        pecasComuns: '',
+        pecaEspelho: '',
+        aspectoSeguranca: '',
         reincidente: 'NÃO',
         gravidade: 'Média',
         possivelDetectar: 'Sim',
@@ -450,7 +458,23 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
     }
   }, [edicao, rncId, currentUser]);
 
-  const baseAtivos = useMemo(() => spStore.getBaseAtivos(), []);
+  const baseAtivos = useMemo(() => {
+    const resolved = tenantService.getFieldResolvedOptions(
+      'participantesAtendimento',
+      'rnc',
+      'master_funcionarios',
+      activeTenant.id
+    );
+    if (resolved.options.length > 0) {
+      return resolved.options.map((opt, idx) => ({
+        numPessoal: Number(opt.rawItem.codigo) || 10000 + idx,
+        nome: opt.label || opt.value,
+        unidadeOrg: opt.cellMap['Setor'] || opt.sublabel || 'Qualidade / Operações',
+        posicao: opt.cellMap['Cargo'] || opt.rawItem.detalhe || 'Colaborador'
+      }));
+    }
+    return spStore.getBaseAtivos();
+  }, [activeTenant.id]);
 
   const colaboradoresFiltrados = useMemo(() => {
     if (!buscaParticipante.trim()) return baseAtivos;
@@ -552,25 +576,27 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
   const postosDisponiveis = useMemo(() => spStore.getDistinctPostos(), []);
   const fmdsDisponiveis = useMemo(() => spStore.getDistinctFMDS(), []);
 
-  // Opções para SearchableSelect de Clientes (Montadoras) — lê diretamente da lista de opções administrada pela empresa
+  // Opções para SearchableSelect de Clientes (Montadoras) — lê diretamente da base e colunas configuradas no campo
   const optionsClientes = useMemo(() => {
-    const activeItems = tenantService.getActiveOptions('cliente_montadora', activeTenant.id);
-    const list =
-      activeItems.length > 0
-        ? activeItems.map(i => ({
-            value: i.nome,
-            label: i.nome,
-            badge: i.codigo || getClientBadgeInfo(i.nome).code
+    const resolved = tenantService.getFieldResolvedOptions('cliente', 'rnc', 'cliente_montadora', activeTenant.id);
+    const list: { value: string; label: string; sublabel?: string; badge: string }[] =
+      resolved.options.length > 0
+        ? resolved.options.map(i => ({
+            value: i.value,
+            label: i.label,
+            sublabel: i.sublabel,
+            badge: i.rawItem.codigo || getClientBadgeInfo(i.value).code
           }))
         : CLIENTES_LIST.map(cli => ({
-            value: cli,
-            label: cli,
+            value: String(cli),
+            label: String(cli),
             badge: getClientBadgeInfo(cli).code
           }));
     if (form.cliente && !list.some(o => o.value === form.cliente)) {
       list.unshift({
         value: form.cliente,
         label: form.cliente,
+        sublabel: undefined,
         badge: getClientBadgeInfo(form.cliente).code
       });
     }
@@ -610,18 +636,20 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
     const seen = new Set<string>();
 
     list.forEach(c => {
-      // Prioriza c.componente (ex: L17922EB6) se existir
       const val = c.componente || c.descricao || c.codCliText || c.material;
       if (val && !seen.has(val.toLowerCase())) {
         seen.add(val.toLowerCase());
-        const displayLabel = c.componente && c.descricao && c.componente !== c.descricao
-          ? `${c.componente} - ${c.descricao}`
-          : (c.codCliText ? `${c.codCliText} - ` : '') + (c.descricao || c.componente || c.material);
+        const compText = (c.componente || '').trim();
+        const descText = (c.descricao || '').trim();
+        const displayLabel =
+          compText && descText && !compText.toLowerCase().includes(descText.toLowerCase())
+            ? `${compText} - ${descText}`
+            : compText || (c.codCliText ? `${c.codCliText} - ${descText}` : descText || c.material);
         opts.push({
           value: val,
           label: displayLabel,
-          sublabel: `SAP: ${c.material} • Nível: ${c.nestingLevel ?? 1}`,
-          badge: c.cliente || undefined
+          sublabel: `SAP: ${c.material} • Posto: ${c.posto || 'N/A'}`,
+          badge: c.codCliText || c.cliente || undefined
         });
       }
     });
@@ -661,10 +689,10 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
 
   // Opções para SearchableSelect de Modos de Falha Padronizados (Catálogo administrado pela empresa)
   const optionsModosFalha = useMemo(() => {
-    const activeItems = tenantService.getActiveOptions('cat_defeito', activeTenant.id);
-    const list: { value: string; label: string; badge?: string }[] =
-      activeItems.length > 0
-        ? activeItems.map(m => ({ value: m.nome, label: m.nome, badge: m.codigo }))
+    const resolved = tenantService.getFieldResolvedOptions('modoFalha', 'rnc', 'cat_defeito', activeTenant.id);
+    const list: { value: string; label: string; sublabel?: string; badge?: string }[] =
+      resolved.options.length > 0
+        ? resolved.options.map(m => ({ value: m.value, label: m.label, sublabel: m.sublabel, badge: m.rawItem.codigo }))
         : MODOS_FALHA_LIST.map(m => ({ value: m as string, label: m as string }));
     if (form.modoFalha && !list.some(o => o.value.toLowerCase() === form.modoFalha!.toLowerCase())) {
       list.unshift({
@@ -677,11 +705,19 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
 
   // Opções para SearchableSelect de Equipe Responsável pelo 8D (Foto 4)
   const optionsEquipe8D = useMemo(() => {
-    const list = baseAtivos.map(c => ({
-      value: c.nome,
-      label: c.nome,
-      sublabel: `RE: ${c.numPessoal} • ${c.posicao}`
-    }));
+    const resolved = tenantService.getFieldResolvedOptions('quemFara', 'rnc', 'master_funcionarios', activeTenant.id);
+    const list =
+      resolved.options.length > 0
+        ? resolved.options.map(o => ({
+            value: o.value,
+            label: o.label,
+            sublabel: o.sublabel
+          }))
+        : baseAtivos.map(c => ({
+            value: c.nome,
+            label: c.nome,
+            sublabel: `RE: ${c.numPessoal} • ${c.posicao}`
+          }));
     if (form.quemFara && !list.some(o => o.value.toLowerCase() === form.quemFara!.toLowerCase())) {
       list.unshift({
         value: form.quemFara,
@@ -690,13 +726,13 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
       });
     }
     return list;
-  }, [baseAtivos, form.quemFara]);
+  }, [activeTenant.id, baseAtivos, form.quemFara]);
 
   // Opções para SearchableSelect de Abrir 8D
   const optionsAbrir8D = useMemo(() => {
-    const activeItems = tenantService.getActiveOptions('abrir_8d', activeTenant.id);
-    if (activeItems.length > 0) {
-      return activeItems.map(i => ({ value: i.nome, label: i.detalhe ? `${i.nome} (${i.detalhe})` : i.nome }));
+    const resolved = tenantService.getFieldResolvedOptions('abrir8D', 'rnc', 'abrir_8d', activeTenant.id);
+    if (resolved.options.length > 0) {
+      return resolved.options.map(i => ({ value: i.value, label: i.sublabel ? `${i.label} (${i.sublabel})` : i.label }));
     }
     return [
       { value: 'Sim', label: 'Sim' },
@@ -706,34 +742,40 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
 
   // Opções para SearchableSelect de Postos de Trabalho
   const optionsPostos = useMemo(() => {
-    const activeItems = tenantService.getActiveOptions('posto_trabalho', activeTenant.id);
-    const set = new Set<string>([...activeItems.map(i => i.nome), ...postosDisponiveis]);
-    if (form.posto) set.add(form.posto);
-    return Array.from(set).map(p => ({
-      value: p,
-      label: p
-    }));
+    const resolved = tenantService.getFieldResolvedOptions('posto', 'rnc', 'posto_trabalho', activeTenant.id);
+    const map = new Map<string, { value: string; label: string; sublabel?: string }>();
+    resolved.options.forEach(o => map.set(o.value, { value: o.value, label: o.label, sublabel: o.sublabel }));
+    postosDisponiveis.forEach(p => {
+      if (!map.has(p)) map.set(p, { value: p, label: p });
+    });
+    if (form.posto && !map.has(form.posto)) {
+      map.set(form.posto, { value: form.posto, label: form.posto });
+    }
+    return Array.from(map.values());
   }, [activeTenant.id, postosDisponiveis, form.posto]);
 
   // Opções para SearchableSelect de FMDS
   const optionsFMDS = useMemo(() => {
-    const activeItems = tenantService.getActiveOptions('area_fabril', activeTenant.id);
-    const set = new Set<string>([...activeItems.map(i => i.nome), ...fmdsDisponiveis]);
-    if (form.fmds) set.add(form.fmds);
-    return Array.from(set).map(f => ({
-      value: f,
-      label: f
-    }));
+    const resolved = tenantService.getFieldResolvedOptions('fmds', 'rnc', 'area_fabril', activeTenant.id);
+    const map = new Map<string, { value: string; label: string; sublabel?: string }>();
+    resolved.options.forEach(o => map.set(o.value, { value: o.value, label: o.label, sublabel: o.sublabel }));
+    fmdsDisponiveis.forEach(f => {
+      if (!map.has(f)) map.set(f, { value: f, label: f });
+    });
+    if (form.fmds && !map.has(form.fmds)) {
+      map.set(form.fmds, { value: form.fmds, label: form.fmds });
+    }
+    return Array.from(map.values());
   }, [activeTenant.id, fmdsDisponiveis, form.fmds]);
 
   // Opções para SearchableSelect de Tipo de Ocorrência
   const optionsTipoRnc = useMemo(() => {
-    const activeItems = tenantService.getActiveOptions('tipo_rnc', activeTenant.id);
-    if (activeItems.length > 0) {
-      return activeItems.map(i => ({
-        value: i.nome,
-        label: i.detalhe ? `${i.nome} (${i.detalhe})` : i.nome,
-        badge: i.codigo
+    const resolved = tenantService.getFieldResolvedOptions('tipoRnc', 'rnc', 'tipo_rnc', activeTenant.id);
+    if (resolved.options.length > 0) {
+      return resolved.options.map(i => ({
+        value: i.value,
+        label: i.sublabel ? `${i.label} (${i.sublabel})` : i.label,
+        badge: i.rawItem.codigo
       }));
     }
     return [
@@ -745,11 +787,11 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
 
   // Opções para SearchableSelect de Turno
   const optionsTurno = useMemo(() => {
-    const activeItems = tenantService.getActiveOptions('turno', activeTenant.id);
-    if (activeItems.length > 0) {
-      return activeItems.map(i => ({
-        value: i.nome,
-        label: i.detalhe ? `${i.nome} (${i.detalhe})` : i.nome
+    const resolved = tenantService.getFieldResolvedOptions('turno', 'rnc', 'turno', activeTenant.id);
+    if (resolved.options.length > 0) {
+      return resolved.options.map(i => ({
+        value: i.value,
+        label: i.sublabel ? `${i.label} (${i.sublabel})` : i.label
       }));
     }
     return [
@@ -762,11 +804,11 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
 
   // Opções para SearchableSelect de Tipo de Componente / Peça Rastreada
   const optionsTipoComponente = useMemo(() => {
-    const activeItems = tenantService.getActiveOptions('tipo_componente', activeTenant.id);
-    if (activeItems.length > 0) {
-      return activeItems.map(i => ({
-        value: i.nome,
-        label: i.detalhe ? `${i.nome} (${i.detalhe})` : i.nome
+    const resolved = tenantService.getFieldResolvedOptions('finalComponente', 'rnc', 'tipo_componente', activeTenant.id);
+    if (resolved.options.length > 0) {
+      return resolved.options.map(i => ({
+        value: i.value,
+        label: i.sublabel ? `${i.label} (${i.sublabel})` : i.label
       }));
     }
     return [
@@ -791,9 +833,9 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
 
   // Opções para SearchableSelect de Documento para Rastreabilidade
   const optionsDocumentoRastreabilidade = useMemo(() => {
-    const activeItems = tenantService.getActiveOptions('doc_rastreabilidade', activeTenant.id);
-    if (activeItems.length > 0) {
-      return activeItems.map(doc => ({ value: doc.nome, label: doc.nome }));
+    const resolved = tenantService.getFieldResolvedOptions('documentoRastreabilidade', 'rnc', 'doc_rastreabilidade', activeTenant.id);
+    if (resolved.options.length > 0) {
+      return resolved.options.map(doc => ({ value: doc.value, label: doc.label }));
     }
     return [
       { value: 'Não Informado', label: 'Não Informado' },
@@ -805,18 +847,18 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
 
   // Opções para Ações de Contenção (Múltipla Escolha)
   const acoesContencaoDynamicList = useMemo(() => {
-    const activeItems = tenantService.getActiveOptions('acoes_contencao', activeTenant.id);
-    if (activeItems.length > 0) {
-      return activeItems.map(a => a.nome);
+    const resolved = tenantService.getFieldResolvedOptions('acoesContencao', 'rnc', 'acoes_contencao', activeTenant.id);
+    if (resolved.options.length > 0) {
+      return resolved.options.map(a => a.label);
     }
     return ACOES_CONTENCAO_LIST;
   }, [activeTenant.id]);
 
   // Opções para SearchableSelect de Gravidade
   const optionsGravidade = useMemo(() => {
-    const activeItems = tenantService.getActiveOptions('gravidade', activeTenant.id);
-    if (activeItems.length > 0) {
-      return activeItems.map(g => ({ value: g.nome, label: g.nome }));
+    const resolved = tenantService.getFieldResolvedOptions('gravidade', 'rnc', 'gravidade', activeTenant.id);
+    if (resolved.options.length > 0) {
+      return resolved.options.map(g => ({ value: g.value, label: g.label }));
     }
     return GRAVIDADE_LIST.map(g => ({
       value: g,
@@ -826,12 +868,19 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
 
   // Opções para SearchableSelect de Detecção na Origem
   const optionsPossivelDetectar = useMemo(() => {
-    const activeItems = tenantService.getActiveOptions('possivel_detectar', activeTenant.id);
-    if (activeItems.length > 0) {
-      return activeItems.map(p => ({
-        value: p.nome,
-        label: p.detalhe ? `${p.nome} (${p.detalhe})` : p.nome
-      }));
+    const resolved = tenantService.getFieldResolvedOptions('possivelDetectar', 'rnc', 'possivel_detectar', activeTenant.id);
+    if (resolved.options.length > 0) {
+      return resolved.options.map(p => {
+        const cleanDet = (p.sublabel || '')
+          .replace(/^Sim\s*\(/i, '')
+          .replace(/^Não\s*\(/i, '')
+          .replace(/\)$/, '')
+          .trim();
+        return {
+          value: p.value,
+          label: cleanDet ? `${p.label} (${cleanDet})` : p.label
+        };
+      });
     }
     return [
       { value: 'Sim', label: 'Sim (Falha de Inspeção / Padrão)' },
@@ -864,6 +913,9 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
       carryOver: 'Não',
       coProduto: 'Não',
       caracteristicaSeguranca: 'Não',
+      pecasComuns: '',
+      pecaEspelho: '',
+      aspectoSeguranca: '',
       reincidente: 'NÃO'
     }));
   };
@@ -879,8 +931,11 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
       if (novoTipo === 'Peça Final') {
         const peca = pecasCatalogo.find(p => p.codCliText === prev.produto || p.material === prev.produto);
         novoComponente = peca?.descricao || peca?.componente || prev.componente;
+      } else if (novoTipo === 'Peça Final + Componente') {
+        novoComponente = '';
       } else if (novoTipo === 'Componente') {
         novoProduto = '';
+        novoComponente = '';
       }
 
       return {
@@ -906,6 +961,9 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
         carryOver: 'Não',
         coProduto: 'Não',
         caracteristicaSeguranca: 'Não',
+        pecasComuns: '',
+        pecaEspelho: '',
+        aspectoSeguranca: '',
         reincidente: 'NÃO'
       }));
       return;
@@ -925,15 +983,16 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
       setForm(prev => ({
         ...prev,
         produto: prodKey,
-        componente: (prev.finalComponente === 'Peça Final' || !prev.componente) 
-          ? compDesc 
-          : prev.componente,
+        componente: prev.finalComponente === 'Peça Final' ? compDesc : '',
         posto: selecionada.posto || prev.posto,
         fmds: selecionada.fmds || prev.fmds,
         classificacaoSetor: selecionada.fmds || prev.classificacaoSetor,
         carryOver: selecionada.carryOver === 'Sim' ? 'Sim' : 'Não',
         coProduto: selecionada.coProduto === 'Sim' ? 'Sim' : 'Não',
         caracteristicaSeguranca: selecionada.caracteristicaSeguranca === 'Sim' ? 'Sim' : 'Não',
+        pecasComuns: selecionada.pecasComuns || '',
+        pecaEspelho: selecionada.pecaEspelho || '',
+        aspectoSeguranca: selecionada.aspectoSeguranca || '',
         reincidente: isReinc
       }));
     }
@@ -957,9 +1016,12 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
       posto: compObj?.posto || prev.posto,
       fmds: compObj?.fmds || prev.fmds,
       classificacaoSetor: compObj?.fmds || prev.classificacaoSetor,
-      carryOver: compObj?.carryOver === 'Sim' ? 'Sim' : prev.carryOver,
-      coProduto: compObj?.coProduto === 'Sim' ? 'Sim' : prev.coProduto,
-      caracteristicaSeguranca: compObj?.caracteristicaSeguranca === 'Sim' ? 'Sim' : prev.caracteristicaSeguranca
+      carryOver: compObj?.carryOver ? (compObj.carryOver === 'Sim' ? 'Sim' : 'Não') : prev.carryOver,
+      coProduto: compObj?.coProduto ? (compObj.coProduto === 'Sim' ? 'Sim' : 'Não') : prev.coProduto,
+      caracteristicaSeguranca: compObj?.caracteristicaSeguranca ? (compObj.caracteristicaSeguranca === 'Sim' ? 'Sim' : 'Não') : prev.caracteristicaSeguranca,
+      pecasComuns: compObj?.pecasComuns || prev.pecasComuns || '',
+      pecaEspelho: compObj?.pecaEspelho || prev.pecaEspelho || '',
+      aspectoSeguranca: compObj?.aspectoSeguranca || prev.aspectoSeguranca || ''
     }));
   };
 
@@ -1037,9 +1099,6 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
     if (isFieldRequired('modoFalha', true) && (!form.modoFalha || !form.modoFalha.trim())) {
       newErrors.modoFalha = `Selecione ${getFieldLabel('modoFalha', 'Classificação do Defeito')}.`;
     }
-    if (isFieldRequired('descricaoProblema', true) && (!form.descricaoProblema || form.descricaoProblema.trim().length < 3)) {
-      newErrors.descricaoProblema = `Informe ${getFieldLabel('descricaoProblema', 'Detalhamento Técnico da Não Conformidade')}.`;
-    }
     if (
       isFieldRequired('quantidadeAfetada', true) &&
       (form.quantidadeAfetada === undefined || form.quantidadeAfetada === null || String(form.quantidadeAfetada).trim() === '' || Number(form.quantidadeAfetada) <= 0)
@@ -1097,15 +1156,16 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
         ? participantesSelecionados.join('; ') 
         : currentUser.nome;
 
-      const detalhamentoFinal = form.detalhamentoOcorrencia || form.descricaoProblema || form.descricaoCompleta || '';
+      const detalhamentoClienteFinal = form.detalhamentoOcorrencia || '';
+      const descricaoTecnicaFinal = form.detalhamentoOcorrencia || form.descricaoProblema || form.descricaoCompleta || form.modoFalha || '';
       const descInternaFinal = form.descricaoProblemaInterno || '';
 
       if (edicao && rncId) {
         spStore.updateRNC(rncId, {
           ...form,
-          detalhamentoOcorrencia: detalhamentoFinal,
-          descricaoProblema: detalhamentoFinal,
-          descricaoCompleta: detalhamentoFinal,
+          detalhamentoOcorrencia: detalhamentoClienteFinal,
+          descricaoProblema: descricaoTecnicaFinal,
+          descricaoCompleta: descricaoTecnicaFinal,
           descricaoProblemaInterno: descInternaFinal,
           participantesAtendimento: participantesStr
         });
@@ -1120,7 +1180,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
           dataOficializacao: form.dataOficializacao || new Date().toISOString().split('T')[0],
           codOcorrenciaCliente: form.codOcorrenciaCliente || '',
           impactoCliente: form.impactoCliente || '',
-          detalhamentoOcorrencia: detalhamentoFinal,
+          detalhamentoOcorrencia: detalhamentoClienteFinal,
           classificacaoSetor: form.classificacaoSetor || form.fmds || 'SOLDA 2 - CEL. TOYOTA',
           setorDeteccao: form.setorDeteccao || 'Chão de Fábrica',
           turno: form.turno || getTurnoPorHorario(),
@@ -1129,11 +1189,14 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
           finalComponente: form.finalComponente || 'Peça Final',
           quantidadeAfetada: Number(form.quantidadeAfetada) || 1,
           modoFalha: form.modoFalha || '',
-          descricaoProblema: detalhamentoFinal,
-          descricaoCompleta: detalhamentoFinal,
+          descricaoProblema: descricaoTecnicaFinal,
+          descricaoCompleta: descricaoTecnicaFinal,
           caracteristicaSeguranca: form.caracteristicaSeguranca || 'Não',
           coProduto: form.coProduto || 'Não',
           carryOver: form.carryOver || 'Não',
+          pecasComuns: form.pecasComuns || '',
+          pecaEspelho: form.pecaEspelho || '',
+          aspectoSeguranca: form.aspectoSeguranca || '',
           reincidente: form.reincidente || 'NÃO',
           gravidade: form.gravidade || 'Média',
           possivelDetectar: form.possivelDetectar || 'Sim',
@@ -1313,21 +1376,21 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
               </div>
               <div>
                 <h2 className="text-sm font-display font-bold text-slate-900">
-                  1. Dados Gerais & Montadora
+                  1. Dados Gerais & Cliente
                 </h2>
                 <p className="text-xs text-slate-500">
-                  Identificação do cliente montadora, classificação da ocorrência e dados de emissão.
+                  Identificação do cliente, classificação da ocorrência e dados de emissão.
                 </p>
               </div>
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Cliente / Montadora (Inicia vazio para o usuário escolher) */}
+            {/* Cliente (Inicia vazio para o usuário escolher) */}
             {isFieldVisible('cliente') && (
               <div className="flex flex-col gap-1.5" style={{ order: getFieldOrder('cliente', 10) }}>
                 <label className="text-xs font-semibold text-slate-700 h-5 flex items-center justify-between">
-                  <span>{getFieldLabel('cliente', 'Cliente (Montadora)')} {isFieldRequired('cliente', true) && <strong className="text-rose-500">*</strong>}</span>
+                  <span>{getFieldLabel('cliente', 'Cliente')} {isFieldRequired('cliente', true) && <strong className="text-rose-500">*</strong>}</span>
                   {clientBadge && (
                     <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${clientBadge.bg} ${clientBadge.color}`}>
                       {form.cliente}
@@ -1337,8 +1400,8 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                 <SearchableSelect
                   value={form.cliente || ''}
                   onChange={handleClienteChange}
-                  placeholder={getFieldPlaceholder('cliente', '-- Selecione a Montadora --')}
-                  searchPlaceholder="Pesquisar montadora (ex: Toyota, Honda, VW)..."
+                  placeholder={getFieldPlaceholder('cliente', '-- Selecione o Cliente --')}
+                  searchPlaceholder="Pesquisar cliente (ex: Toyota, Honda, VW)..."
                   error={errors.cliente}
                   options={optionsClientes}
                 />
@@ -1513,18 +1576,15 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                     </label>
                     <textarea
                       rows={2}
-                      value={form.detalhamentoOcorrencia || form.descricaoProblema || ''}
+                      value={form.detalhamentoOcorrencia || ''}
                       onChange={e => {
                         const val = e.target.value;
-                        clearFieldError('descricaoProblema');
                         setForm(prev => ({ 
                           ...prev, 
-                          detalhamentoOcorrencia: val,
-                          descricaoProblema: val,
-                          descricaoCompleta: val 
+                          detalhamentoOcorrencia: val
                         }));
                       }}
-                      placeholder="Informações transmitidas pelo analista do cliente ou engenheiro residente da montadora..."
+                      placeholder="Informações transmitidas pelo analista do cliente ou engenheiro residente..."
                       className="w-full p-2.5 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border border-slate-200 focus:border-[#0b5796] outline-none resize-y"
                     />
                   </div>
@@ -1536,7 +1596,7 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                 <div className="p-3.5 bg-amber-50/50 rounded-xl border border-amber-200/80 flex flex-col gap-3">
                   <div className="flex items-center gap-2 text-xs font-bold text-amber-900">
                     <AlertTriangle className="w-4 h-4 text-amber-700" />
-                    <span>Registro Informal / Alerta Preventivo da Montadora</span>
+                    <span>Registro Informal / Alerta Preventivo do Cliente</span>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="flex flex-col gap-1.5">
@@ -1570,18 +1630,15 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                     </label>
                     <textarea
                       rows={2}
-                      value={form.detalhamentoOcorrencia || form.descricaoProblema || ''}
+                      value={form.detalhamentoOcorrencia || ''}
                       onChange={e => {
                         const val = e.target.value;
-                        clearFieldError('descricaoProblema');
                         setForm(prev => ({ 
                           ...prev, 
-                          detalhamentoOcorrencia: val,
-                          descricaoProblema: val,
-                          descricaoCompleta: val 
+                          detalhamentoOcorrencia: val
                         }));
                       }}
-                      placeholder="Informações transmitidas pelo analista do cliente ou engenheiro residente da montadora..."
+                      placeholder="Informações transmitidas pelo analista do cliente ou engenheiro residente..."
                       className="w-full p-2.5 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border border-slate-200 focus:border-[#0b5796] outline-none resize-y"
                     />
                   </div>
@@ -1721,10 +1778,10 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
               </div>
               <div>
                 <h2 className="text-sm font-display font-bold text-slate-900">
-                  2. Peça, Posto & FMDS (Autopreenchimento ProEPS)
+                  2. Informações do posto e produto
                 </h2>
                 <p className="text-xs text-slate-500">
-                  Selecione o produto. As informações cadastradas de posto de trabalho e área FMDS serão preenchidas automaticamente.
+                  Selecione o produto e componente. As informações cadastradas de posto de trabalho e área / setor fabril serão preenchidas automaticamente.
                 </p>
               </div>
             </div>
@@ -1859,11 +1916,11 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
               </div>
             )}
 
-            {/* Área FMDS / Setor Fabril (Autopreenchido com badge verde ou selecionável com busca) */}
+            {/* Área / Setor Fabril (Autopreenchido com badge verde ou selecionável com busca) */}
             {isFieldVisible('fmds') && (
               <div className="flex flex-col gap-1.5 md:col-span-1 lg:col-span-2" style={{ order: getFieldOrder('fmds', 140) }}>
                 <label className="text-xs font-semibold text-slate-700 h-5 flex items-center justify-between">
-                  <span>{getFieldLabel('fmds', 'Área FMDS / Setor Fabril')} {isFieldRequired('fmds', false) && <strong className="text-rose-500">*</strong>}</span>
+                  <span>{getFieldLabel('fmds', 'Área / Setor Fabril')} {isFieldRequired('fmds', false) && <strong className="text-rose-500">*</strong>}</span>
                   {isPecaSelecionada && form.fmds && (
                     <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/60 leading-none">
                       ✓ Autopreenchido
@@ -1885,8 +1942,8 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                       fmds: val,
                       classificacaoSetor: val 
                     }))}
-                    placeholder={getFieldPlaceholder('fmds', '-- Selecione a Área FMDS --')}
-                    searchPlaceholder="Pesquisar área FMDS..."
+                    placeholder={getFieldPlaceholder('fmds', '-- Selecione a Área / Setor Fabril --')}
+                    searchPlaceholder="Pesquisar área / setor fabril..."
                     options={optionsFMDS}
                   />
                 )}
@@ -1895,103 +1952,163 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
 
             {renderCustomFieldsForSection('secao_2')}
 
-            {/* LINHA DE BADGES DE ATRIBUTOS DA PEÇA (CARRY OVER, CO-PRODUTO, SEGURANÇA, REINCIDENTE) - FOTO 1 */}
-            <div className="flex flex-wrap items-center gap-3 pt-2.5 md:col-span-2 lg:col-span-3 border-t border-slate-100">
-              <span className="text-xs font-semibold text-slate-500 mr-1">Atributos da Peça:</span>
-              
-              {/* Carry Over */}
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200/80 bg-slate-50/50 text-xs font-semibold shadow-2xs">
-                <span className="text-slate-500">Carry Over:</span>
-                <span className={`font-bold ${
-                  !isPecaSelecionada ? 'text-slate-400' :
-                  form.carryOver === 'Sim' ? 'text-amber-700' : 'text-slate-700'
+            {/* LINHA DE BADGES E DETALHAMENTO DOS ATRIBUTOS DA PEÇA (PEÇA COMUM, CO-PRODUTO, SEGURANÇA, REINCIDENTE) */}
+            <div className="flex flex-col gap-3 pt-2.5 md:col-span-2 lg:col-span-3 border-t border-slate-100">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="text-xs font-semibold text-slate-500 mr-1">Atributos da Peça:</span>
+                
+                {/* Peça comum */}
+                <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold shadow-2xs ${
+                  isPecaSelecionada && form.carryOver === 'Sim'
+                    ? 'bg-amber-50 border-amber-200 text-amber-900'
+                    : 'bg-slate-50/50 border-slate-200/80 text-slate-700'
                 }`}>
-                  {isPecaSelecionada ? (form.carryOver || 'Não') : '-'}
-                </span>
-              </div>
-
-              {/* Co-produto (Espelho) */}
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200/80 bg-slate-50/50 text-xs font-semibold shadow-2xs">
-                <Layers className="w-3.5 h-3.5 text-purple-600" />
-                <span className="text-slate-500">Co-produto (Espelho):</span>
-                <span className={`font-bold ${
-                  !isPecaSelecionada ? 'text-slate-400' :
-                  form.coProduto === 'Sim' ? 'text-purple-700' : 'text-slate-700'
-                }`}>
-                  {isPecaSelecionada ? (form.coProduto || 'Não') : '-'}
-                </span>
-              </div>
-
-              {/* Peça de Segurança (FMEA) */}
-              <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold shadow-2xs ${
-                isPecaSelecionada && form.caracteristicaSeguranca === 'Sim'
-                  ? 'bg-rose-50 border-rose-200 text-rose-800'
-                  : 'bg-slate-50/50 border-slate-200/80 text-slate-700'
-              }`}>
-                {isPecaSelecionada && form.caracteristicaSeguranca === 'Sim' ? (
-                  <ShieldAlert className="w-3.5 h-3.5 text-rose-600" />
-                ) : (
-                  <ShieldCheck className="w-3.5 h-3.5 text-slate-400" />
-                )}
-                <span>Peça de Segurança (FMEA):</span>
-                <span className="font-bold">
-                  {isPecaSelecionada ? (form.caracteristicaSeguranca || 'Não') : '-'}
-                </span>
-              </div>
-
-              {/* Reincidente: Apenas Visualização (Preenchimento Automático via Histórico) */}
-              <div 
-                className="flex items-center gap-2.5 ml-auto pl-2"
-                title="Campo de visualização preenchido automaticamente com base no histórico da peça e modo de falha"
-              >
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-semibold text-slate-700">Reincidente:</span>
-                  <span className="text-[10px] text-slate-400 font-normal hidden sm:inline">(Automático)</span>
-                </div>
-                <div className="flex items-center gap-2 select-none pointer-events-none">
-                  <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-default">
-                    <input
-                      type="radio"
-                      name="reincidente_readonly"
-                      value="NÃO"
-                      checked={form.reincidente !== 'SIM'}
-                      disabled
-                      readOnly
-                      tabIndex={-1}
-                      className="text-[#0b5796] opacity-80 cursor-default focus:ring-0"
-                    />
-                    <span className={form.reincidente !== 'SIM' ? 'font-medium text-slate-800' : 'text-slate-400'}>
-                      Não
-                    </span>
-                  </label>
-                  <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-default">
-                    <input
-                      type="radio"
-                      name="reincidente_readonly"
-                      value="SIM"
-                      checked={form.reincidente === 'SIM'}
-                      disabled
-                      readOnly
-                      tabIndex={-1}
-                      className="text-amber-600 opacity-80 cursor-default focus:ring-0"
-                    />
-                    <span className={form.reincidente === 'SIM' ? 'text-amber-800 font-bold' : 'text-slate-400'}>
-                      Sim
-                    </span>
-                  </label>
-                </div>
-
-                {/* Badge Reincidência exata do defeito (Indica histórico no Card 3) */}
-                {isPecaSelecionada && historicoReincidencias.length > 0 && (
-                  <span 
-                    className="flex items-center gap-1 text-[11px] font-semibold text-amber-900 bg-amber-100 px-2.5 py-1 rounded-lg border border-amber-300 shadow-2xs"
-                    title="Histórico de reincidências detalhado no Passo 3 abaixo"
-                  >
-                    <History className="w-3.5 h-3.5 text-amber-700" />
-                    <span>{historicoReincidencias.length} anterior(es)</span>
+                  <span className="text-slate-600">Peça comum:</span>
+                  <span className={`font-bold ${
+                    !isPecaSelecionada ? 'text-slate-400' :
+                    form.carryOver === 'Sim' ? 'text-amber-800' : 'text-slate-700'
+                  }`}>
+                    {isPecaSelecionada ? (form.carryOver || 'Não') : '-'}
                   </span>
-                )}
+                </div>
+
+                {/* Co-produto (Espelho) */}
+                <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold shadow-2xs ${
+                  isPecaSelecionada && form.coProduto === 'Sim'
+                    ? 'bg-purple-50 border-purple-200 text-purple-900'
+                    : 'bg-slate-50/50 border-slate-200/80 text-slate-700'
+                }`}>
+                  <Layers className="w-3.5 h-3.5 text-purple-600" />
+                  <span className="text-slate-600">Co-produto (Espelho):</span>
+                  <span className={`font-bold ${
+                    !isPecaSelecionada ? 'text-slate-400' :
+                    form.coProduto === 'Sim' ? 'text-purple-800' : 'text-slate-700'
+                  }`}>
+                    {isPecaSelecionada ? (form.coProduto || 'Não') : '-'}
+                  </span>
+                </div>
+
+                {/* Peça de Segurança (FMEA) */}
+                <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold shadow-2xs ${
+                  isPecaSelecionada && form.caracteristicaSeguranca === 'Sim'
+                    ? 'bg-rose-50 border-rose-200 text-rose-800'
+                    : 'bg-slate-50/50 border-slate-200/80 text-slate-700'
+                }`}>
+                  {isPecaSelecionada && form.caracteristicaSeguranca === 'Sim' ? (
+                    <ShieldAlert className="w-3.5 h-3.5 text-rose-600" />
+                  ) : (
+                    <ShieldCheck className="w-3.5 h-3.5 text-slate-400" />
+                  )}
+                  <span>Peça de Segurança (FMEA):</span>
+                  <span className="font-bold">
+                    {isPecaSelecionada ? (form.caracteristicaSeguranca || 'Não') : '-'}
+                  </span>
+                </div>
+
+                {/* Reincidente: Apenas Visualização (Preenchimento Automático via Histórico) */}
+                <div 
+                  className="flex items-center gap-2.5 ml-auto pl-2"
+                  title="Campo de visualização preenchido automaticamente com base no histórico da peça e modo de falha"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-semibold text-slate-700">Reincidente:</span>
+                    <span className="text-[10px] text-slate-400 font-normal hidden sm:inline">(Automático)</span>
+                  </div>
+                  <div className="flex items-center gap-2 select-none pointer-events-none">
+                    <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-default">
+                      <input
+                        type="radio"
+                        name="reincidente_readonly"
+                        value="NÃO"
+                        checked={form.reincidente !== 'SIM'}
+                        disabled
+                        readOnly
+                        tabIndex={-1}
+                        className="text-[#0b5796] opacity-80 cursor-default focus:ring-0"
+                      />
+                      <span className={form.reincidente !== 'SIM' ? 'font-medium text-slate-800' : 'text-slate-400'}>
+                        Não
+                      </span>
+                    </label>
+                    <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-default">
+                      <input
+                        type="radio"
+                        name="reincidente_readonly"
+                        value="SIM"
+                        checked={form.reincidente === 'SIM'}
+                        disabled
+                        readOnly
+                        tabIndex={-1}
+                        className="text-amber-600 opacity-80 cursor-default focus:ring-0"
+                      />
+                      <span className={form.reincidente === 'SIM' ? 'text-amber-800 font-bold' : 'text-slate-400'}>
+                        Sim
+                      </span>
+                    </label>
+                  </div>
+
+                  {/* Badge Reincidência exata do defeito (Indica histórico no Card 3) */}
+                  {isPecaSelecionada && historicoReincidencias.length > 0 && (
+                    <span 
+                      className="flex items-center gap-1 text-[11px] font-semibold text-amber-900 bg-amber-100 px-2.5 py-1 rounded-lg border border-amber-300 shadow-2xs"
+                      title="Histórico de reincidências detalhado no Passo 3 abaixo"
+                    >
+                      <History className="w-3.5 h-3.5 text-amber-700" />
+                      <span>{historicoReincidencias.length} anterior(es)</span>
+                    </span>
+                  )}
+                </div>
               </div>
+
+              {/* Detalhamento automático quando Peça comum, Co-produto (Espelho) ou Peça de Segurança (FMEA) for Sim */}
+              {isPecaSelecionada && (form.carryOver === 'Sim' || form.coProduto === 'Sim' || form.caracteristicaSeguranca === 'Sim') && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+                  {form.carryOver === 'Sim' && (
+                    <div className="p-2.5 rounded-xl bg-amber-50/70 border border-amber-200/80 flex flex-col gap-1">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800">
+                        Peças com este Componente em Comum
+                      </span>
+                      <input
+                        type="text"
+                        value={form.pecasComuns || ''}
+                        onChange={e => setForm(prev => ({ ...prev, pecasComuns: e.target.value }))}
+                        placeholder="Informe quais peças compartilham este componente..."
+                        className="w-full h-8 px-2.5 bg-white text-amber-950 text-xs font-medium rounded-lg border border-amber-200 focus:border-amber-500 outline-none"
+                      />
+                    </div>
+                  )}
+
+                  {form.coProduto === 'Sim' && (
+                    <div className="p-2.5 rounded-xl bg-purple-50/70 border border-purple-200/80 flex flex-col gap-1">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-purple-800">
+                        Peça Espelho (Co-produto Simétrico)
+                      </span>
+                      <input
+                        type="text"
+                        value={form.pecaEspelho || ''}
+                        onChange={e => setForm(prev => ({ ...prev, pecaEspelho: e.target.value }))}
+                        placeholder="Informe a peça espelho correspondente (LH/RH)..."
+                        className="w-full h-8 px-2.5 bg-white text-purple-950 text-xs font-medium rounded-lg border border-purple-200 focus:border-purple-500 outline-none"
+                      />
+                    </div>
+                  )}
+
+                  {form.caracteristicaSeguranca === 'Sim' && (
+                    <div className="p-2.5 rounded-xl bg-rose-50/70 border border-rose-200/80 flex flex-col gap-1">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-rose-800">
+                        Aspecto de Segurança do Item (FMEA)
+                      </span>
+                      <input
+                        type="text"
+                        value={form.aspectoSeguranca || ''}
+                        onChange={e => setForm(prev => ({ ...prev, aspectoSeguranca: e.target.value }))}
+                        placeholder="Informe qual aspecto de segurança o item possui..."
+                        className="w-full h-8 px-2.5 bg-white text-rose-950 text-xs font-medium rounded-lg border border-rose-200 focus:border-rose-500 outline-none"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
           </div>
@@ -2021,12 +2138,9 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Classificação / Modo de Falha Padronizado (Choices do SharePoint) */}
             {isFieldVisible('modoFalha') && (
-              <div className="flex flex-col gap-1.5 md:col-span-2 lg:col-span-1" style={{ order: getFieldOrder('modoFalha', 200) }}>
+              <div className="flex flex-col gap-1.5 md:col-span-1 lg:col-span-2" style={{ order: getFieldOrder('modoFalha', 200) }}>
                 <label className="text-xs font-semibold text-slate-700 h-5 flex items-center justify-between">
                   <span>{getFieldLabel('modoFalha', 'Classificação do Defeito')} {isFieldRequired('modoFalha', true) && <strong className="text-rose-500">*</strong>}</span>
-                  <span className="text-[10px] text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded font-medium leading-none">
-                    Modo de Falha
-                  </span>
                 </label>
                 <SearchableSelect
                   value={form.modoFalha || ''}
@@ -2049,34 +2163,9 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
               </div>
             )}
 
-            {/* Descrição Detalhada do Defeito */}
-            {isFieldVisible('descricaoProblema') && (
-              <div className="flex flex-col gap-1.5 md:col-span-2 lg:col-span-2" style={{ order: getFieldOrder('descricaoProblema', 210) }}>
-                <label className="text-xs font-semibold text-slate-700 h-5 flex items-center justify-between">
-                  <span>{getFieldLabel('descricaoProblema', 'Detalhamento Técnico da Não Conformidade')} {isFieldRequired('descricaoProblema', true) && <strong className="text-rose-500">*</strong>}</span>
-                  <span className="text-[11px] text-slate-400 font-normal leading-none">
-                    {(form.descricaoProblema || '').length} carac.
-                  </span>
-                </label>
-                <textarea
-                  rows={3}
-                  value={form.descricaoProblema || ''}
-                  onChange={e => {
-                    clearFieldError('descricaoProblema');
-                    setForm(prev => ({ ...prev, descricaoProblema: e.target.value }));
-                  }}
-                  placeholder={getFieldPlaceholder('descricaoProblema', 'Descreva aqui o detalhamento técnico do problema (ex: local exato, dimensões fora da tolerância, número do cordão ou ponto de solda afetado)...')}
-                  className={`w-full p-3 bg-white text-slate-900 text-xs sm:text-sm rounded-xl border outline-none transition-all resize-y ${
-                    errors.descricaoProblema ? 'border-rose-500 focus:ring-2 focus:ring-rose-200' : 'border-slate-200 focus:border-[#0b5796] focus:ring-2 focus:ring-[#0b5796]/15'
-                  }`}
-                />
-                {errors.descricaoProblema && <span className="text-[11px] text-rose-500 font-medium">{errors.descricaoProblema}</span>}
-              </div>
-            )}
-
             {/* Quantidade Afetada */}
             {isFieldVisible('quantidadeAfetada') && (
-              <div className="flex flex-col gap-1.5 md:col-span-2 lg:col-span-1" style={{ order: getFieldOrder('quantidadeAfetada', 220) }}>
+              <div className="flex flex-col gap-1.5 md:col-span-1 lg:col-span-2" style={{ order: getFieldOrder('quantidadeAfetada', 220) }}>
                 <label className="text-xs font-semibold text-slate-700 h-5 flex items-center justify-between">
                   <span>{getFieldLabel('quantidadeAfetada', 'Quantidade Não Conforme')} {isFieldRequired('quantidadeAfetada', true) && <strong className="text-rose-500">*</strong>}</span>
                 </label>
@@ -2536,92 +2625,59 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
                   Preenchido ao completar o relatório inicial: anexe a foto da peça boa/aprovada para servir como padrão de conformidade e referência de auditoria.
                 </p>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-1">
-                  {/* Comparativo de Referência: Peça NG preenchida no relatório inicial */}
-                  <div className="flex flex-col gap-1.5 p-3 rounded-lg bg-white/90 border border-slate-200">
-                    <span className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
-                      <AlertTriangle className="w-3 h-3 text-rose-500" />
-                      Referência: Peça NG (Preenchida no Relatório Inicial)
-                    </span>
-                    {form.fotoPecaNg ? (
-                      <div className="relative group rounded-lg overflow-hidden border border-rose-100 bg-rose-50/30 h-36 flex items-center justify-center">
-                        <img
-                          src={form.fotoPecaNg}
-                          alt="Peça NG"
-                          className="w-full h-full object-contain p-1"
-                        />
+                <div className="mt-1">
+                  {/* Upload da Peça OK (Card 30) */}
+                  {form.fotoPecaOk ? (
+                    <div className="relative group rounded-xl overflow-hidden border border-emerald-200 bg-white h-56 flex items-center justify-center">
+                      <img
+                        src={form.fotoPecaOk}
+                        alt="Peça OK"
+                        className="w-full h-full object-contain p-2"
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                         <button
                           type="button"
-                          onClick={() => setPreviewFoto({ url: form.fotoPecaNg!, titulo: 'Foto da Peça Não Conforme (NG)' })}
-                          className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-semibold gap-1 cursor-pointer"
+                          onClick={() => setPreviewFoto({ url: form.fotoPecaOk!, titulo: 'Foto do Padrão de Referência (OK)' })}
+                          className="px-3 py-1.5 bg-white text-slate-900 rounded-lg text-xs font-semibold flex items-center gap-1 shadow-sm cursor-pointer hover:bg-slate-100"
                         >
                           <Eye className="w-3.5 h-3.5" />
-                          <span>Ampliar NG</span>
+                          <span>Visualizar</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => fileInputOkRef.current?.click()}
+                          className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold flex items-center gap-1 shadow-sm cursor-pointer hover:bg-emerald-700"
+                        >
+                          <Upload className="w-3.5 h-3.5" />
+                          <span>Trocar</span>
                         </button>
                       </div>
-                    ) : (
-                      <div className="h-36 rounded-lg border border-dashed border-slate-200 bg-slate-50/60 flex flex-col items-center justify-center text-center p-2 text-slate-400 text-xs">
-                        <span>Nenhuma foto NG anexada no relatório inicial</span>
+                    </div>
+                  ) : (
+                    <div
+                      onClick={() => fileInputOkRef.current?.click()}
+                      className="h-44 rounded-xl border-2 border-dashed border-emerald-300 hover:border-emerald-500 bg-white/70 hover:bg-white flex flex-col items-center justify-center gap-2 cursor-pointer transition-all text-center p-4"
+                    >
+                      <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shadow-2xs">
+                        <Camera className="w-5 h-5" />
                       </div>
-                    )}
-                  </div>
-
-                  {/* Upload da Peça OK (Card 30) */}
-                  <div className="flex flex-col gap-1.5 p-3 rounded-lg bg-white/90 border border-emerald-200">
-                    <span className="text-[11px] font-bold text-emerald-800 flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                      Upload da Peça OK (Padrão Aceitável)
-                    </span>
-                    {form.fotoPecaOk ? (
-                      <div className="relative group rounded-lg overflow-hidden border border-emerald-200 bg-emerald-50/30 h-36 flex items-center justify-center">
-                        <img
-                          src={form.fotoPecaOk}
-                          alt="Peça OK"
-                          className="w-full h-full object-contain p-1"
-                        />
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setPreviewFoto({ url: form.fotoPecaOk!, titulo: 'Foto do Padrão de Referência (OK)' })}
-                            className="px-2.5 py-1 bg-white text-slate-900 rounded-lg text-xs font-semibold flex items-center gap-1 shadow-sm cursor-pointer"
-                          >
-                            <Eye className="w-3 h-3" />
-                            <span>Ver</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => fileInputOkRef.current?.click()}
-                            className="px-2.5 py-1 bg-emerald-600 text-white rounded-lg text-xs font-semibold flex items-center gap-1 shadow-sm cursor-pointer"
-                          >
-                            <Upload className="w-3 h-3" />
-                            <span>Trocar</span>
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div
-                        onClick={() => fileInputOkRef.current?.click()}
-                        className="h-36 rounded-lg border-2 border-dashed border-emerald-300 hover:border-emerald-500 bg-emerald-50/20 hover:bg-emerald-50/50 flex flex-col items-center justify-center gap-1.5 cursor-pointer transition-all text-center p-2"
-                      >
-                        <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shadow-2xs">
-                          <Camera className="w-4 h-4" />
-                        </div>
+                      <div>
                         <span className="text-xs font-semibold text-emerald-900 block">
-                          Clique para anexar a Peça OK
+                          Clique para anexar a Peça OK (Padrão de Referência)
                         </span>
-                        <span className="text-[10px] text-slate-400">
-                          Padrão de referência
+                        <span className="text-[11px] text-slate-400">
+                          JPG, PNG ou WEBP • Máximo 10MB
                         </span>
                       </div>
-                    )}
-                    <input
-                      ref={fileInputOkRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={e => handleFileUpload(e, 'fotoPecaOk')}
-                    />
-                  </div>
+                    </div>
+                  )}
+                  <input
+                    ref={fileInputOkRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={e => handleFileUpload(e, 'fotoPecaOk')}
+                  />
                 </div>
               </div>
               )}
@@ -3000,7 +3056,8 @@ export const Registro8DView: React.FC<Registro8DViewProps> = ({
           rnc={rncVisualizarModal}
           onClose={() => setRncVisualizarModal(null)}
           onOpenFullPage={id => {
-            window.open(`?screen=detalhes-8d&rncId=${id}`, '_blank');
+            setRncVisualizarModal(null);
+            onNavigate('detalhes-8d', { rncId: id });
           }}
         />
       )}

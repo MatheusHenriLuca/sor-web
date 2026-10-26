@@ -12,12 +12,86 @@ import {
   OptionCategoryMeta,
   FormFieldConfig,
   FormSectionId,
+  FormModuleId,
   FormFieldType,
   HistoricoAcaoRecord,
-  SaaSUserRole
+  SaaSUserRole,
+  AppPermissionLevel,
+  UserAppProfiles,
+  UserRole,
+  ColaboradorBaseAtivos
 } from '../types';
 import { compressImageToWebP, estimateDataUrlSizeKB, CompressedImageResult } from '../utils/imageCompressor';
 import { normalizeDisplayText } from '../utils/formatText';
+
+export function getDefaultColumnsForCategory(categoryId: string): string[] {
+  const canonical = resolveCanonicalCategory(categoryId);
+  switch (canonical) {
+    case 'master_funcionarios':
+      return ['Nome', 'RE / Matrícula', 'Cargo', 'Setor'];
+    case 'master_pecas_produtos':
+      return ['Peça / Produto', 'Código Material', 'Cliente', 'Posto / Linha'];
+    case 'posto_trabalho':
+      return ['Posto de Trabalho', 'Código', 'Área / Setor'];
+    case 'area_fabril':
+      return ['Área / Setor Fabril', 'Código FMDS', 'Descrição'];
+    case 'cliente_montadora':
+      return ['Cliente / Montadora', 'Sigla / Código', 'Planta / Cidade'];
+    case 'cat_defeito':
+      return ['Modo de Falha / Defeito', 'Código', 'Severidade / Família'];
+    default:
+      return ['Nome', 'Código', 'Detalhe'];
+  }
+}
+
+export const MASTER_SHARED_CATEGORIES: MasterDataCategory[] = [
+  'master_funcionarios',
+  'master_pecas_produtos',
+  'posto_trabalho',
+  'area_fabril',
+  'cliente_montadora'
+];
+
+export function resolveCanonicalCategory(tipo: MasterDataCategory): MasterDataCategory {
+  if (!tipo) return tipo;
+  if (tipo === 'plano_posto' || tipo === 'postos') return 'posto_trabalho';
+  if (tipo === 'plano_area' || tipo === 'fmds') return 'area_fabril';
+  if (tipo === 'plano_produto' || tipo === 'pecas' || tipo === 'produtos' || tipo === 'componentes') {
+    return 'master_pecas_produtos';
+  }
+  if (tipo === 'colaboradores' || tipo === 'funcionarios' || tipo === 'equipe' || tipo === 'usuarios') {
+    return 'master_funcionarios';
+  }
+  return tipo;
+}
+
+export interface BulkConfigColumnDef {
+  categoryId: MasterDataCategory;
+  headerTitle: string;
+  description: string;
+  isMaster: boolean;
+  appScope: 'master' | 'plano_acao' | 'qualidade_8d';
+  aliases: string[];
+}
+
+export interface BulkPasteColumnAnalysis {
+  colIndex: number;
+  rawHeader: string;
+  categoryId: MasterDataCategory;
+  categoryTitle: string;
+  isMaster: boolean;
+  newItems: string[];
+  existingItems: string[];
+  totalPasted: number;
+}
+
+export interface BulkPasteAnalysisResult {
+  recognizedColumns: BulkPasteColumnAnalysis[];
+  unrecognizedHeaders: string[];
+  totalNewCount: number;
+  totalExistingCount: number;
+  hasConflicts: boolean;
+}
 
 export function normalizeRncRecordCasing(r: RNCRecord): RNCRecord {
   const normList = (val?: string) =>
@@ -76,7 +150,7 @@ export function normalizeMasterDataItemCasing(m: MasterDataItem): MasterDataItem
 // GERADOR DE ILUSTRAÇÕES TÉCNICAS SVG (PEÇA NG / PEÇA OK) PARA AS 10 RNCS PILOTO
 // Garante zero imagens quebradas e alto contraste técnico no chão de fábrica
 // ============================================================================
-function createTechnicalSvgDataUrl(
+export function createTechnicalSvgDataUrl(
   type: 'NG' | 'OK',
   code: string,
   title: string,
@@ -294,15 +368,63 @@ const INITIAL_SAAS_USERS: UsuarioQualidade[] = [
 // ============================================================================
 export function getDefaultOptionCategoriesForTenant(tenantId: string): OptionCategoryMeta[] {
   return [
+    // =========================================================================
+    // CONFIGURAÇÃO MASTER (COMPARTILHADA ENTRE TODOS OS APPS: PLANO, RNC, 8D)
+    // =========================================================================
+    {
+      id: 'master_funcionarios',
+      tenant_id: tenantId,
+      nome: 'Lista de Funcionários (Master)',
+      descricao: 'Cadastro único de colaboradores compartilhado entre Plano de Ação, RNC e 8D. Novos funcionários recebem automaticamente o perfil Usuário Comum.',
+      usadoNoFormulario: true,
+      campoVinculado: 'Responsável / Detector / Participantes (Todos os Apps)',
+      isSystem: true,
+      isMasterShared: true
+    },
+    {
+      id: 'master_pecas_produtos',
+      tenant_id: tenantId,
+      nome: 'Lista de Peças / Produtos (Master)',
+      descricao: 'Catálogo unificado de peças, conjuntos e produtos compartilhado entre Plano de Ação, RNC e 8D.',
+      usadoNoFormulario: true,
+      campoVinculado: 'Produto / Peça / Conjunto (Todos os Apps)',
+      isSystem: true,
+      isMasterShared: true
+    },
+    {
+      id: 'posto_trabalho',
+      tenant_id: tenantId,
+      nome: 'Lista de Postos de Trabalho (Master)',
+      descricao: 'Estações, células e máquinas operacionais compartilhadas entre Plano de Ação, RNC e 8D.',
+      usadoNoFormulario: true,
+      campoVinculado: 'Posto de Trabalho (Todos os Apps)',
+      isSystem: true,
+      isMasterShared: true
+    },
+    {
+      id: 'area_fabril',
+      tenant_id: tenantId,
+      nome: 'Áreas / Setores Fabris (Master)',
+      descricao: 'Linhas fabris, quadros FMDS e setores industriais compartilhados entre Plano de Ação, RNC e 8D.',
+      usadoNoFormulario: true,
+      campoVinculado: 'Área / Setor Fabril (Todos os Apps)',
+      isSystem: true,
+      isMasterShared: true
+    },
     {
       id: 'cliente_montadora',
       tenant_id: tenantId,
-      nome: 'Montadoras / Clientes',
-      descricao: 'Lista de clientes e montadoras atendidas pela planta industrial.',
+      nome: 'Clientes / Montadoras (Master)',
+      descricao: 'Lista de clientes e montadoras atendidas pela planta industrial (compartilhada entre os módulos).',
       usadoNoFormulario: true,
-      campoVinculado: 'Cliente (Montadora)',
-      isSystem: true
+      campoVinculado: 'Cliente / Montadora (Todos os Apps)',
+      isSystem: true,
+      isMasterShared: true
     },
+
+    // =========================================================================
+    // CATEGORIAS ESPECÍFICAS DO APP GESTÃO DA QUALIDADE (RNC & 8D)
+    // =========================================================================
     {
       id: 'tipo_rnc',
       tenant_id: tenantId,
@@ -346,24 +468,6 @@ export function getDefaultOptionCategoriesForTenant(tenantId: string): OptionCat
       descricao: 'Define se a ocorrência afeta Peça Final, Componente Isolado ou Subcomponente.',
       usadoNoFormulario: true,
       campoVinculado: 'Tipo de Peça Rastreada',
-      isSystem: true
-    },
-    {
-      id: 'area_fabril',
-      tenant_id: tenantId,
-      nome: 'Linhas Fabris / Áreas FMDS',
-      descricao: 'Células produtivas, quadros FMDS e setores fabris.',
-      usadoNoFormulario: true,
-      campoVinculado: 'Área FMDS / Setor Fabril',
-      isSystem: true
-    },
-    {
-      id: 'posto_trabalho',
-      tenant_id: tenantId,
-      nome: 'Postos de Trabalho',
-      descricao: 'Estações e máquinas operacionais vinculadas às linhas fabris.',
-      usadoNoFormulario: true,
-      campoVinculado: 'Posto de Trabalho Cadastrado',
       isSystem: true
     },
     {
@@ -420,8 +524,6 @@ export function getDefaultOptionCategoriesForTenant(tenantId: string): OptionCat
       campoVinculado: 'Abrir 8D',
       isSystem: true
     },
-    // Campos de opções de controle / sistema que não ficam abertos no formulário inicial,
-    // mas que os admins podem incluir, editar ou excluir livremente (e vincular se desejarem)
     {
       id: 'status_rnc',
       tenant_id: tenantId,
@@ -453,6 +555,104 @@ export function getDefaultOptionCategoriesForTenant(tenantId: string): OptionCat
       descricao: 'Lista de fornecedores de aço, químicos e componentes externos para controle de qualidade.',
       usadoNoFormulario: false,
       isSystem: true
+    },
+
+    // =========================================================================
+    // CATEGORIAS ESPECÍFICAS DO APP DE PLANO DE AÇÃO
+    // =========================================================================
+    {
+      id: 'plano_indicador',
+      tenant_id: tenantId,
+      nome: 'Indicador / Programa Estratégico',
+      descricao: 'Programas corporativos vinculados aos planos de ação (ex: 8D, Atendimento Cliente, Kaizen, Fast Response, etc.).',
+      usadoNoFormulario: false,
+      campoVinculado: 'Plano de Ação (Indicador)',
+      isSystem: false,
+      appModule: 'plano_acao'
+    },
+    {
+      id: 'plano_sub1',
+      tenant_id: tenantId,
+      nome: 'Subindicador',
+      descricao: 'Detalhamento do programa ou área do plano de ação (ex: Qualidade Cliente, Manutenção, Produção).',
+      usadoNoFormulario: false,
+      campoVinculado: 'Plano de Ação (Subindicador)',
+      isSystem: false,
+      appModule: 'plano_acao'
+    },
+    {
+      id: 'plano_prioridade',
+      tenant_id: tenantId,
+      nome: 'Níveis de Prioridade do Plano',
+      descricao: 'Escala de prioridade para execução e prazos das ações (Alta, Média, Baixa).',
+      usadoNoFormulario: true,
+      campoVinculado: 'Plano de Ação (Prioridade)',
+      isSystem: false,
+      appModule: 'plano_acao'
+    },
+    {
+      id: 'plano_status_lista',
+      tenant_id: tenantId,
+      nome: 'Status do Plano de Ação e Tarefas 5W2H',
+      descricao: 'Estados de fluxo dos planos e contramedidas (Aberto, Em Andamento, Concluído, Validado, Atrasado, Cancelado).',
+      usadoNoFormulario: false,
+      campoVinculado: 'Status do Plano e Status das Ações',
+      isSystem: true,
+      appModule: 'plano_acao'
+    },
+    {
+      id: 'plano_decisao_auditoria_lista',
+      tenant_id: tenantId,
+      nome: 'Decisões de Auditoria e Homologação (Plano & 8D)',
+      descricao: 'Opções de decisão do auditor da qualidade na validação de eficácia (Aprovar & Homologar, Solicitar Revisão).',
+      usadoNoFormulario: false,
+      campoVinculado: 'Decisão da Auditoria / Fechamento 8D',
+      isSystem: true,
+      appModule: 'plano_acao'
+    },
+
+    // =========================================================================
+    // CATEGORIAS ESPECÍFICAS DA METODOLOGIA 8D (D1 A D8)
+    // =========================================================================
+    {
+      id: 'oitod_tipos_acao',
+      tenant_id: tenantId,
+      nome: 'Tipos de Ação (3D / 5D / 6D / 7D & Plano)',
+      descricao: 'Classificação das contramedidas do 8D e Plano de Ação (Contenção, Corretiva, Preventiva, Melhoria).',
+      usadoNoFormulario: true,
+      campoVinculado: 'Etapas 3D, 5D, 6D, 7D e Plano de Ação',
+      isSystem: true,
+      appModule: 'oitod'
+    },
+    {
+      id: 'oitod_documentos_7d',
+      tenant_id: tenantId,
+      nome: 'Eixos / Documentos de Prevenção 7D (IATF)',
+      descricao: 'Documentos e padrões sistêmicos atualizados na etapa 7D (FMEA, Trabalho Padronizado, Auditoria Escalonada, Plano de Controle, LPP).',
+      usadoNoFormulario: true,
+      campoVinculado: 'Etapa 7D — Prevenção da Recorrência',
+      isSystem: true,
+      appModule: 'oitod'
+    },
+    {
+      id: 'oitod_6m_ishikawa',
+      tenant_id: tenantId,
+      nome: 'Categorias 6M (Ishikawa & Henkaten 4D)',
+      descricao: 'Eixos de investigação de causa raiz no Diagrama Espinha de Peixe (Máquina, Mão de Obra, Método, Material, Medição, Meio Ambiente).',
+      usadoNoFormulario: true,
+      campoVinculado: 'Etapa 4D — Ishikawa & Henkaten',
+      isSystem: true,
+      appModule: 'oitod'
+    },
+    {
+      id: 'oitod_estoques_locais',
+      tenant_id: tenantId,
+      nome: 'Locais de Estoque / Quarentena (Triagem 3D)',
+      descricao: 'Locais de segregação e inspeção de lotes na etapa 3D (Estoque WIP, Quarentena, Expedição, Trânsito, Cliente).',
+      usadoNoFormulario: true,
+      campoVinculado: 'Etapa 3D — Lotes Verificados na Contenção',
+      isSystem: true,
+      appModule: 'oitod'
     }
   ];
 }
@@ -465,10 +665,43 @@ export function getDefaultOptionItemsForTenant(tenantId: string): MasterDataItem
         { id: `${tenantId}-cli-2`, tenant_id: tenantId, tipo: 'cliente_montadora', nome: 'MERCEDES-BENZ CAMINHÕES', codigo: 'MBB', detalhe: 'Planta ABC', ativo: true },
         { id: `${tenantId}-area-1`, tenant_id: tenantId, tipo: 'area_fabril', nome: 'FORJARIA PESADA EIXOS', codigo: 'FORJ-01', detalhe: 'Linha Pesada', ativo: true },
         { id: `${tenantId}-posto-1`, tenant_id: tenantId, tipo: 'posto_trabalho', nome: 'PRENSA HIDRÁULICA 2500T', detalhe: 'FORJARIA PESADA EIXOS', ativo: true },
-        { id: `${tenantId}-def-1`, tenant_id: tenantId, tipo: 'cat_defeito', nome: 'Microfissura térmica pós-têmpera', codigo: 'MET-01', detalhe: 'Alta / Metalurgia', ativo: true }
+        { id: `${tenantId}-def-1`, tenant_id: tenantId, tipo: 'cat_defeito', nome: 'Microfissura térmica pós-têmpera', codigo: 'MET-01', detalhe: 'Alta / Metalurgia', ativo: true },
+        { id: `${tenantId}-func-v1`, tenant_id: tenantId, tipo: 'master_funcionarios', nome: 'Ricardo Prado', codigo: '50101', detalhe: 'Gestor Industrial • Diretoria Industrial', ativo: true },
+        { id: `${tenantId}-func-v2`, tenant_id: tenantId, tipo: 'master_funcionarios', nome: 'Fernanda Costa', codigo: '50102', detalhe: 'Analista de Qualidade • Laboratório Metrologia', ativo: true },
+        { id: `${tenantId}-prod-v1`, tenant_id: tenantId, tipo: 'master_pecas_produtos', nome: 'EIXO DIANTEIRO FORJADO SCANIA', codigo: '8001200', detalhe: 'SCANIA LATIN AMERICA', ativo: true }
       ]
     : [
-        // MH Lean & Soluções — Clientes / Montadoras
+        // MH Lean & Soluções — Funcionários (Master Compartilhado)
+        { id: `${tenantId}-func-1`, tenant_id: tenantId, tipo: 'master_funcionarios', nome: 'Matheus Henrique de Luca', codigo: '104235', detalhe: 'Gerente da Qualidade • Qualidade Corporativa', ativo: true },
+        { id: `${tenantId}-func-2`, tenant_id: tenantId, tipo: 'master_funcionarios', nome: 'Fernando Tiago Maciel de Jesus', codigo: '98112', detalhe: 'Analista da Qualidade • Qualidade Assegurada', ativo: true },
+        { id: `${tenantId}-func-3`, tenant_id: tenantId, tipo: 'master_funcionarios', nome: 'Carlos Eduardo Ferreira', codigo: '89452', detalhe: 'Engenheiro da Qualidade Sênior • Qualidade Assegurada', ativo: true },
+        { id: `${tenantId}-func-4`, tenant_id: tenantId, tipo: 'master_funcionarios', nome: 'Mariana Souza Lima', codigo: '76512', detalhe: 'Líder de Inspeção da Qualidade • Qualidade Linhas', ativo: true },
+        { id: `${tenantId}-func-5`, tenant_id: tenantId, tipo: 'master_funcionarios', nome: 'Roberto Mendes Silva', codigo: '64129', detalhe: 'Inspetor da Qualidade Solda • Inspeção Estamparia', ativo: true },
+        { id: `${tenantId}-func-6`, tenant_id: tenantId, tipo: 'master_funcionarios', nome: 'André Ferreira Santos', codigo: '52187', detalhe: 'Engenheiro de Processos • Engenharia de Processos', ativo: true },
+        { id: `${tenantId}-func-7`, tenant_id: tenantId, tipo: 'master_funcionarios', nome: 'Juliana Santos Oliveira', codigo: '41290', detalhe: 'Supervisora de Turno • Produção Estamparia', ativo: true },
+        { id: `${tenantId}-func-8`, tenant_id: tenantId, tipo: 'master_funcionarios', nome: 'Marcos Vinicius Barbosa', codigo: '30122', detalhe: 'Operador de Robô Solda Ponto • Solda Toyota', ativo: true },
+        { id: `${tenantId}-func-9`, tenant_id: tenantId, tipo: 'master_funcionarios', nome: 'Felipe Almeida Castro', codigo: '30123', detalhe: 'Prensista A • Estamparia Tandem', ativo: true },
+        { id: `${tenantId}-func-10`, tenant_id: tenantId, tipo: 'master_funcionarios', nome: 'Thiago Ramos Pinheiro', codigo: '30124', detalhe: 'Operador Célula Robô • Solda Honda', ativo: true },
+        { id: `${tenantId}-func-11`, tenant_id: tenantId, tipo: 'master_funcionarios', nome: 'Lucas Gabriel Duarte', codigo: '30125', detalhe: 'Inspetor de Linha • Solda Hyundai', ativo: true },
+        { id: `${tenantId}-func-12`, tenant_id: tenantId, tipo: 'master_funcionarios', nome: 'Diego Henrique Costa', codigo: '30126', detalhe: 'Operador Solda MIG • Solda Geral', ativo: true },
+        { id: `${tenantId}-func-13`, tenant_id: tenantId, tipo: 'master_funcionarios', nome: 'Rafael Augusto Souza', codigo: '30127', detalhe: 'Ajustador de Estampos • Estamparia Progressiva', ativo: true },
+        { id: `${tenantId}-func-14`, tenant_id: tenantId, tipo: 'master_funcionarios', nome: 'Gabriel Martins Ribeiro', codigo: '30128', detalhe: 'Auditor de Produto • Controle da Qualidade', ativo: true },
+        { id: `${tenantId}-func-15`, tenant_id: tenantId, tipo: 'master_funcionarios', nome: 'Alexandre Pires Lima', codigo: '30129', detalhe: 'Técnico Mecânico • Manutenção Industrial', ativo: true },
+        { id: `${tenantId}-func-16`, tenant_id: tenantId, tipo: 'master_funcionarios', nome: 'Vinicius Nogueira', codigo: '30130', detalhe: 'Operador Empilhadeira • Logística Fabril', ativo: true },
+
+        // MH Lean & Soluções — Peças / Produtos (Master Compartilhado)
+        { id: `${tenantId}-prod-1`, tenant_id: tenantId, tipo: 'master_pecas_produtos', nome: '53201-0D120 - PAINEL DIANTEIRO INFERIOR COMPLETO', codigo: '10045210', detalhe: 'TDB - SOROCABA • POSTO 04 - SOLDA PONTO', ativo: true },
+        { id: `${tenantId}-prod-2`, tenant_id: tenantId, tipo: 'master_pecas_produtos', nome: '53205-0D080 - CONJUNTO SUPORTE RADIADOR', codigo: '10045280', detalhe: 'TDB - SOROCABA • POSTO 02 - PRENSA TRANSFER LINHA B', ativo: true },
+        { id: `${tenantId}-prod-3`, tenant_id: tenantId, tipo: 'master_pecas_produtos', nome: '57011-02230 - LONGARINA DIANTEIRA COMPLETA RH (CROSS)', codigo: '10045300', detalhe: 'TDB - SOROCABA • POSTO 07 - GEOMETRIA SOLDA TOYOTA', ativo: true },
+        { id: `${tenantId}-prod-4`, tenant_id: tenantId, tipo: 'master_pecas_produtos', nome: '57012-02230 - LONGARINA DIANTEIRA COMPLETA LH (CROSS)', codigo: '10045310', detalhe: 'TDB - SOROCABA • POSTO 07 - GEOMETRIA SOLDA TOYOTA', ativo: true },
+        { id: `${tenantId}-prod-5`, tenant_id: tenantId, tipo: 'master_pecas_produtos', nome: '61201-02380 - COLUNA CENTRAL B-PILLAR FORMADA A QUENTE', codigo: '10045400', detalhe: 'TDB - SOROCABA • POSTO 04 - SOLDA PONTO', ativo: true },
+        { id: `${tenantId}-prod-6`, tenant_id: tenantId, tipo: 'master_pecas_produtos', nome: 'VW T-Cross', codigo: 'VW-TC', detalhe: 'Plataforma MQB • VOLKSWAGEN', ativo: true },
+        { id: `${tenantId}-prod-7`, tenant_id: tenantId, tipo: 'master_pecas_produtos', nome: 'VW Nivus', codigo: 'VW-NV', detalhe: 'Plataforma MQB-A0 • VOLKSWAGEN', ativo: true },
+        { id: `${tenantId}-prod-8`, tenant_id: tenantId, tipo: 'master_pecas_produtos', nome: 'Toyota Corolla', codigo: 'TOY-COR', detalhe: 'Sedan e Cross • TDB - SOROCABA', ativo: true },
+        { id: `${tenantId}-prod-9`, tenant_id: tenantId, tipo: 'master_pecas_produtos', nome: 'Hyundai HB20', codigo: 'HYU-HB', detalhe: 'Hatch e Sedan • HYUNDAI', ativo: true },
+        { id: `${tenantId}-prod-10`, tenant_id: tenantId, tipo: 'master_pecas_produtos', nome: 'Honda HR-V', codigo: 'HON-HRV', detalhe: 'SUV Compacto • HONDA', ativo: true },
+
+        // MH Lean & Soluções — Clientes / Montadoras (Master Compartilhado)
         { id: `${tenantId}-cli-1`, tenant_id: tenantId, tipo: 'cliente_montadora', nome: 'TDB - SOROCABA', codigo: 'TOYOTA', detalhe: 'Planta Sorocaba - SP', ativo: true },
         { id: `${tenantId}-cli-2`, tenant_id: tenantId, tipo: 'cliente_montadora', nome: 'STELLANTIS', codigo: 'STEL-BR', detalhe: 'Polo Automotivo Betim / Goiana', ativo: true },
         { id: `${tenantId}-cli-3`, tenant_id: tenantId, tipo: 'cliente_montadora', nome: 'VOLKSWAGEN', codigo: 'VW-ANCH', detalhe: 'São Bernardo / Taubaté', ativo: true },
@@ -476,21 +709,28 @@ export function getDefaultOptionItemsForTenant(tenantId: string): MasterDataItem
         { id: `${tenantId}-cli-5`, tenant_id: tenantId, tipo: 'cliente_montadora', nome: 'HONDA', codigo: 'HAB-ITIR', detalhe: 'Planta Itirapina - SP', ativo: true },
         { id: `${tenantId}-cli-6`, tenant_id: tenantId, tipo: 'cliente_montadora', nome: 'HYUNDAI', codigo: 'HMB-PIRA', detalhe: 'Planta Piracicaba - SP', ativo: true },
 
-        // MH Lean & Soluções — Áreas Fabris / FMDS
-        { id: `${tenantId}-area-1`, tenant_id: tenantId, tipo: 'area_fabril', nome: 'SOLDA 2 - CEL. TOYOTA', codigo: 'FMDS-S2', detalhe: 'Células Robotizadas Solda Ponto/MIG', ativo: true },
-        { id: `${tenantId}-area-2`, tenant_id: tenantId, tipo: 'area_fabril', nome: 'ESTAMPARIA TANDEM & PROGRESSIVA', codigo: 'FMDS-EST', detalhe: 'Prensas 1200T e 800T', ativo: true },
-        { id: `${tenantId}-area-3`, tenant_id: tenantId, tipo: 'area_fabril', nome: 'PINTURA E-COAT & ACABAMENTO', codigo: 'FMDS-PINT', detalhe: 'Tratamento Superficial Classe A', ativo: true },
-        { id: `${tenantId}-area-4`, tenant_id: tenantId, tipo: 'area_fabril', nome: 'USINAGEM & CONFORMAÇÃO CNC', codigo: 'FMDS-USI', detalhe: 'Centros de Furação e Rosqueamento', ativo: true },
-        { id: `${tenantId}-area-5`, tenant_id: tenantId, tipo: 'area_fabril', nome: 'MONTAGEM FINAL & TORQUE', codigo: 'FMDS-MONT', detalhe: 'Linhas de Subconjuntos Estruturais', ativo: true },
-        { id: `${tenantId}-area-6`, tenant_id: tenantId, tipo: 'area_fabril', nome: 'LOGÍSTICA INTERNA & EXPEDIÇÃO', codigo: 'FMDS-LOG', detalhe: 'Kitting, Sequenciamento e Embarque', ativo: true },
+        // MH Lean & Soluções — Áreas / Setores Fabris (Master Compartilhado)
+        { id: `${tenantId}-area-1`, tenant_id: tenantId, tipo: 'area_fabril', nome: 'SOLDA 1 - ESTACIONÁRIAS', codigo: 'FMDS-S1', detalhe: 'Linha de Solda Estacionária', ativo: true },
+        { id: `${tenantId}-area-2`, tenant_id: tenantId, tipo: 'area_fabril', nome: 'SOLDA 2 - CEL. TOYOTA', codigo: 'FMDS-S2', detalhe: 'Células Robotizadas Solda Ponto/MIG', ativo: true },
+        { id: `${tenantId}-area-3`, tenant_id: tenantId, tipo: 'area_fabril', nome: 'SOLDA 3 - CEL. HONDA/HYUNDAI', codigo: 'FMDS-S3', detalhe: 'Célula Honda e Hyundai', ativo: true },
+        { id: `${tenantId}-area-4`, tenant_id: tenantId, tipo: 'area_fabril', nome: 'ESTAMPARIA TANDEM & PROGRESSIVA', codigo: 'FMDS-EST', detalhe: 'Prensas 1200T e 800T', ativo: true },
+        { id: `${tenantId}-area-5`, tenant_id: tenantId, tipo: 'area_fabril', nome: 'PINTURA E-COAT & ACABAMENTO', codigo: 'FMDS-PINT', detalhe: 'Tratamento Superficial Classe A', ativo: true },
+        { id: `${tenantId}-area-6`, tenant_id: tenantId, tipo: 'area_fabril', nome: 'USINAGEM & CONFORMAÇÃO CNC', codigo: 'FMDS-USI', detalhe: 'Centros de Furação e Rosqueamento', ativo: true },
+        { id: `${tenantId}-area-7`, tenant_id: tenantId, tipo: 'area_fabril', nome: 'MONTAGEM FINAL & TORQUE', codigo: 'FMDS-MONT', detalhe: 'Linhas de Subconjuntos Estruturais', ativo: true },
+        { id: `${tenantId}-area-8`, tenant_id: tenantId, tipo: 'area_fabril', nome: 'LOGÍSTICA INTERNA & EXPEDIÇÃO', codigo: 'FMDS-LOG', detalhe: 'Kitting, Sequenciamento e Embarque', ativo: true },
+        { id: `${tenantId}-area-9`, tenant_id: tenantId, tipo: 'area_fabril', nome: 'ENGENHARIA DA QUALIDADE', codigo: 'ENG-Q', detalhe: 'Laboratório e Metrologia', ativo: true },
 
-        // MH Lean & Soluções — Postos de Trabalho
-        { id: `${tenantId}-posto-1`, tenant_id: tenantId, tipo: 'posto_trabalho', nome: 'POSTO 04 - SOLDA PONTO ROBOTIZADA', detalhe: 'SOLDA 2 - CEL. TOYOTA', ativo: true },
-        { id: `${tenantId}-posto-2`, tenant_id: tenantId, tipo: 'posto_trabalho', nome: 'POSTO 02 - PRENSA TRANSFER LINHA B', detalhe: 'ESTAMPARIA TANDEM & PROGRESSIVA', ativo: true },
-        { id: `${tenantId}-posto-3`, tenant_id: tenantId, tipo: 'posto_trabalho', nome: 'CABINE 01 - PINTURA CATAFORÉTICA', detalhe: 'PINTURA E-COAT & ACABAMENTO', ativo: true },
-        { id: `${tenantId}-posto-4`, tenant_id: tenantId, tipo: 'posto_trabalho', nome: 'CENTRO CNC 03 - FURAÇÃO DE PRECISÃO', detalhe: 'USINAGEM & CONFORMAÇÃO CNC', ativo: true },
-        { id: `${tenantId}-posto-5`, tenant_id: tenantId, tipo: 'posto_trabalho', nome: 'ESTAÇÃO 06 - APERTO ELETRÔNICO M10', detalhe: 'MONTAGEM FINAL & TORQUE', ativo: true },
-        { id: `${tenantId}-posto-6`, tenant_id: tenantId, tipo: 'posto_trabalho', nome: 'DOCA 02 - EXPEDIÇÃO SEQUENCIADA JIT', detalhe: 'LOGÍSTICA INTERNA & EXPEDIÇÃO', ativo: true },
+        // MH Lean & Soluções — Postos de Trabalho (Master Compartilhado)
+        { id: `${tenantId}-posto-1`, tenant_id: tenantId, tipo: 'posto_trabalho', nome: 'POSTO 01 - ALIMENTAÇÃO', codigo: 'P01', detalhe: 'Entrada de componentes', ativo: true },
+        { id: `${tenantId}-posto-2`, tenant_id: tenantId, tipo: 'posto_trabalho', nome: 'POSTO 02 - PRENSA TRANSFER LINHA B', codigo: 'P02', detalhe: 'ESTAMPARIA TANDEM & PROGRESSIVA', ativo: true },
+        { id: `${tenantId}-posto-3`, tenant_id: tenantId, tipo: 'posto_trabalho', nome: 'POSTO 04 - SOLDA PONTO ROBOTIZADA', codigo: 'P04', detalhe: 'SOLDA 2 - CEL. TOYOTA', ativo: true },
+        { id: `${tenantId}-posto-4`, tenant_id: tenantId, tipo: 'posto_trabalho', nome: 'CABINE 01 - PINTURA CATAFORÉTICA', codigo: 'CAB01', detalhe: 'PINTURA E-COAT & ACABAMENTO', ativo: true },
+        { id: `${tenantId}-posto-5`, tenant_id: tenantId, tipo: 'posto_trabalho', nome: 'CENTRO CNC 03 - FURAÇÃO DE PRECISÃO', codigo: 'CNC03', detalhe: 'USINAGEM & CONFORMAÇÃO CNC', ativo: true },
+        { id: `${tenantId}-posto-6`, tenant_id: tenantId, tipo: 'posto_trabalho', nome: 'ESTAÇÃO 06 - APERTO ELETRÔNICO M10', codigo: 'EST06', detalhe: 'MONTAGEM FINAL & TORQUE', ativo: true },
+        { id: `${tenantId}-posto-7`, tenant_id: tenantId, tipo: 'posto_trabalho', nome: 'DOCA 02 - EXPEDIÇÃO SEQUENCIADA JIT', codigo: 'DOC02', detalhe: 'LOGÍSTICA INTERNA & EXPEDIÇÃO', ativo: true },
+        { id: `${tenantId}-posto-8`, tenant_id: tenantId, tipo: 'posto_trabalho', nome: 'B643033 - ROBÔ 33', codigo: 'R33', detalhe: 'Célula de Solda Automática', ativo: true },
+        { id: `${tenantId}-posto-9`, tenant_id: tenantId, tipo: 'posto_trabalho', nome: 'OP-20 - CORTE E REPUXO', codigo: 'OP20', detalhe: 'Estágio 2 da Estamparia', ativo: true },
+        { id: `${tenantId}-posto-10`, tenant_id: tenantId, tipo: 'posto_trabalho', nome: 'PRENSA 800T', codigo: 'PR800', detalhe: 'Estamparia Pesada', ativo: true },
 
         // MH Lean & Soluções — Catálogo de Defeitos (Modos de Falha)
         { id: `${tenantId}-def-1`, tenant_id: tenantId, tipo: 'cat_defeito', nome: 'Trinca no ponto de solda', codigo: 'SOL-01', detalhe: 'Crítica / Segurança', ativo: true },
@@ -505,7 +745,6 @@ export function getDefaultOptionItemsForTenant(tenantId: string): MasterDataItem
         { id: `${tenantId}-def-10`, tenant_id: tenantId, tipo: 'cat_defeito', nome: 'Etiqueta de rastreabilidade ilegível', codigo: 'EXP-10', detalhe: 'Média / Expedição', ativo: true }
       ];
 
-  // Demais listas de opções (usadas e não usadas no formulário) para que os admins possam incluir, editar ou excluir qualquer opção
   const commonOptionItems: MasterDataItem[] = [
     // Tipo de RNC
     { id: `${tenantId}-trnc-1`, tenant_id: tenantId, tipo: 'tipo_rnc', nome: 'Formal', codigo: 'Oficial', detalhe: 'Formal (Reclamação Oficial do Cliente)', ativo: true },
@@ -558,14 +797,14 @@ export function getDefaultOptionItemsForTenant(tenantId: string): MasterDataItem
     { id: `${tenantId}-grav-4`, tenant_id: tenantId, tipo: 'gravidade', nome: 'Crítica (Segurança)', codigo: 'G4', detalhe: 'Característica de Segurança / FMEA Crítico', ativo: true },
 
     // Detecção no Processo
-    { id: `${tenantId}-pdet-1`, tenant_id: tenantId, tipo: 'possivel_detectar', nome: 'Sim', codigo: 'SIM', detalhe: 'Sim (Falha de Inspeção / Padrão)', ativo: true },
-    { id: `${tenantId}-pdet-2`, tenant_id: tenantId, tipo: 'possivel_detectar', nome: 'Não', codigo: 'NAO', detalhe: 'Não (Defeito Latente / Oculto)', ativo: true },
+    { id: `${tenantId}-pdet-1`, tenant_id: tenantId, tipo: 'possivel_detectar', nome: 'Sim', codigo: 'SIM', detalhe: 'Falha de Inspeção / Padrão', ativo: true },
+    { id: `${tenantId}-pdet-2`, tenant_id: tenantId, tipo: 'possivel_detectar', nome: 'Não', codigo: 'NAO', detalhe: 'Defeito Latente / Oculto', ativo: true },
 
     // Abrir 8D
     { id: `${tenantId}-ab8d-1`, tenant_id: tenantId, tipo: 'abrir_8d', nome: 'Sim', codigo: '8D-SIM', detalhe: 'Exige análise de causa raiz 8D completa', ativo: true },
     { id: `${tenantId}-ab8d-2`, tenant_id: tenantId, tipo: 'abrir_8d', nome: 'Não', codigo: '8D-NAO', detalhe: 'Apenas contenção e registro rápido', ativo: true },
 
-    // Listas de Opções de Sistema / Fora do Formulário Inicial (Editáveis pelo Admin)
+    // Status do Fluxo RNC
     { id: `${tenantId}-stat-1`, tenant_id: tenantId, tipo: 'status_rnc', nome: 'Relatório Inicial', codigo: 'ST-01', detalhe: 'Abertura inicial de fábrica', ativo: true },
     { id: `${tenantId}-stat-2`, tenant_id: tenantId, tipo: 'status_rnc', nome: 'RNC Emitida', codigo: 'ST-02', detalhe: 'Oficializada pela Qualidade', ativo: true },
     { id: `${tenantId}-stat-3`, tenant_id: tenantId, tipo: 'status_rnc', nome: 'Em Andamento', codigo: 'ST-03', detalhe: 'Em tratativa 8D / Contenção', ativo: true },
@@ -585,32 +824,100 @@ export function getDefaultOptionItemsForTenant(tenantId: string): MasterDataItem
     { id: `${tenantId}-forn-1`, tenant_id: tenantId, tipo: 'origem_fornecedor', nome: 'USIMINAS — Bobinas de Aço', codigo: 'FORN-01', detalhe: 'Matéria-Prima Estamparia', ativo: true },
     { id: `${tenantId}-forn-2`, tenant_id: tenantId, tipo: 'origem_fornecedor', nome: 'ARCELORMITTAL — Aços Revestidos', codigo: 'FORN-02', detalhe: 'Matéria-Prima Estamparia', ativo: true },
     { id: `${tenantId}-forn-3`, tenant_id: tenantId, tipo: 'origem_fornecedor', nome: 'BÖLLHOFF — Fixadores M8/M10', codigo: 'FORN-03', detalhe: 'Elementos de Fixação', ativo: true },
-    { id: `${tenantId}-forn-4`, tenant_id: tenantId, tipo: 'origem_fornecedor', nome: 'PPG INDUSTRIAL — Químicos E-Coat', codigo: 'FORN-04', detalhe: 'Tratamento Superficial', ativo: true }
+    { id: `${tenantId}-forn-4`, tenant_id: tenantId, tipo: 'origem_fornecedor', nome: 'PPG INDUSTRIAL — Químicos E-Coat', codigo: 'FORN-04', detalhe: 'Tratamento Superficial', ativo: true },
+
+    // Itens Específicos do Aplicativo de Plano de Ação
+    { id: `${tenantId}-pind-1`, tenant_id: tenantId, tipo: 'plano_indicador', nome: '8D', codigo: '8D', detalhe: 'Plano de Ação 8D Não Conformidades', ativo: true },
+    { id: `${tenantId}-pind-2`, tenant_id: tenantId, tipo: 'plano_indicador', nome: 'ATENDIMENTO AO CLIENTE', codigo: 'CLI', detalhe: 'Reclamações e Garantia de Clientes OEM', ativo: true },
+    { id: `${tenantId}-pind-3`, tenant_id: tenantId, tipo: 'plano_indicador', nome: 'FAST RESPONSE', codigo: 'FR', detalhe: 'Resposta Rápida no Chão de Fábrica', ativo: true },
+    { id: `${tenantId}-pind-4`, tenant_id: tenantId, tipo: 'plano_indicador', nome: 'KAIZEN', codigo: 'KZN', detalhe: 'Melhoria Contínua e Redução de Desperdícios', ativo: true },
+    { id: `${tenantId}-pind-5`, tenant_id: tenantId, tipo: 'plano_indicador', nome: 'AUDITORIA DE PROCESSO', codigo: 'AUD', detalhe: 'Auditorias IATF 16949 / LPA / VDA 6.3', ativo: true },
+    { id: `${tenantId}-pind-6`, tenant_id: tenantId, tipo: 'plano_indicador', nome: '5S & SEGURANÇA', codigo: '5S', detalhe: 'Organização, Segurança e Meio Ambiente', ativo: true },
+    { id: `${tenantId}-pind-7`, tenant_id: tenantId, tipo: 'plano_indicador', nome: 'REDUÇÃO DE SCRAP', codigo: 'SCR', detalhe: 'Iniciativas de Redução de Refugo', ativo: true },
+
+    // Subindicador
+    { id: `${tenantId}-psub1-1`, tenant_id: tenantId, tipo: 'plano_sub1', nome: 'Qualidade Cliente', codigo: 'SUB-QC', detalhe: 'Impacto externo no cliente', ativo: true },
+    { id: `${tenantId}-psub1-2`, tenant_id: tenantId, tipo: 'plano_sub1', nome: 'Qualidade Interna', codigo: 'SUB-QI', detalhe: 'Retrabalho e scrap interno', ativo: true },
+    { id: `${tenantId}-psub1-3`, tenant_id: tenantId, tipo: 'plano_sub1', nome: 'Estamparia Pesada', codigo: 'SUB-EST', detalhe: 'Prensas e corte de bobinas', ativo: true },
+    { id: `${tenantId}-psub1-4`, tenant_id: tenantId, tipo: 'plano_sub1', nome: 'Solda Automatizada', codigo: 'SUB-SOL', detalhe: 'Células robóticas de solda', ativo: true },
+    { id: `${tenantId}-psub1-5`, tenant_id: tenantId, tipo: 'plano_sub1', nome: 'Manutenção / TPM', codigo: 'SUB-MAN', detalhe: 'Paradas e disponibilidade técnica', ativo: true },
+    { id: `${tenantId}-psub1-6`, tenant_id: tenantId, tipo: 'plano_sub1', nome: 'Logística & Kitting', codigo: 'SUB-LOG', detalhe: 'Abastecimento e expedição', ativo: true },
+
+    // Prioridades do Plano
+    { id: `${tenantId}-pprio-1`, tenant_id: tenantId, tipo: 'plano_prioridade', nome: 'Alta', codigo: 'PRIO-1', detalhe: 'Execução urgente / Bloqueio', ativo: true },
+    { id: `${tenantId}-pprio-2`, tenant_id: tenantId, tipo: 'plano_prioridade', nome: 'Média', codigo: 'PRIO-2', detalhe: 'Prazo padrão de tratativa', ativo: true },
+    { id: `${tenantId}-pprio-3`, tenant_id: tenantId, tipo: 'plano_prioridade', nome: 'Baixa', codigo: 'PRIO-3', detalhe: 'Melhoria contínua e rotina', ativo: true },
+
+    // Status do Plano e das Ações
+    { id: `${tenantId}-pstat-1`, tenant_id: tenantId, tipo: 'plano_status_lista', nome: 'Aberto', codigo: 'ST-AB', detalhe: 'Plano ou tarefa aberta aguardando execução', ativo: true },
+    { id: `${tenantId}-pstat-2`, tenant_id: tenantId, tipo: 'plano_status_lista', nome: 'Em Andamento', codigo: 'ST-AND', detalhe: 'Execução em andamento pela equipe', ativo: true },
+    { id: `${tenantId}-pstat-3`, tenant_id: tenantId, tipo: 'plano_status_lista', nome: 'Concluído', codigo: 'ST-CON', detalhe: 'Implementada aguardando validação da Qualidade', ativo: true },
+    { id: `${tenantId}-pstat-4`, tenant_id: tenantId, tipo: 'plano_status_lista', nome: 'Validado', codigo: 'ST-VAL', detalhe: 'Eficácia aprovada e homologada pela Qualidade', ativo: true },
+    { id: `${tenantId}-pstat-5`, tenant_id: tenantId, tipo: 'plano_status_lista', nome: 'Atrasado', codigo: 'ST-ATR', detalhe: 'Prazo planejado vencido', ativo: true },
+    { id: `${tenantId}-pstat-6`, tenant_id: tenantId, tipo: 'plano_status_lista', nome: 'Cancelado', codigo: 'ST-CAN', detalhe: 'Plano ou tarefa cancelada com justificativa', ativo: true },
+
+    // Decisão da Auditoria e Homologação
+    { id: `${tenantId}-pdec-1`, tenant_id: tenantId, tipo: 'plano_decisao_auditoria_lista', nome: 'Aprovar & Homologar', codigo: 'APR', detalhe: 'Evidência aprovada e eficácia comprovada', ativo: true },
+    { id: `${tenantId}-pdec-2`, tenant_id: tenantId, tipo: 'plano_decisao_auditoria_lista', nome: 'Solicitar Revisão', codigo: 'REV', detalhe: 'Retornar ação ou relatório para complementação', ativo: true },
+
+    // Metodologia 8D — Tipos de Ação
+    { id: `${tenantId}-8dta-1`, tenant_id: tenantId, tipo: 'oitod_tipos_acao', nome: 'CONTENÇÃO', codigo: '3D', detalhe: 'Ação imediata de contenção e proteção ao cliente (3D)', ativo: true },
+    { id: `${tenantId}-8dta-2`, tenant_id: tenantId, tipo: 'oitod_tipos_acao', nome: 'CORRETIVA', codigo: '5D/6D', detalhe: 'Ação corretiva definitiva sobre a causa raiz e abrangência (5D / 6D)', ativo: true },
+    { id: `${tenantId}-8dta-3`, tenant_id: tenantId, tipo: 'oitod_tipos_acao', nome: 'PREVENTIVA', codigo: '7D', detalhe: 'Ação preventiva sistêmica para evitar recorrência (7D)', ativo: true },
+    { id: `${tenantId}-8dta-4`, tenant_id: tenantId, tipo: 'oitod_tipos_acao', nome: 'MELHORIA', codigo: 'KAIZEN', detalhe: 'Ação de melhoria contínua complementar', ativo: true },
+
+    // Metodologia 8D — Documentos e Eixos de Prevenção 7D
+    { id: `${tenantId}-8d7d-1`, tenant_id: tenantId, tipo: 'oitod_documentos_7d', nome: 'FMEA', codigo: 'PFMEA', detalhe: 'Atualização de RPN, Severidade, Ocorrência e Detecção no PFMEA', ativo: true },
+    { id: `${tenantId}-8d7d-2`, tenant_id: tenantId, tipo: 'oitod_documentos_7d', nome: 'Trabalho Padronizado', codigo: 'FIT/TP', detalhe: 'Revisão de Instrução de Trabalho / Folha de Processo', ativo: true },
+    { id: `${tenantId}-8d7d-3`, tenant_id: tenantId, tipo: 'oitod_documentos_7d', nome: 'Auditoria Escalonada', codigo: 'LPA', detalhe: 'Inclusão de item de verificação na Auditoria de Processo em Camadas', ativo: true },
+    { id: `${tenantId}-8d7d-4`, tenant_id: tenantId, tipo: 'oitod_documentos_7d', nome: 'Plano de Controle', codigo: 'PC', detalhe: 'Atualização de frequência ou método no Plano de Controle', ativo: true },
+    { id: `${tenantId}-8d7d-5`, tenant_id: tenantId, tipo: 'oitod_documentos_7d', nome: 'Lição Ponto a Ponto (LPP)', codigo: 'LPP', detalhe: 'Treinamento visual rápido de operação e inspeção', ativo: true },
+
+    // Metodologia 8D — Categorias 6M do Ishikawa
+    { id: `${tenantId}-8d6m-1`, tenant_id: tenantId, tipo: 'oitod_6m_ishikawa', nome: 'Máquina', codigo: 'M1', detalhe: 'Equipamentos, ferramental, dispositivos, robôs e manutenção', ativo: true },
+    { id: `${tenantId}-8d6m-2`, tenant_id: tenantId, tipo: 'oitod_6m_ishikawa', nome: 'Mão de Obra', codigo: 'M2', detalhe: 'Treinamento, habilitação, atenção operacional e ergonomia', ativo: true },
+    { id: `${tenantId}-8d6m-3`, tenant_id: tenantId, tipo: 'oitod_6m_ishikawa', nome: 'Método', codigo: 'M3', detalhe: 'Procedimento, sequência operacional, parâmetros e instrução', ativo: true },
+    { id: `${tenantId}-8d6m-4`, tenant_id: tenantId, tipo: 'oitod_6m_ishikawa', nome: 'Material', codigo: 'M4', detalhe: 'Matéria-prima, componentes comprados, bobinas e lote', ativo: true },
+    { id: `${tenantId}-8d6m-5`, tenant_id: tenantId, tipo: 'oitod_6m_ishikawa', nome: 'Medição', codigo: 'M5', detalhe: 'Calibradores, sensores Poka-Yoke, instrumentos e gabaritos', ativo: true },
+    { id: `${tenantId}-8d6m-6`, tenant_id: tenantId, tipo: 'oitod_6m_ishikawa', nome: 'Meio Ambiente', codigo: 'M6', detalhe: 'Iluminação, temperatura, limpeza 5S e layout do posto', ativo: true },
+
+    // Metodologia 8D — Locais de Estoque / Quarentena (3D)
+    { id: `${tenantId}-8dest-1`, tenant_id: tenantId, tipo: 'oitod_estoques_locais', nome: 'Estoque Interno WIP (Bordo de Linha)', codigo: 'WIP', detalhe: 'Peças em processo entre operações', ativo: true },
+    { id: `${tenantId}-8dest-2`, tenant_id: tenantId, tipo: 'oitod_estoques_locais', nome: 'Quarentena da Qualidade', codigo: 'QUAR', detalhe: 'Área segregada de bloqueio físico', ativo: true },
+    { id: `${tenantId}-8dest-3`, tenant_id: tenantId, tipo: 'oitod_estoques_locais', nome: 'Armazém de Expedição / Produto Acabado', codigo: 'EXP', detalhe: 'Lotes prontos para embarque', ativo: true },
+    { id: `${tenantId}-8dest-4`, tenant_id: tenantId, tipo: 'oitod_estoques_locais', nome: 'Em Trânsito / Pátio da Montadora', codigo: 'CLI', detalhe: 'Lotes em transporte ou no cliente', ativo: true }
   ];
 
   return [...baseItems, ...commonOptionItems].map(normalizeMasterDataItemCasing);
 }
 
 // ============================================================================
-// CONFIGURAÇÃO PADRÃO DOS CAMPOS DO FORMULÁRIO RNC POR EMPRESA (TENANT)
-// Permite aos Admins: Ocultar, Mudar Sequência, Editar, Excluir e Criar Campos Novos
+// CONFIGURAÇÃO PADRÃO COMPLETA DOS CAMPOS POR EMPRESA (TENANT) — 3 MÓDULOS:
+// 1. RNC (Não Conformidades)
+// 2. Plano de Ação (Cabeçalho e Tarefas 5W2H / Conclusão / Homologação)
+// 3. Metodologia 8D (Etapas 1D a 8D completas)
 // ============================================================================
 export function getDefaultFormFieldsForTenant(tenantId: string): FormFieldConfig[] {
   const rawFields: Omit<FormFieldConfig, 'fieldKey'>[] = [
-    // SEÇÃO 1: Dados Gerais & Montadora
+    // ========================================================================
+    // MÓDULO 1: RNC — SEÇÃO 1: Dados Gerais & Cliente
+    // ========================================================================
     {
       id: 'cliente',
       key: 'cliente',
       tenant_id: tenantId,
-      label: 'Cliente (Montadora)',
+      label: 'Cliente',
       section: 'secao_1',
+      module: 'rnc',
       type: 'select',
       required: true,
       visible: true,
       order: 1,
       isSystem: true,
       optionCategory: 'cliente_montadora',
-      placeholder: '-- Selecione a Montadora --',
+      valueColumn: 'Cliente / Montadora',
+      displayColumn: 'Cliente / Montadora',
+      placeholder: '-- Selecione o Cliente --',
       colSpan: 1
     },
     {
@@ -619,12 +926,15 @@ export function getDefaultFormFieldsForTenant(tenantId: string): FormFieldConfig
       tenant_id: tenantId,
       label: 'Tipo de Ocorrência',
       section: 'secao_1',
+      module: 'rnc',
       type: 'select',
       required: true,
       visible: true,
       order: 2,
       isSystem: true,
       optionCategory: 'tipo_rnc',
+      valueColumn: 'Nome',
+      displayColumn: 'Nome',
       placeholder: '-- Selecione o Tipo --',
       colSpan: 1
     },
@@ -634,6 +944,7 @@ export function getDefaultFormFieldsForTenant(tenantId: string): FormFieldConfig
       tenant_id: tenantId,
       label: 'Data da Ocorrência',
       section: 'secao_1',
+      module: 'rnc',
       type: 'date',
       required: true,
       visible: true,
@@ -647,12 +958,15 @@ export function getDefaultFormFieldsForTenant(tenantId: string): FormFieldConfig
       tenant_id: tenantId,
       label: 'Turno de Detecção',
       section: 'secao_1',
+      module: 'rnc',
       type: 'select',
       required: false,
       visible: true,
       order: 4,
       isSystem: true,
       optionCategory: 'turno',
+      valueColumn: 'Nome',
+      displayColumn: 'Nome',
       placeholder: 'Selecione o turno...',
       colSpan: 1
     },
@@ -660,15 +974,80 @@ export function getDefaultFormFieldsForTenant(tenantId: string): FormFieldConfig
       id: 'condicionaisTipoRnc',
       key: 'setorDeteccao',
       tenant_id: tenantId,
-      label: 'Detalhes por Tipo (Setor de Detecção / Portal do Cliente / Impacto)',
+      label: 'Setor / Local de Detecção (Condicional Interno)',
       section: 'secao_1',
-      type: 'text',
+      module: 'rnc',
+      type: 'select',
       required: true,
       visible: true,
       order: 5,
       isSystem: true,
       optionCategory: 'setor_deteccao',
+      valueColumn: 'Nome',
+      displayColumn: 'Nome',
       placeholder: 'Ex: Linha de Solda, Estamparia, Montagem...',
+      colSpan: 2
+    },
+    {
+      id: 'codOcorrenciaCliente',
+      key: 'codOcorrenciaCliente',
+      tenant_id: tenantId,
+      label: 'Código / ID no Portal do Cliente (Condicional Formal)',
+      section: 'secao_1',
+      module: 'rnc',
+      type: 'text',
+      required: false,
+      visible: true,
+      order: 6,
+      isSystem: true,
+      placeholder: 'Ex: RNC-OEM-2026-0042...',
+      colSpan: 1
+    },
+    {
+      id: 'dataOficializacao',
+      key: 'dataOficializacao',
+      tenant_id: tenantId,
+      label: 'Data de Oficialização no Portal (Condicional Formal)',
+      section: 'secao_1',
+      module: 'rnc',
+      type: 'date',
+      required: false,
+      visible: true,
+      order: 7,
+      isSystem: true,
+      colSpan: 1
+    },
+    {
+      id: 'impactoCliente',
+      key: 'impactoCliente',
+      tenant_id: tenantId,
+      label: 'Impacto no Cliente (Condicional Formal / Informal)',
+      section: 'secao_1',
+      module: 'rnc',
+      type: 'select',
+      required: false,
+      visible: true,
+      order: 8,
+      isSystem: true,
+      optionCategory: 'impacto_cliente',
+      valueColumn: 'Nome',
+      displayColumn: 'Nome',
+      placeholder: 'Selecione o impacto no cliente...',
+      colSpan: 2
+    },
+    {
+      id: 'detalhamentoOcorrencia',
+      key: 'detalhamentoOcorrencia',
+      tenant_id: tenantId,
+      label: 'Detalhamento da Ocorrência / Relato do Problema',
+      section: 'secao_1',
+      module: 'rnc',
+      type: 'textarea',
+      required: false,
+      visible: true,
+      order: 9,
+      isSystem: true,
+      placeholder: 'Descreva os detalhes da reclamação ou detecção da não conformidade...',
       colSpan: 4
     },
     {
@@ -677,28 +1056,91 @@ export function getDefaultFormFieldsForTenant(tenantId: string): FormFieldConfig
       tenant_id: tenantId,
       label: 'Participantes do Atendimento',
       section: 'secao_1',
+      module: 'rnc',
       type: 'multiselect',
       required: false,
       visible: true,
-      order: 6,
+      order: 10,
       isSystem: true,
+      optionCategory: 'master_funcionarios',
+      valueColumn: 'Nome',
+      displayColumn: 'Nome',
       placeholder: 'Clique para selecionar colaboradores da equipe...',
       colSpan: 4
     },
+    {
+      id: 'detector',
+      key: 'detector',
+      tenant_id: tenantId,
+      label: 'Responsável pela Abertura / Detector (Preenchimento Automático)',
+      section: 'secao_1',
+      module: 'rnc',
+      type: 'select',
+      required: false,
+      visible: false,
+      order: 11,
+      isSystem: true,
+      optionCategory: 'master_funcionarios',
+      valueColumn: 'Nome',
+      displayColumn: 'Nome',
+      placeholder: 'Colaborador logado que registrou a RNC...',
+      colSpan: 2
+    },
+    {
+      id: 'status',
+      key: 'status',
+      tenant_id: tenantId,
+      label: 'Status do Fluxo da Ocorrência (Regra de Sistema / Filtros)',
+      section: 'secao_1',
+      module: 'rnc',
+      type: 'select',
+      required: false,
+      visible: false,
+      order: 12,
+      isSystem: true,
+      optionCategory: 'status_rnc',
+      valueColumn: 'Nome',
+      displayColumn: 'Nome',
+      placeholder: 'Status atual da RNC...',
+      colSpan: 1
+    },
+    {
+      id: 'criticidade',
+      key: 'criticidade',
+      tenant_id: tenantId,
+      label: 'Classificação de Criticidade A / B / C (Auditoria)',
+      section: 'secao_1',
+      module: 'rnc',
+      type: 'select',
+      required: false,
+      visible: false,
+      order: 13,
+      isSystem: true,
+      optionCategory: 'criticidade',
+      valueColumn: 'Nome',
+      displayColumn: 'Nome',
+      placeholder: 'Nível de criticidade...',
+      colSpan: 1
+    },
 
-    // SEÇÃO 2: Peça, Posto & FMDS (Autopreenchimento ProEPS)
+    // ========================================================================
+    // MÓDULO 1: RNC — SEÇÃO 2: Peça, Posto & Área Fabril
+    // ========================================================================
     {
       id: 'finalComponente',
       key: 'finalComponente',
       tenant_id: tenantId,
       label: 'Tipo de Peça Rastreada',
       section: 'secao_2',
+      module: 'rnc',
       type: 'select',
       required: true,
       visible: true,
       order: 1,
       isSystem: true,
       optionCategory: 'tipo_componente',
+      valueColumn: 'Nome',
+      displayColumn: 'Nome',
       placeholder: 'Selecione o tipo de componente...',
       colSpan: 1
     },
@@ -708,11 +1150,15 @@ export function getDefaultFormFieldsForTenant(tenantId: string): FormFieldConfig
       tenant_id: tenantId,
       label: 'Produto / Conjunto',
       section: 'secao_2',
+      module: 'rnc',
       type: 'select',
       required: true,
       visible: true,
       order: 2,
       isSystem: true,
+      optionCategory: 'master_pecas_produtos',
+      valueColumn: 'Peça / Produto',
+      displayColumn: 'Peça / Produto',
       placeholder: '-- Selecione o Produto / Conjunto --',
       colSpan: 1
     },
@@ -722,11 +1168,15 @@ export function getDefaultFormFieldsForTenant(tenantId: string): FormFieldConfig
       tenant_id: tenantId,
       label: 'Componente',
       section: 'secao_2',
+      module: 'rnc',
       type: 'select',
       required: false,
       visible: true,
       order: 3,
       isSystem: true,
+      optionCategory: 'master_pecas_produtos',
+      valueColumn: 'Peça / Produto',
+      displayColumn: 'Peça / Produto',
       placeholder: '-- Selecione o Componente --',
       colSpan: 1
     },
@@ -736,12 +1186,15 @@ export function getDefaultFormFieldsForTenant(tenantId: string): FormFieldConfig
       tenant_id: tenantId,
       label: 'Posto de Trabalho Cadastrado',
       section: 'secao_2',
+      module: 'rnc',
       type: 'select',
       required: false,
       visible: true,
       order: 4,
       isSystem: true,
       optionCategory: 'posto_trabalho',
+      valueColumn: 'Posto de Trabalho',
+      displayColumn: 'Posto de Trabalho',
       placeholder: '-- Selecione o Posto de Trabalho --',
       colSpan: 1
     },
@@ -749,23 +1202,27 @@ export function getDefaultFormFieldsForTenant(tenantId: string): FormFieldConfig
       id: 'fmds',
       key: 'fmds',
       tenant_id: tenantId,
-      label: 'Área FMDS / Setor Fabril',
+      label: 'Área / Setor Fabril',
       section: 'secao_2',
+      module: 'rnc',
       type: 'select',
       required: false,
       visible: true,
       order: 5,
       isSystem: true,
       optionCategory: 'area_fabril',
-      placeholder: '-- Selecione a Área FMDS --',
+      valueColumn: 'Área / Setor Fabril',
+      displayColumn: 'Área / Setor Fabril',
+      placeholder: '-- Selecione a Área / Setor Fabril --',
       colSpan: 2
     },
     {
       id: 'atributosPeca',
       key: 'atributosPeca',
       tenant_id: tenantId,
-      label: 'Indicadores Técnicos da Peça (Carry Over, Co-produto, Segurança FMEA e Reincidência)',
+      label: 'Indicadores Técnicos da Peça (Peça comum, Co-produto, Segurança FMEA e Reincidência)',
       section: 'secao_2',
+      module: 'rnc',
       type: 'yesno',
       required: false,
       visible: true,
@@ -774,34 +1231,25 @@ export function getDefaultFormFieldsForTenant(tenantId: string): FormFieldConfig
       colSpan: 3
     },
 
-    // SEÇÃO 3: Descrição do Defeito, Quantidade & Rastreabilidade
+    // ========================================================================
+    // MÓDULO 1: RNC — SEÇÃO 3: Defeito, Quantidade & Rastreabilidade
+    // ========================================================================
     {
       id: 'modoFalha',
       key: 'modoFalha',
       tenant_id: tenantId,
       label: 'Classificação do Defeito (Modo de Falha)',
       section: 'secao_3',
+      module: 'rnc',
       type: 'select',
       required: true,
       visible: true,
       order: 1,
       isSystem: true,
       optionCategory: 'cat_defeito',
+      valueColumn: 'Modo de Falha / Defeito',
+      displayColumn: 'Modo de Falha / Defeito',
       placeholder: '-- Selecione o Modo de Falha --',
-      colSpan: 1
-    },
-    {
-      id: 'descricaoProblema',
-      key: 'descricaoProblema',
-      tenant_id: tenantId,
-      label: 'Detalhamento Técnico da Não Conformidade',
-      section: 'secao_3',
-      type: 'textarea',
-      required: true,
-      visible: true,
-      order: 2,
-      isSystem: true,
-      placeholder: 'Descreva aqui o detalhamento técnico do problema...',
       colSpan: 2
     },
     {
@@ -810,13 +1258,14 @@ export function getDefaultFormFieldsForTenant(tenantId: string): FormFieldConfig
       tenant_id: tenantId,
       label: 'Quantidade Não Conforme',
       section: 'secao_3',
+      module: 'rnc',
       type: 'number',
       required: true,
       visible: true,
-      order: 3,
+      order: 2,
       isSystem: true,
       placeholder: 'Ex: 1, 5, 10...',
-      colSpan: 1
+      colSpan: 2
     },
     {
       id: 'documentoRastreabilidade',
@@ -824,23 +1273,72 @@ export function getDefaultFormFieldsForTenant(tenantId: string): FormFieldConfig
       tenant_id: tenantId,
       label: 'Documento e Código / Período de Rastreabilidade',
       section: 'secao_3',
+      module: 'rnc',
       type: 'select',
       required: true,
       visible: true,
-      order: 4,
+      order: 3,
       isSystem: true,
       optionCategory: 'doc_rastreabilidade',
+      valueColumn: 'Nome',
+      displayColumn: 'Nome',
       placeholder: 'Selecione o documento...',
-      colSpan: 4
+      colSpan: 2
+    },
+    {
+      id: 'codigoRastreabilidade',
+      key: 'codigoRastreabilidade',
+      tenant_id: tenantId,
+      label: 'Código / Número do Documento (Etiqueta SAP / Order / NF)',
+      section: 'secao_3',
+      module: 'rnc',
+      type: 'text',
+      required: false,
+      visible: true,
+      order: 4,
+      isSystem: true,
+      placeholder: 'Informe o código da etiqueta, ordem ou NF...',
+      colSpan: 2
+    },
+    {
+      id: 'dataInicioRastreabilidade',
+      key: 'dataInicioRastreabilidade',
+      tenant_id: tenantId,
+      label: 'Data Inicial do Lote Rastreado (Condicional Sem Documento)',
+      section: 'secao_3',
+      module: 'rnc',
+      type: 'date',
+      required: false,
+      visible: true,
+      order: 5,
+      isSystem: true,
+      colSpan: 1
+    },
+    {
+      id: 'dataFimRastreabilidade',
+      key: 'dataFimRastreabilidade',
+      tenant_id: tenantId,
+      label: 'Data Final do Lote Rastreado (Condicional Sem Documento)',
+      section: 'secao_3',
+      module: 'rnc',
+      type: 'date',
+      required: false,
+      visible: true,
+      order: 6,
+      isSystem: true,
+      colSpan: 1
     },
 
-    // SEÇÃO 4: Evidência Fotográfica da Peça Não Conforme (NG)
+    // ========================================================================
+    // MÓDULO 1: RNC — SEÇÃO 4: Evidência Fotográfica da Peça NG
+    // ========================================================================
     {
       id: 'fotoPecaNg',
       key: 'fotoPecaNg',
       tenant_id: tenantId,
       label: 'Evidência da Peça Defeituosa (NG)',
       section: 'secao_4',
+      module: 'rnc',
       type: 'photo',
       required: false,
       visible: true,
@@ -849,13 +1347,16 @@ export function getDefaultFormFieldsForTenant(tenantId: string): FormFieldConfig
       colSpan: 4
     },
 
-    // SEÇÃO 5: Contenção & Tratativa da Qualidade (5W2H)
+    // ========================================================================
+    // MÓDULO 1: RNC — SEÇÃO 5: Contenção & Tratativa da Qualidade (5W2H)
+    // ========================================================================
     {
       id: 'fotoPecaOk',
       key: 'fotoPecaOk',
       tenant_id: tenantId,
       label: 'Foto da Peça OK (Padrão de Referência / Aceitável)',
       section: 'secao_5',
+      module: 'rnc',
       type: 'photo',
       required: false,
       visible: true,
@@ -869,6 +1370,7 @@ export function getDefaultFormFieldsForTenant(tenantId: string): FormFieldConfig
       tenant_id: tenantId,
       label: 'Descrição do Problema (Interno)',
       section: 'secao_5',
+      module: 'rnc',
       type: 'textarea',
       required: false,
       visible: true,
@@ -883,12 +1385,15 @@ export function getDefaultFormFieldsForTenant(tenantId: string): FormFieldConfig
       tenant_id: tenantId,
       label: 'Ações de Contenção Imediata',
       section: 'secao_5',
+      module: 'rnc',
       type: 'multiselect',
       required: false,
       visible: true,
       order: 3,
       isSystem: true,
       optionCategory: 'acoes_contencao',
+      valueColumn: 'Nome',
+      displayColumn: 'Nome',
       placeholder: 'Ou digite detalhes complementares das ações de contenção...',
       colSpan: 4
     },
@@ -898,6 +1403,7 @@ export function getDefaultFormFieldsForTenant(tenantId: string): FormFieldConfig
       tenant_id: tenantId,
       label: 'Recomendações / Providências',
       section: 'secao_5',
+      module: 'rnc',
       type: 'textarea',
       required: false,
       visible: true,
@@ -912,12 +1418,15 @@ export function getDefaultFormFieldsForTenant(tenantId: string): FormFieldConfig
       tenant_id: tenantId,
       label: 'Gravidade do Defeito',
       section: 'secao_5',
+      module: 'rnc',
       type: 'select',
       required: false,
       visible: true,
       order: 5,
       isSystem: true,
       optionCategory: 'gravidade',
+      valueColumn: 'Nome',
+      displayColumn: 'Nome',
       colSpan: 1
     },
     {
@@ -926,13 +1435,33 @@ export function getDefaultFormFieldsForTenant(tenantId: string): FormFieldConfig
       tenant_id: tenantId,
       label: 'Detecção no Processo?',
       section: 'secao_5',
+      module: 'rnc',
       type: 'select',
       required: false,
       visible: true,
       order: 6,
       isSystem: true,
       optionCategory: 'possivel_detectar',
+      valueColumn: 'Nome',
+      displayColumn: 'Nome',
       colSpan: 1
+    },
+    {
+      id: 'disposicaoLote',
+      key: 'disposicaoLote',
+      tenant_id: tenantId,
+      label: 'Disposição de Material / Lote Segregado',
+      section: 'secao_5',
+      module: 'rnc',
+      type: 'select',
+      required: false,
+      visible: true,
+      order: 7,
+      isSystem: true,
+      optionCategory: 'disposicao_lote',
+      valueColumn: 'Nome',
+      displayColumn: 'Nome',
+      colSpan: 2
     },
     {
       id: 'qtdInspecionada',
@@ -940,10 +1469,11 @@ export function getDefaultFormFieldsForTenant(tenantId: string): FormFieldConfig
       tenant_id: tenantId,
       label: 'Qtd Inspecionada',
       section: 'secao_5',
+      module: 'rnc',
       type: 'number',
       required: false,
       visible: true,
-      order: 7,
+      order: 8,
       isSystem: true,
       colSpan: 1
     },
@@ -953,10 +1483,11 @@ export function getDefaultFormFieldsForTenant(tenantId: string): FormFieldConfig
       tenant_id: tenantId,
       label: 'Qtd Suspeita',
       section: 'secao_5',
+      module: 'rnc',
       type: 'number',
       required: false,
       visible: true,
-      order: 8,
+      order: 9,
       isSystem: true,
       colSpan: 1
     },
@@ -966,10 +1497,11 @@ export function getDefaultFormFieldsForTenant(tenantId: string): FormFieldConfig
       tenant_id: tenantId,
       label: 'Qtd Bloqueada',
       section: 'secao_5',
+      module: 'rnc',
       type: 'number',
       required: false,
       visible: true,
-      order: 9,
+      order: 10,
       isSystem: true,
       colSpan: 1
     },
@@ -979,10 +1511,11 @@ export function getDefaultFormFieldsForTenant(tenantId: string): FormFieldConfig
       tenant_id: tenantId,
       label: '5W2H — O que fazer?',
       section: 'secao_5',
+      module: 'rnc',
       type: 'textarea',
       required: false,
       visible: true,
-      order: 10,
+      order: 11,
       isSystem: true,
       placeholder: 'Ex: Realizar contenção antes de colocar na embalagem...',
       colSpan: 1
@@ -993,10 +1526,11 @@ export function getDefaultFormFieldsForTenant(tenantId: string): FormFieldConfig
       tenant_id: tenantId,
       label: '5W2H — Como fazer?',
       section: 'secao_5',
+      module: 'rnc',
       type: 'textarea',
       required: false,
       visible: true,
-      order: 11,
+      order: 12,
       isSystem: true,
       placeholder: 'Ex: Inspecionar isento de amassado...',
       colSpan: 1
@@ -1007,10 +1541,11 @@ export function getDefaultFormFieldsForTenant(tenantId: string): FormFieldConfig
       tenant_id: tenantId,
       label: '5W2H — Por que fazer?',
       section: 'secao_5',
+      module: 'rnc',
       type: 'textarea',
       required: false,
       visible: true,
-      order: 12,
+      order: 13,
       isSystem: true,
       placeholder: 'Ex: Para garantir que na próxima operação peças estejam OK...',
       colSpan: 1
@@ -1021,10 +1556,11 @@ export function getDefaultFormFieldsForTenant(tenantId: string): FormFieldConfig
       tenant_id: tenantId,
       label: '5W2H — Quando fazer?',
       section: 'secao_5',
+      module: 'rnc',
       type: 'date',
       required: false,
       visible: true,
-      order: 13,
+      order: 14,
       isSystem: true,
       colSpan: 1
     },
@@ -1032,13 +1568,17 @@ export function getDefaultFormFieldsForTenant(tenantId: string): FormFieldConfig
       id: 'ondeFara',
       key: 'ondeFara',
       tenant_id: tenantId,
-      label: '5W2H — Onde fazer?',
+      label: '5W2H — Onde fazer? (Local / Posto)',
       section: 'secao_5',
-      type: 'text',
+      module: 'rnc',
+      type: 'select',
       required: false,
       visible: true,
-      order: 14,
+      order: 15,
       isSystem: true,
+      optionCategory: 'posto_trabalho',
+      valueColumn: 'Posto de Trabalho',
+      displayColumn: 'Posto de Trabalho',
       placeholder: 'Ex: Linha 3 / Posto de inspeção...',
       colSpan: 1
     },
@@ -1046,13 +1586,17 @@ export function getDefaultFormFieldsForTenant(tenantId: string): FormFieldConfig
       id: 'quemFara',
       key: 'quemFara',
       tenant_id: tenantId,
-      label: 'Equipe Responsável pelo 8D',
+      label: 'Equipe Responsável pelo 8D / Quem fará',
       section: 'secao_5',
+      module: 'rnc',
       type: 'select',
       required: false,
       visible: true,
-      order: 15,
+      order: 16,
       isSystem: true,
+      optionCategory: 'master_funcionarios',
+      valueColumn: 'Nome',
+      displayColumn: 'Nome',
       placeholder: 'Selecione o responsável...',
       colSpan: 1
     },
@@ -1062,10 +1606,11 @@ export function getDefaultFormFieldsForTenant(tenantId: string): FormFieldConfig
       tenant_id: tenantId,
       label: 'Foto Auxiliar Retrabalho / Seleção',
       section: 'secao_5',
+      module: 'rnc',
       type: 'photo',
       required: false,
       visible: true,
-      order: 16,
+      order: 17,
       isSystem: true,
       colSpan: 1
     },
@@ -1075,10 +1620,11 @@ export function getDefaultFormFieldsForTenant(tenantId: string): FormFieldConfig
       tenant_id: tenantId,
       label: 'Data Final de Contenção',
       section: 'secao_5',
+      module: 'rnc',
       type: 'date',
       required: false,
       visible: true,
-      order: 17,
+      order: 18,
       isSystem: true,
       colSpan: 1
     },
@@ -1088,16 +1634,1105 @@ export function getDefaultFormFieldsForTenant(tenantId: string): FormFieldConfig
       tenant_id: tenantId,
       label: 'Abrir 8D',
       section: 'secao_5',
+      module: 'rnc',
       type: 'select',
       required: false,
       visible: true,
-      order: 18,
+      order: 19,
       isSystem: true,
       optionCategory: 'abrir_8d',
+      valueColumn: 'Nome',
+      displayColumn: 'Nome',
       colSpan: 1
+    },
+
+    // ========================================================================
+    // MÓDULO 2: PLANO DE AÇÃO — SEÇÃO 1: Cabeçalho do Plano de Ação
+    // ========================================================================
+    {
+      id: 'plano_responsavel',
+      key: 'plano_responsavel',
+      tenant_id: tenantId,
+      label: 'Responsável pela Abertura do Plano',
+      section: 'plano_cabecalho',
+      module: 'plano_acao',
+      type: 'select',
+      required: true,
+      visible: true,
+      order: 1,
+      isSystem: true,
+      optionCategory: 'master_funcionarios',
+      valueColumn: 'Nome',
+      displayColumn: 'Nome',
+      placeholder: 'Selecione o Responsável...',
+      colSpan: 2
+    },
+    {
+      id: 'plano_indicador',
+      key: 'plano_indicador',
+      tenant_id: tenantId,
+      label: 'Indicador / Programa Estratégico',
+      section: 'plano_cabecalho',
+      module: 'plano_acao',
+      type: 'select',
+      required: true,
+      visible: true,
+      order: 2,
+      isSystem: true,
+      optionCategory: 'plano_indicador',
+      valueColumn: 'Nome',
+      displayColumn: 'Nome',
+      placeholder: 'Selecione o Indicador...',
+      colSpan: 1
+    },
+    {
+      id: 'plano_sub1',
+      key: 'plano_sub1',
+      tenant_id: tenantId,
+      label: 'Subindicador',
+      section: 'plano_cabecalho',
+      module: 'plano_acao',
+      type: 'select',
+      required: false,
+      visible: true,
+      order: 3,
+      isSystem: true,
+      optionCategory: 'plano_sub1',
+      valueColumn: 'Nome',
+      displayColumn: 'Nome',
+      placeholder: 'Selecione o Subindicador...',
+      colSpan: 1
+    },
+    {
+      id: 'plano_area',
+      key: 'plano_area',
+      tenant_id: tenantId,
+      label: 'Área / Setor Fabril',
+      section: 'plano_cabecalho',
+      module: 'plano_acao',
+      type: 'select',
+      required: true,
+      visible: true,
+      order: 4,
+      isSystem: true,
+      optionCategory: 'area_fabril',
+      valueColumn: 'Área / Setor Fabril',
+      displayColumn: 'Área / Setor Fabril',
+      placeholder: 'Selecione a Área / Setor...',
+      colSpan: 1
+    },
+    {
+      id: 'plano_posto',
+      key: 'plano_posto',
+      tenant_id: tenantId,
+      label: 'Posto de Trabalho do Plano',
+      section: 'plano_cabecalho',
+      module: 'plano_acao',
+      type: 'select',
+      required: false,
+      visible: true,
+      order: 5,
+      isSystem: true,
+      optionCategory: 'posto_trabalho',
+      valueColumn: 'Posto de Trabalho',
+      displayColumn: 'Posto de Trabalho',
+      placeholder: 'Selecione o Posto...',
+      colSpan: 1
+    },
+    {
+      id: 'plano_produto',
+      key: 'plano_produto',
+      tenant_id: tenantId,
+      label: 'Produto / Peça Relacionada',
+      section: 'plano_cabecalho',
+      module: 'plano_acao',
+      type: 'select',
+      required: false,
+      visible: true,
+      order: 6,
+      isSystem: true,
+      optionCategory: 'master_pecas_produtos',
+      valueColumn: 'Peça / Produto',
+      displayColumn: 'Peça / Produto',
+      placeholder: 'Selecione o Produto / Projeto...',
+      colSpan: 1
+    },
+    {
+      id: 'plano_prioridade',
+      key: 'plano_prioridade',
+      tenant_id: tenantId,
+      label: 'Prioridade do Plano',
+      section: 'plano_cabecalho',
+      module: 'plano_acao',
+      type: 'select',
+      required: true,
+      visible: true,
+      order: 7,
+      isSystem: true,
+      optionCategory: 'plano_prioridade',
+      valueColumn: 'Nome',
+      displayColumn: 'Nome',
+      placeholder: 'Selecione a Prioridade...',
+      colSpan: 1
+    },
+    {
+      id: 'plano_descricao_problema',
+      key: 'plano_descricao_problema',
+      tenant_id: tenantId,
+      label: 'Descrição do Problema / Oportunidade',
+      section: 'plano_cabecalho',
+      module: 'plano_acao',
+      type: 'textarea',
+      required: true,
+      visible: true,
+      order: 8,
+      isSystem: true,
+      placeholder: 'Descreva claramente o desvio identificado, meta não atingida ou oportunidade...',
+      colSpan: 4
+    },
+    {
+      id: 'plano_foto_auxiliar',
+      key: 'plano_foto_auxiliar',
+      tenant_id: tenantId,
+      label: 'Foto Auxiliar (Peça, Posto ou Evidência do Problema)',
+      section: 'plano_cabecalho',
+      module: 'plano_acao',
+      type: 'photo',
+      required: false,
+      visible: true,
+      order: 9,
+      isSystem: true,
+      colSpan: 4
+    },
+    {
+      id: 'plano_idprograma',
+      key: 'plano_idprograma',
+      tenant_id: tenantId,
+      label: 'Código / Vínculo de Origem (Ex: 8D / RNC — Oculto / Automático)',
+      section: 'plano_cabecalho',
+      module: 'plano_acao',
+      type: 'text',
+      required: false,
+      visible: false,
+      order: 10,
+      isSystem: true,
+      placeholder: 'ID de origem quando gerado automaticamente...',
+      colSpan: 1
+    },
+    {
+      id: 'plano_data_abertura',
+      key: 'plano_data_abertura',
+      tenant_id: tenantId,
+      label: 'Data de Abertura do Plano (Preenchimento Automático)',
+      section: 'plano_cabecalho',
+      module: 'plano_acao',
+      type: 'date',
+      required: false,
+      visible: false,
+      order: 11,
+      isSystem: true,
+      colSpan: 1
+    },
+    {
+      id: 'plano_status',
+      key: 'plano_status',
+      tenant_id: tenantId,
+      label: 'Status Geral do Plano de Ação (Regra de Fluxo)',
+      section: 'plano_cabecalho',
+      module: 'plano_acao',
+      type: 'select',
+      required: false,
+      visible: false,
+      order: 12,
+      isSystem: true,
+      optionCategory: 'plano_status_lista',
+      valueColumn: 'Nome',
+      displayColumn: 'Nome',
+      placeholder: 'Status do plano...',
+      colSpan: 1
+    },
+
+    // ========================================================================
+    // MÓDULO 2: PLANO DE AÇÃO — SEÇÃO 2: Tarefas, Contramedidas, Conclusão e Homologação
+    // ========================================================================
+    {
+      id: 'plano_vinculo_id',
+      key: 'plano_vinculo_id',
+      tenant_id: tenantId,
+      label: 'Vincular ao Plano de Ação (Cabeçalho)',
+      section: 'plano_acoes',
+      module: 'plano_acao',
+      type: 'text',
+      required: true,
+      visible: true,
+      order: 1,
+      isSystem: true,
+      placeholder: 'Selecione o Plano de Ação de destino...',
+      colSpan: 2
+    },
+    {
+      id: 'plano_tipo_acao',
+      key: 'plano_tipo_acao',
+      tenant_id: tenantId,
+      label: 'Tipo da Ação (Contenção / Corretiva / Preventiva / Melhoria)',
+      section: 'plano_acoes',
+      module: 'plano_acao',
+      type: 'select',
+      required: true,
+      visible: true,
+      order: 2,
+      isSystem: true,
+      optionCategory: 'oitod_tipos_acao',
+      valueColumn: 'Nome',
+      displayColumn: 'Nome',
+      placeholder: 'Selecione o Tipo de Ação...',
+      colSpan: 2
+    },
+    {
+      id: 'plano_causa_acao',
+      key: 'plano_causa_acao',
+      tenant_id: tenantId,
+      label: 'Causa Raiz / Origem Apurada',
+      section: 'plano_acoes',
+      module: 'plano_acao',
+      type: 'text',
+      required: true,
+      visible: true,
+      order: 3,
+      isSystem: true,
+      placeholder: 'Descreva a causa raiz que esta ação irá bloquear ou eliminar...',
+      colSpan: 4
+    },
+    {
+      id: 'plano_contra_medida',
+      key: 'plano_contra_medida',
+      tenant_id: tenantId,
+      label: 'Descrição da Contramedida (O que será feito)',
+      section: 'plano_acoes',
+      module: 'plano_acao',
+      type: 'textarea',
+      required: true,
+      visible: true,
+      order: 4,
+      isSystem: true,
+      placeholder: 'Detalhe a ação técnica, dispositivo ou alteração de processo...',
+      colSpan: 4
+    },
+    {
+      id: 'plano_posto_acao',
+      key: 'plano_posto_acao',
+      tenant_id: tenantId,
+      label: 'Posto de Trabalho / Local da Ação',
+      section: 'plano_acoes',
+      module: 'plano_acao',
+      type: 'select',
+      required: false,
+      visible: true,
+      order: 5,
+      isSystem: true,
+      optionCategory: 'posto_trabalho',
+      valueColumn: 'Posto de Trabalho',
+      displayColumn: 'Posto de Trabalho',
+      placeholder: 'Selecione o Posto...',
+      colSpan: 2
+    },
+    {
+      id: 'plano_resp_acao',
+      key: 'plano_resp_acao',
+      tenant_id: tenantId,
+      label: 'Responsável pela Tarefa (Quem fará)',
+      section: 'plano_acoes',
+      module: 'plano_acao',
+      type: 'select',
+      required: true,
+      visible: true,
+      order: 6,
+      isSystem: true,
+      optionCategory: 'master_funcionarios',
+      valueColumn: 'Nome',
+      displayColumn: 'Nome',
+      placeholder: 'Selecione o Colaborador...',
+      colSpan: 2
+    },
+    {
+      id: 'plano_email_resp',
+      key: 'plano_email_resp',
+      tenant_id: tenantId,
+      label: 'E-mail do Responsável (Preenchimento Automático / Oculto)',
+      section: 'plano_acoes',
+      module: 'plano_acao',
+      type: 'text',
+      required: false,
+      visible: false,
+      order: 7,
+      isSystem: true,
+      placeholder: 'E-mail corporativo vinculado ao responsável...',
+      colSpan: 2
+    },
+    {
+      id: 'plano_data_acompanhamento',
+      key: 'plano_data_acompanhamento',
+      tenant_id: tenantId,
+      label: 'Data de Acompanhamento Intermediário',
+      section: 'plano_acoes',
+      module: 'plano_acao',
+      type: 'date',
+      required: false,
+      visible: true,
+      order: 8,
+      isSystem: true,
+      colSpan: 2
+    },
+    {
+      id: 'plano_data_planejada',
+      key: 'plano_data_planejada',
+      tenant_id: tenantId,
+      label: 'Prazo Planejado Final',
+      section: 'plano_acoes',
+      module: 'plano_acao',
+      type: 'date',
+      required: true,
+      visible: true,
+      order: 9,
+      isSystem: true,
+      colSpan: 2
+    },
+    {
+      id: 'plano_yokoten',
+      key: 'plano_yokoten',
+      tenant_id: tenantId,
+      label: 'Abrangência / Yokoten? (SIM / NÃO)',
+      section: 'plano_acoes',
+      module: 'plano_acao',
+      type: 'yesno',
+      required: false,
+      visible: true,
+      order: 10,
+      isSystem: true,
+      colSpan: 2
+    },
+    {
+      id: 'plano_poka_yoke',
+      key: 'plano_poka_yoke',
+      tenant_id: tenantId,
+      label: 'Dispositivo Poka-Yoke? (SIM / NÃO)',
+      section: 'plano_acoes',
+      module: 'plano_acao',
+      type: 'yesno',
+      required: false,
+      visible: true,
+      order: 11,
+      isSystem: true,
+      colSpan: 2
+    },
+    {
+      id: 'plano_evidencia_obrigatoria',
+      key: 'plano_evidencia_obrigatoria',
+      tenant_id: tenantId,
+      label: 'Exige Evidência Obrigatória na Conclusão? (Regra Padrão SIM)',
+      section: 'plano_acoes',
+      module: 'plano_acao',
+      type: 'yesno',
+      required: false,
+      visible: false,
+      order: 12,
+      isSystem: true,
+      colSpan: 2
+    },
+    {
+      id: 'plano_validacao_obrigatoria',
+      key: 'plano_validacao_obrigatoria',
+      tenant_id: tenantId,
+      label: 'Exige Validação / Homologação da Qualidade? (Regra Padrão SIM)',
+      section: 'plano_acoes',
+      module: 'plano_acao',
+      type: 'yesno',
+      required: false,
+      visible: false,
+      order: 13,
+      isSystem: true,
+      colSpan: 2
+    },
+    {
+      id: 'plano_status_acao',
+      key: 'plano_status_acao',
+      tenant_id: tenantId,
+      label: 'Status da Ação (Aberto / Concluído / Validado / Atrasado)',
+      section: 'plano_acoes',
+      module: 'plano_acao',
+      type: 'select',
+      required: false,
+      visible: false,
+      order: 14,
+      isSystem: true,
+      optionCategory: 'plano_status_lista',
+      valueColumn: 'Nome',
+      displayColumn: 'Nome',
+      placeholder: 'Status da tarefa...',
+      colSpan: 2
+    },
+    {
+      id: 'plano_data_conclusao',
+      key: 'plano_data_conclusao',
+      tenant_id: tenantId,
+      label: 'Data Efetiva da Implementação (Modal de Conclusão)',
+      section: 'plano_acoes',
+      module: 'plano_acao',
+      type: 'date',
+      required: true,
+      visible: true,
+      order: 15,
+      isSystem: true,
+      colSpan: 2
+    },
+    {
+      id: 'plano_comentarios_evidencia',
+      key: 'plano_comentarios_evidencia',
+      tenant_id: tenantId,
+      label: 'Relato de Evidência / O que foi implementado (Modal de Conclusão)',
+      section: 'plano_acoes',
+      module: 'plano_acao',
+      type: 'textarea',
+      required: true,
+      visible: true,
+      order: 16,
+      isSystem: true,
+      placeholder: 'Descreva os detalhes da execução, resultados medidos, nº da revisão...',
+      colSpan: 4
+    },
+    {
+      id: 'plano_anexos_evidencia',
+      key: 'plano_anexos_evidencia',
+      tenant_id: tenantId,
+      label: 'Anexo de Evidência — Foto ou Documento (Modal de Conclusão)',
+      section: 'plano_acoes',
+      module: 'plano_acao',
+      type: 'photo',
+      required: false,
+      visible: true,
+      order: 17,
+      isSystem: true,
+      colSpan: 4
+    },
+    {
+      id: 'plano_decisao_auditoria',
+      key: 'plano_decisao_auditoria',
+      tenant_id: tenantId,
+      label: 'Decisão da Auditoria da Qualidade (Aprovar & Homologar / Solicitar Revisão)',
+      section: 'plano_acoes',
+      module: 'plano_acao',
+      type: 'select',
+      required: true,
+      visible: true,
+      order: 18,
+      isSystem: true,
+      optionCategory: 'plano_decisao_auditoria_lista',
+      valueColumn: 'Nome',
+      displayColumn: 'Nome',
+      placeholder: 'Selecione a decisão da auditoria...',
+      colSpan: 2
+    },
+    {
+      id: 'plano_parecer_auditoria',
+      key: 'plano_parecer_auditoria',
+      tenant_id: tenantId,
+      label: 'Parecer Técnico da Auditoria / Validação de Eficácia',
+      section: 'plano_acoes',
+      module: 'plano_acao',
+      type: 'textarea',
+      required: true,
+      visible: true,
+      order: 19,
+      isSystem: true,
+      placeholder: 'Registre os comentários de verificação em linha e validação de eficácia...',
+      colSpan: 4
+    },
+    {
+      id: 'plano_motivo_revisao',
+      key: 'plano_motivo_revisao',
+      tenant_id: tenantId,
+      label: 'Motivo do Retorno para Correção (Condicional Reprovação)',
+      section: 'plano_acoes',
+      module: 'plano_acao',
+      type: 'text',
+      required: false,
+      visible: true,
+      order: 20,
+      isSystem: true,
+      placeholder: 'Informe o que o responsável precisa complementar...',
+      colSpan: 4
+    },
+
+    // ========================================================================
+    // MÓDULO 3: METODOLOGIA 8D — SEÇÃO 1: Etapas 1D & 2D (Equipe e Problema)
+    // ========================================================================
+    {
+      id: 'oitod_lider',
+      key: 'oitod_lider',
+      tenant_id: tenantId,
+      label: 'Líder / Champion do Relatório 8D (1D)',
+      section: 'oitod_equipe_2d',
+      module: 'oitod',
+      type: 'select',
+      required: true,
+      visible: true,
+      order: 1,
+      isSystem: true,
+      optionCategory: 'master_funcionarios',
+      valueColumn: 'Nome',
+      displayColumn: 'Nome',
+      placeholder: 'Selecione o Líder do 8D...',
+      colSpan: 2
+    },
+    {
+      id: 'oitod_membros_1d',
+      key: 'oitod_membros_1d',
+      tenant_id: tenantId,
+      label: 'Equipe Multidisciplinar 1D / 2D (Participantes)',
+      section: 'oitod_equipe_2d',
+      module: 'oitod',
+      type: 'multiselect',
+      required: true,
+      visible: true,
+      order: 2,
+      isSystem: true,
+      optionCategory: 'master_funcionarios',
+      valueColumn: 'Nome',
+      displayColumn: 'Nome',
+      placeholder: 'Selecione os integrantes da equipe 1D...',
+      colSpan: 2
+    },
+    {
+      id: 'oitod_posto_2d',
+      key: 'oitod_posto_2d',
+      tenant_id: tenantId,
+      label: 'Posto de Trabalho / Local da Ocorrência (2D)',
+      section: 'oitod_equipe_2d',
+      module: 'oitod',
+      type: 'select',
+      required: false,
+      visible: true,
+      order: 3,
+      isSystem: true,
+      optionCategory: 'posto_trabalho',
+      valueColumn: 'Posto de Trabalho',
+      displayColumn: 'Posto de Trabalho',
+      placeholder: 'Selecione o Posto...',
+      colSpan: 2
+    },
+    {
+      id: 'oitod_turno_2d',
+      key: 'oitod_turno_2d',
+      tenant_id: tenantId,
+      label: 'Turno da Ocorrência (2D)',
+      section: 'oitod_equipe_2d',
+      module: 'oitod',
+      type: 'select',
+      required: false,
+      visible: true,
+      order: 4,
+      isSystem: true,
+      optionCategory: 'turno',
+      valueColumn: 'Nome',
+      displayColumn: 'Nome',
+      placeholder: 'Selecione o Turno...',
+      colSpan: 2
+    },
+
+    // ========================================================================
+    // MÓDULO 3: METODOLOGIA 8D — SEÇÃO 2: Etapa 3D (Contenção e Triagem de Lotes)
+    // ========================================================================
+    {
+      id: 'oitod_lote_3d',
+      key: 'oitod_lote_3d',
+      tenant_id: tenantId,
+      label: 'Lote de Produção Verificado (3D)',
+      section: 'oitod_contencao_3d',
+      module: 'oitod',
+      type: 'text',
+      required: true,
+      visible: true,
+      order: 1,
+      isSystem: true,
+      placeholder: 'Ex: Lote 2026-10A...',
+      colSpan: 1
+    },
+    {
+      id: 'oitod_estoque_local',
+      key: 'oitod_estoque_local',
+      tenant_id: tenantId,
+      label: 'Locais de Estoque / Quarentena Verificados (3D)',
+      section: 'oitod_contencao_3d',
+      module: 'oitod',
+      type: 'select',
+      required: true,
+      visible: true,
+      order: 2,
+      isSystem: true,
+      optionCategory: 'oitod_estoques_locais',
+      valueColumn: 'Nome',
+      displayColumn: 'Nome',
+      placeholder: 'Selecione o Local de Estoque...',
+      colSpan: 2
+    },
+    {
+      id: 'oitod_qtd_verificada_3d',
+      key: 'oitod_qtd_verificada_3d',
+      tenant_id: tenantId,
+      label: 'Quantidade Total Verificada no Lote (3D)',
+      section: 'oitod_contencao_3d',
+      module: 'oitod',
+      type: 'number',
+      required: true,
+      visible: true,
+      order: 3,
+      isSystem: true,
+      colSpan: 1
+    },
+    {
+      id: 'oitod_qtd_ng_3d',
+      key: 'oitod_qtd_ng_3d',
+      tenant_id: tenantId,
+      label: 'Quantidade de Peças NG Encontradas no Lote (3D)',
+      section: 'oitod_contencao_3d',
+      module: 'oitod',
+      type: 'number',
+      required: true,
+      visible: true,
+      order: 4,
+      isSystem: true,
+      colSpan: 1
+    },
+    {
+      id: 'oitod_qtd_ok_3d',
+      key: 'oitod_qtd_ok_3d',
+      tenant_id: tenantId,
+      label: 'Quantidade de Peças OK Calculada (3D — Automático)',
+      section: 'oitod_contencao_3d',
+      module: 'oitod',
+      type: 'number',
+      required: false,
+      visible: false,
+      order: 5,
+      isSystem: true,
+      colSpan: 1
+    },
+    {
+      id: 'oitod_resp_lote_3d',
+      key: 'oitod_resp_lote_3d',
+      tenant_id: tenantId,
+      label: 'Responsável pela Verificação do Lote (3D)',
+      section: 'oitod_contencao_3d',
+      module: 'oitod',
+      type: 'select',
+      required: true,
+      visible: true,
+      order: 6,
+      isSystem: true,
+      optionCategory: 'master_funcionarios',
+      valueColumn: 'Nome',
+      displayColumn: 'Nome',
+      placeholder: 'Selecione o responsável pela triagem...',
+      colSpan: 1
+    },
+    {
+      id: 'oitod_disposicao_3d',
+      key: 'oitod_disposicao_3d',
+      tenant_id: tenantId,
+      label: 'Disposição de Material / Lote Segregado (3D)',
+      section: 'oitod_contencao_3d',
+      module: 'oitod',
+      type: 'select',
+      required: false,
+      visible: true,
+      order: 7,
+      isSystem: true,
+      optionCategory: 'disposicao_lote',
+      valueColumn: 'Nome',
+      displayColumn: 'Nome',
+      placeholder: 'Selecione a Disposição...',
+      colSpan: 2
+    },
+
+    // ========================================================================
+    // MÓDULO 3: METODOLOGIA 8D — SEÇÃO 3: Etapa 4D (Gemba, Henkaten, Ishikawa 6M e 5 Porquês)
+    // ========================================================================
+    {
+      id: 'oitod_gemba_avaliacao',
+      key: 'oitod_gemba_avaliacao',
+      tenant_id: tenantId,
+      label: 'Investigação Gemba 4D — 1. Avaliação no Posto de Trabalho',
+      section: 'oitod_causa_4d',
+      module: 'oitod',
+      type: 'textarea',
+      required: true,
+      visible: true,
+      order: 1,
+      isSystem: true,
+      placeholder: 'Relate o que foi observado in loco no posto de trabalho...',
+      colSpan: 2
+    },
+    {
+      id: 'oitod_gemba_entrevista',
+      key: 'oitod_gemba_entrevista',
+      tenant_id: tenantId,
+      label: 'Investigação Gemba 4D — 2. Entrevistas com Operadores e Liderança',
+      section: 'oitod_causa_4d',
+      module: 'oitod',
+      type: 'textarea',
+      required: true,
+      visible: true,
+      order: 2,
+      isSystem: true,
+      placeholder: 'Relate os depoimentos e percepções dos operadores...',
+      colSpan: 2
+    },
+    {
+      id: 'oitod_gemba_simulacao',
+      key: 'oitod_gemba_simulacao',
+      tenant_id: tenantId,
+      label: 'Investigação Gemba 4D — 3. Simulação / Reprodução do Modo de Falha',
+      section: 'oitod_causa_4d',
+      module: 'oitod',
+      type: 'textarea',
+      required: true,
+      visible: true,
+      order: 3,
+      isSystem: true,
+      placeholder: 'Descreva os testes práticos para reproduzir o defeito...',
+      colSpan: 2
+    },
+    {
+      id: 'oitod_gemba_rastreabilidade',
+      key: 'oitod_gemba_rastreabilidade',
+      tenant_id: tenantId,
+      label: 'Investigação Gemba 4D — 4. Rastreabilidade de Parâmetros e Meios',
+      section: 'oitod_causa_4d',
+      module: 'oitod',
+      type: 'textarea',
+      required: true,
+      visible: true,
+      order: 4,
+      isSystem: true,
+      placeholder: 'Registre os parâmetros de máquina, lote de matéria-prima e calibradores...',
+      colSpan: 2
+    },
+    {
+      id: 'oitod_henkaten_6m',
+      key: 'oitod_henkaten_6m',
+      tenant_id: tenantId,
+      label: 'Avaliação de Mudança (Henkaten) nos 6M + Observações (4D)',
+      section: 'oitod_causa_4d',
+      module: 'oitod',
+      type: 'yesno',
+      required: true,
+      visible: true,
+      order: 5,
+      isSystem: true,
+      colSpan: 4
+    },
+    {
+      id: 'oitod_6m_ishikawa',
+      key: 'oitod_6m_ishikawa',
+      tenant_id: tenantId,
+      label: 'Categorias 6M (Ishikawa & Henkaten 4D)',
+      section: 'oitod_causa_4d',
+      module: 'oitod',
+      type: 'select',
+      required: true,
+      visible: true,
+      order: 6,
+      isSystem: true,
+      optionCategory: 'oitod_6m_ishikawa',
+      valueColumn: 'Nome',
+      displayColumn: 'Nome',
+      placeholder: 'Selecione o Eixo 6M...',
+      colSpan: 2
+    },
+    {
+      id: 'oitod_ishikawa_descricao',
+      key: 'oitod_ishikawa_descricao',
+      tenant_id: tenantId,
+      label: 'Descrição da Hipótese Levantada no Diagrama de Ishikawa (4D)',
+      section: 'oitod_causa_4d',
+      module: 'oitod',
+      type: 'textarea',
+      required: true,
+      visible: true,
+      order: 7,
+      isSystem: true,
+      placeholder: 'Descreva a hipótese de ocorrência ou não detecção...',
+      colSpan: 2
+    },
+    {
+      id: 'oitod_fornecedor_4d',
+      key: 'oitod_fornecedor_4d',
+      tenant_id: tenantId,
+      label: 'Origem / Fornecedor de Matéria-Prima (4D)',
+      section: 'oitod_causa_4d',
+      module: 'oitod',
+      type: 'select',
+      required: false,
+      visible: true,
+      order: 8,
+      isSystem: true,
+      optionCategory: 'origem_fornecedor',
+      valueColumn: 'Nome',
+      displayColumn: 'Nome',
+      placeholder: 'Selecione o Fornecedor...',
+      colSpan: 2
+    },
+    {
+      id: 'oitod_5pq_respostas',
+      key: 'oitod_5pq_respostas',
+      tenant_id: tenantId,
+      label: 'Análise dos 5 Porquês (1º ao 5º Porquê para Causas NG Confirmadas)',
+      section: 'oitod_causa_4d',
+      module: 'oitod',
+      type: 'textarea',
+      required: true,
+      visible: true,
+      order: 9,
+      isSystem: true,
+      placeholder: 'Desdobramento do 1º ao 5º Porquê até a causa raiz sistêmica...',
+      colSpan: 2
+    },
+
+    // ========================================================================
+    // MÓDULO 3: METODOLOGIA 8D — SEÇÃO 4: Etapas 5D & 6D (Ações Corretivas e Eficácia)
+    // ========================================================================
+    {
+      id: 'oitod_tipo_acao',
+      key: 'oitod_tipo_acao',
+      tenant_id: tenantId,
+      label: 'Classificação das Ações (3D / 5D / 6D / 7D)',
+      section: 'oitod_acoes_5d_6d',
+      module: 'oitod',
+      type: 'select',
+      required: true,
+      visible: true,
+      order: 1,
+      isSystem: true,
+      optionCategory: 'oitod_tipos_acao',
+      valueColumn: 'Nome',
+      displayColumn: 'Nome',
+      placeholder: 'Selecione o Tipo de Ação...',
+      colSpan: 2
+    },
+    {
+      id: 'oitod_causa_vinculada_5d',
+      key: 'oitod_causa_vinculada_5d',
+      tenant_id: tenantId,
+      label: 'Causa Raiz 4D Vinculada à Contramedida (5D)',
+      section: 'oitod_acoes_5d_6d',
+      module: 'oitod',
+      type: 'text',
+      required: true,
+      visible: true,
+      order: 2,
+      isSystem: true,
+      placeholder: 'Causa raiz confirmada na etapa 4D...',
+      colSpan: 2
+    },
+    {
+      id: 'oitod_contra_medida_5d',
+      key: 'oitod_contra_medida_5d',
+      tenant_id: tenantId,
+      label: 'Descrição da Ação Corretiva / Contramedida (5D / 6D)',
+      section: 'oitod_acoes_5d_6d',
+      module: 'oitod',
+      type: 'textarea',
+      required: true,
+      visible: true,
+      order: 3,
+      isSystem: true,
+      placeholder: 'Detalhe a contramedida definitiva...',
+      colSpan: 4
+    },
+    {
+      id: 'oitod_responsavel_acao',
+      key: 'oitod_responsavel_acao',
+      tenant_id: tenantId,
+      label: 'Responsável pela Contramedida (5D / 6D)',
+      section: 'oitod_acoes_5d_6d',
+      module: 'oitod',
+      type: 'select',
+      required: true,
+      visible: true,
+      order: 4,
+      isSystem: true,
+      optionCategory: 'master_funcionarios',
+      valueColumn: 'Nome',
+      displayColumn: 'Nome',
+      placeholder: 'Selecione o Responsável...',
+      colSpan: 2
+    },
+    {
+      id: 'oitod_prazo_acao_5d',
+      key: 'oitod_prazo_acao_5d',
+      tenant_id: tenantId,
+      label: 'Prazo Planejado de Implementação (5D / 6D)',
+      section: 'oitod_acoes_5d_6d',
+      module: 'oitod',
+      type: 'date',
+      required: true,
+      visible: true,
+      order: 5,
+      isSystem: true,
+      colSpan: 2
+    },
+    {
+      id: 'oitod_yokoten_na',
+      key: 'oitod_yokoten_na',
+      tenant_id: tenantId,
+      label: 'Abrangência Yokoten Não Aplicável? (Justificativa 6D)',
+      section: 'oitod_acoes_5d_6d',
+      module: 'oitod',
+      type: 'yesno',
+      required: false,
+      visible: true,
+      order: 6,
+      isSystem: true,
+      colSpan: 2
+    },
+    {
+      id: 'oitod_pokayoke_na',
+      key: 'oitod_pokayoke_na',
+      tenant_id: tenantId,
+      label: 'Dispositivo Poka-Yoke Não Aplicável? (Justificativa 6D)',
+      section: 'oitod_acoes_5d_6d',
+      module: 'oitod',
+      type: 'yesno',
+      required: false,
+      visible: true,
+      order: 7,
+      isSystem: true,
+      colSpan: 2
+    },
+
+    // ========================================================================
+    // MÓDULO 3: METODOLOGIA 8D — SEÇÃO 5: Etapas 7D & 8D (Prevenção e Fechamento)
+    // ========================================================================
+    {
+      id: 'oitod_documento_7d',
+      key: 'oitod_documento_7d',
+      tenant_id: tenantId,
+      label: 'Eixo / Documento de Prevenção 7D (IATF: FMEA, TP, LPA, PC, LPP)',
+      section: 'oitod_prevencao_7d_8d',
+      module: 'oitod',
+      type: 'select',
+      required: true,
+      visible: true,
+      order: 1,
+      isSystem: true,
+      optionCategory: 'oitod_documentos_7d',
+      valueColumn: 'Nome',
+      displayColumn: 'Nome',
+      placeholder: 'Selecione o Documento Sistêmico...',
+      colSpan: 2
+    },
+    {
+      id: 'oitod_treinamento_colaborador',
+      key: 'oitod_treinamento_colaborador',
+      tenant_id: tenantId,
+      label: 'Colaborador Treinado na Lição Aprendida / LPP (7D)',
+      section: 'oitod_prevencao_7d_8d',
+      module: 'oitod',
+      type: 'select',
+      required: false,
+      visible: true,
+      order: 2,
+      isSystem: true,
+      optionCategory: 'master_funcionarios',
+      valueColumn: 'Nome',
+      displayColumn: 'Nome',
+      placeholder: 'Selecione o Colaborador Treinado...',
+      colSpan: 2
+    },
+    {
+      id: 'oitod_treinamento_instrutor',
+      key: 'oitod_treinamento_instrutor',
+      tenant_id: tenantId,
+      label: 'Multiplicador / Responsável pelo Treinamento (7D)',
+      section: 'oitod_prevencao_7d_8d',
+      module: 'oitod',
+      type: 'select',
+      required: false,
+      visible: true,
+      order: 3,
+      isSystem: true,
+      optionCategory: 'master_funcionarios',
+      valueColumn: 'Nome',
+      displayColumn: 'Nome',
+      placeholder: 'Selecione o Instrutor / Multiplicador...',
+      colSpan: 2
+    },
+    {
+      id: 'oitod_aprovador_8d',
+      key: 'oitod_aprovador_8d',
+      tenant_id: tenantId,
+      label: 'Aprovador Técnico / Fechamento 8D',
+      section: 'oitod_prevencao_7d_8d',
+      module: 'oitod',
+      type: 'select',
+      required: true,
+      visible: true,
+      order: 4,
+      isSystem: true,
+      optionCategory: 'master_funcionarios',
+      valueColumn: 'Nome',
+      displayColumn: 'Nome',
+      placeholder: 'Selecione o Aprovador...',
+      colSpan: 2
+    },
+    {
+      id: 'oitod_status_validacao_8d',
+      key: 'oitod_status_validacao_8d',
+      tenant_id: tenantId,
+      label: 'Decisão de Homologação do Relatório 8D (Aprovar / Solicitar Revisão)',
+      section: 'oitod_prevencao_7d_8d',
+      module: 'oitod',
+      type: 'select',
+      required: true,
+      visible: true,
+      order: 5,
+      isSystem: true,
+      optionCategory: 'plano_decisao_auditoria_lista',
+      valueColumn: 'Nome',
+      displayColumn: 'Nome',
+      placeholder: 'Selecione a decisão final...',
+      colSpan: 2
+    },
+    {
+      id: 'oitod_parecer_final_8d',
+      key: 'oitod_parecer_final_8d',
+      tenant_id: tenantId,
+      label: 'Parecer Técnico de Aprovação ou Solicitação de Revisão (8D)',
+      section: 'oitod_prevencao_7d_8d',
+      module: 'oitod',
+      type: 'textarea',
+      required: false,
+      visible: true,
+      order: 6,
+      isSystem: true,
+      placeholder: 'Comentários de fechamento e lições aprendidas da liderança...',
+      colSpan: 2
     }
   ];
-  return rawFields.map(f => ({ ...f, fieldKey: f.key }));
+  return rawFields.map(f => {
+    const inferredModule: FormModuleId =
+      f.module ||
+      (f.section.startsWith('plano_')
+        ? 'plano_acao'
+        : f.section.startsWith('oitod_')
+        ? 'oitod'
+        : 'rnc');
+    return {
+      ...f,
+      module: inferredModule,
+      fieldKey: f.key
+    };
+  });
 }
 
 const INITIAL_MASTER_DATA: MasterDataItem[] = [
@@ -1867,6 +3502,153 @@ class SaaSTenantService {
     return this.isSupabaseConfigured ? 'supabase_cloud' : 'hybrid_local';
   }
 
+  public getSupabaseClient(): SupabaseClient | null {
+    return this.supabase;
+  }
+
+  public async upsertRncToSupabase(rnc: RNCRecord): Promise<boolean> {
+    if (!this.supabase) return false;
+    try {
+      const tenantUuid = rnc.tenant_id || PILOT_TENANT_ID;
+      const row = {
+        tenant_id: tenantUuid,
+        numero_rnc: Number(rnc.id),
+        codigo_rnc: rnc.field1 || `RNC-${rnc.id}`,
+        tipo_rnc: rnc.tipoRnc || 'Formal',
+        data_ocorrencia: rnc.dataOcorrencia || new Date().toISOString().split('T')[0],
+        cliente_montadora: rnc.cliente || 'OUTROS',
+        produto: rnc.produto || 'N/A',
+        componente: rnc.componente || '',
+        posto: rnc.posto || '',
+        fmds: rnc.fmds || '',
+        modo_falha: rnc.modoFalha || '',
+        descricao_problema: rnc.detalhamentoOcorrencia || rnc.descricaoProblema || 'Sem descrição',
+        status: rnc.status || 'Relatório Inicial',
+        foto_peca_ok: rnc.fotoPecaOk || '',
+        foto_peca_ng: rnc.fotoPecaNg || '',
+        foto_auxiliar: rnc.fotoAuxiliar || '',
+        quantidade_afetada: Number(rnc.quantidadeAfetada) || 1,
+        caracteristica_seguranca: rnc.caracteristicaSeguranca || 'Não',
+        payload_completo: rnc
+      };
+
+      const { error } = await this.supabase
+        .from('rncs')
+        .upsert(row, { onConflict: 'tenant_id,numero_rnc' });
+
+      if (error) {
+        return false;
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  public async deleteRncFromSupabase(id: number, tenantId?: string): Promise<boolean> {
+    if (!this.supabase) return false;
+    try {
+      const targetTenant = tenantId || this.activeTenantId;
+      const { error } = await this.supabase
+        .from('rncs')
+        .delete()
+        .eq('tenant_id', targetTenant)
+        .eq('numero_rnc', id);
+      return !error;
+    } catch {
+      return false;
+    }
+  }
+
+  public async fetchRncsFromSupabase(tenantId?: string): Promise<RNCRecord[]> {
+    if (!this.supabase) return [];
+    try {
+      let query = this.supabase.from('rncs').select('*').order('numero_rnc', { ascending: false });
+      if (tenantId) {
+        query = query.eq('tenant_id', tenantId);
+      }
+      const { data, error } = await query;
+      if (error || !Array.isArray(data)) return [];
+      return data.map((row: any) => {
+        const payload = (row.payload_completo || {}) as Partial<RNCRecord>;
+        return {
+          ...payload,
+          id: Number(row.numero_rnc || payload.id || row.id),
+          tenant_id: row.tenant_id || payload.tenant_id || PILOT_TENANT_ID,
+          title: payload.title || String(row.numero_rnc || row.id),
+          field1: row.codigo_rnc || payload.field1 || `RNC-${row.numero_rnc}`,
+          tipoRnc: (row.tipo_rnc || payload.tipoRnc || 'Formal') as any,
+          status: (row.status || payload.status || 'Relatório Inicial') as any,
+          cliente: row.cliente_montadora || payload.cliente || 'OUTROS',
+          dataOcorrencia: row.data_ocorrencia || payload.dataOcorrencia || '',
+          produto: row.produto || payload.produto || '',
+          componente: row.componente ?? payload.componente ?? '',
+          posto: row.posto ?? payload.posto ?? '',
+          fmds: row.fmds ?? payload.fmds ?? '',
+          modoFalha: row.modo_falha ?? payload.modoFalha ?? '',
+          descricaoProblema: row.descricao_problema || payload.descricaoProblema || '',
+          detalhamentoOcorrencia: payload.detalhamentoOcorrencia || row.descricao_problema || '',
+          fotoPecaOk: row.foto_peca_ok ?? payload.fotoPecaOk ?? '',
+          fotoPecaNg: row.foto_peca_ng ?? payload.fotoPecaNg ?? '',
+          fotoAuxiliar: row.foto_auxiliar ?? payload.fotoAuxiliar ?? '',
+          quantidadeAfetada: Number(row.quantidade_afetada ?? payload.quantidadeAfetada ?? 1),
+          caracteristicaSeguranca: (row.caracteristica_seguranca || payload.caracteristicaSeguranca || 'Não') as any
+        } as RNCRecord;
+      });
+    } catch {
+      return [];
+    }
+  }
+
+  public getCloudMasterStateSnapshot() {
+    return {
+      masterData: this.masterData,
+      optionCategories: this.optionCategories,
+      formFields: this.formFields
+    };
+  }
+
+  public applyCloudMasterStateSnapshot(snapshot: {
+    masterData?: MasterDataItem[];
+    optionCategories?: OptionCategoryMeta[];
+    formFields?: FormFieldConfig[];
+  }) {
+    // Se já temos dados carregados localmente nesta sessão, não sobrescreve exclusões ou edições locais em andamento
+    // Apenas hidrata caso o store local da empresa esteja vazio
+    let changed = false;
+    if (
+      Array.isArray(snapshot.optionCategories) &&
+      snapshot.optionCategories.length > 0 &&
+      this.optionCategories.length === 0
+    ) {
+      this.optionCategories = snapshot.optionCategories;
+      changed = true;
+    }
+    if (
+      Array.isArray(snapshot.masterData) &&
+      snapshot.masterData.length > 0 &&
+      this.masterData.length === 0
+    ) {
+      this.masterData = snapshot.masterData;
+      changed = true;
+    }
+    if (
+      Array.isArray(snapshot.formFields) &&
+      snapshot.formFields.length > 0 &&
+      this.formFields.length === 0
+    ) {
+      this.formFields = snapshot.formFields;
+      changed = true;
+    }
+    if (changed) {
+      this.tenants.forEach(t => {
+        this.ensureTenantSchemasInitialized(t.id);
+      });
+      this.saveToLocalStorage();
+      this.notifyListeners();
+    }
+  }
+
   public subscribe(listener: () => void): () => void {
     this.listeners.push(listener);
     return () => {
@@ -1874,17 +3656,55 @@ class SaaSTenantService {
     };
   }
 
-  private notifyListeners() {
+  public notifyListeners() {
     this.listeners.forEach(l => l());
   }
 
   private ensureTenantSchemasInitialized(tenantId: string) {
-    // 1. Garante categorias de opções para a empresa
-    const existingCats = this.optionCategories.filter(c => c.tenant_id === tenantId);
+    // 0. Remove categorias duplicadas legadas e migra seus itens para as listas Master compartilhadas
+    const legacyCategoriesToRemove = new Set(['plano_posto', 'plano_area', 'plano_produto', 'plano_sub2']);
+    this.optionCategories = this.optionCategories.filter(
+      c => !(c.tenant_id === tenantId && legacyCategoriesToRemove.has(c.id))
+    );
+
+    // Migra itens legados (plano_posto -> posto_trabalho, plano_area -> area_fabril, plano_produto -> master_pecas_produtos)
+    const tenantItems = this.masterData.filter(m => m.tenant_id === tenantId);
+    for (const item of tenantItems) {
+      const canonical = resolveCanonicalCategory(item.tipo);
+      if (canonical !== item.tipo) {
+        const alreadyExists = this.masterData.some(
+          m =>
+            m.tenant_id === tenantId &&
+            m.tipo === canonical &&
+            m.nome.trim().toLowerCase() === item.nome.trim().toLowerCase()
+        );
+        if (!alreadyExists) {
+          item.tipo = canonical;
+        } else {
+          item.ativo = false;
+        }
+      }
+    }
+    this.masterData = this.masterData.filter(
+      m => !(m.tenant_id === tenantId && legacyCategoriesToRemove.has(m.tipo))
+    );
+
+    // 1. Garante categorias de opções para a empresa e sincroniza flags Master
     const defaultCats = getDefaultOptionCategoriesForTenant(tenantId);
     for (const defCat of defaultCats) {
-      if (!existingCats.some(c => c.id === defCat.id)) {
+      const existingIdx = this.optionCategories.findIndex(
+        c => c.tenant_id === tenantId && c.id === defCat.id
+      );
+      if (existingIdx === -1) {
         this.optionCategories.push(defCat);
+      } else {
+        this.optionCategories[existingIdx].isMasterShared = defCat.isMasterShared;
+        if (defCat.isMasterShared) {
+          this.optionCategories[existingIdx].nome = defCat.nome;
+          this.optionCategories[existingIdx].title = defCat.nome;
+          this.optionCategories[existingIdx].descricao = defCat.descricao;
+          this.optionCategories[existingIdx].description = defCat.descricao;
+        }
       }
     }
 
@@ -1898,17 +3718,82 @@ class SaaSTenantService {
       }
     }
 
-    // 3. Garante campos do formulário para a empresa
+    // Migra itens de possivel_detectar para não duplicar "Sim (Sim (...))"
+    this.masterData.forEach(item => {
+      if (item.tenant_id === tenantId && item.tipo === 'possivel_detectar') {
+        if (item.detalhe === 'Sim (Falha de Inspeção / Padrão)' || item.detalhe?.startsWith('Sim (')) {
+          item.detalhe = 'Falha de Inspeção / Padrão';
+        } else if (item.detalhe === 'Não (Defeito Latente / Oculto)' || item.detalhe?.startsWith('Não (')) {
+          item.detalhe = 'Defeito Latente / Oculto';
+        }
+      }
+    });
+
+    // 3. Garante todos os campos dos 3 módulos para a empresa e sincroniza vínculos de base (optionCategory)
     const existingFields = this.formFields.filter(f => f.tenant_id === tenantId);
+    let fieldsMigrated = false;
     if (existingFields.length === 0) {
       this.formFields.push(...getDefaultFormFieldsForTenant(tenantId));
+      fieldsMigrated = true;
     } else {
       const defaultFields = getDefaultFormFieldsForTenant(tenantId);
       for (const defField of defaultFields) {
-        if (!existingFields.some(f => f.id === defField.id)) {
+        const foundField = existingFields.find(
+          f => f.id === defField.id || (f.key === defField.key && (f.module || 'rnc') === defField.module)
+        );
+        if (!foundField) {
           this.formFields.push(defField);
+          fieldsMigrated = true;
+        } else {
+          if (!foundField.module && defField.module) {
+            foundField.module = defField.module;
+            fieldsMigrated = true;
+          }
+          if (!foundField.optionCategory && defField.optionCategory) {
+            foundField.optionCategory = defField.optionCategory;
+            fieldsMigrated = true;
+          } else if (foundField.optionCategory) {
+            const canonicalCat = resolveCanonicalCategory(foundField.optionCategory);
+            if (canonicalCat !== foundField.optionCategory) {
+              foundField.optionCategory = canonicalCat;
+              fieldsMigrated = true;
+            }
+          }
+          if (!foundField.valueColumn && defField.valueColumn) {
+            foundField.valueColumn = defField.valueColumn;
+            fieldsMigrated = true;
+          }
+          if (!foundField.displayColumn && defField.displayColumn) {
+            foundField.displayColumn = defField.displayColumn;
+            fieldsMigrated = true;
+          }
+          if (
+            (foundField.id === 'condicionaisTipoRnc' || foundField.id === 'ondeFara') &&
+            foundField.type === 'text' &&
+            defField.type === 'select'
+          ) {
+            foundField.type = 'select';
+            fieldsMigrated = true;
+          }
+          if (foundField.id === 'cliente' && (foundField.label === 'Cliente (Montadora)' || foundField.label.includes('Montadora'))) {
+            foundField.label = 'Cliente';
+            foundField.placeholder = '-- Selecione o Cliente --';
+            fieldsMigrated = true;
+          }
+          if (foundField.id === 'fmds' && foundField.label.includes('FMDS')) {
+            foundField.label = 'Área / Setor Fabril';
+            foundField.placeholder = '-- Selecione a Área / Setor Fabril --';
+            fieldsMigrated = true;
+          }
+          if (foundField.id === 'atributosPeca' && foundField.label.includes('Carry Over')) {
+            foundField.label = foundField.label.replace('Carry Over', 'Peça comum');
+            fieldsMigrated = true;
+          }
         }
       }
+    }
+    if (fieldsMigrated) {
+      this.saveToLocalStorage();
     }
   }
 
@@ -2169,10 +4054,13 @@ class SaaSTenantService {
   public setActiveTenantBySlug(slug: string): TenantRecord | undefined {
     const found = this.getTenantBySlug(slug);
     if (found) {
+      const changed = this.activeTenantId !== found.id;
       this.activeTenantId = found.id;
       this.applyTenantThemeToDOM(found);
-      this.saveToLocalStorage();
-      this.notifyListeners();
+      if (changed) {
+        this.saveToLocalStorage();
+        this.notifyListeners();
+      }
     }
     return found;
   }
@@ -2180,10 +4068,13 @@ class SaaSTenantService {
   public setActiveTenantById(tenantId: string): TenantRecord | undefined {
     const found = this.getTenantById(tenantId);
     if (found) {
+      const changed = this.activeTenantId !== found.id;
       this.activeTenantId = found.id;
       this.applyTenantThemeToDOM(found);
-      this.saveToLocalStorage();
-      this.notifyListeners();
+      if (changed) {
+        this.saveToLocalStorage();
+        this.notifyListeners();
+      }
     }
     return found;
   }
@@ -2624,11 +4515,248 @@ class SaaSTenantService {
   }
 
   // ============================================================================
-  // CADASTROS MESTRES, LISTAS DE OPÇÕES E USUÁRIOS ISOLADOS POR TENANT
+  // CADASTROS MESTRES, LISTAS DE OPÇÕES E MATRIZ UNIFICADA DE PERFIS (3 COLUNAS)
   // ============================================================================
-  public getUsersForTenant(tenantId?: string): UsuarioQualidade[] {
+  public getDefaultProfilesForLegacyRole(
+    perfil?: UserRole,
+    papel?: SaaSUserRole,
+    isGeneralEmployeeWithoutCustomRole = false
+  ): UserAppProfiles {
+    if (isGeneralEmployeeWithoutCustomRole) {
+      return {
+        plano_acao: 'Usuário Comum',
+        rnc: 'Usuário Comum',
+        oitod: 'Usuário Comum'
+      };
+    }
+    if (perfil === 'Admin' || perfil === 'Adminqual' || papel === 'super_admin' || papel === 'admin_empresa') {
+      return {
+        plano_acao: 'Admin',
+        rnc: 'Admin',
+        oitod: 'Admin'
+      };
+    }
+    if (perfil === 'Liderqual') {
+      return {
+        plano_acao: 'Editor',
+        rnc: 'Admin',
+        oitod: 'Editor'
+      };
+    }
+    if (perfil === 'Inspqual' || perfil === 'Processos' || perfil === 'Produção') {
+      return {
+        plano_acao: 'Usuário Comum',
+        rnc: 'Editor',
+        oitod: 'Usuário Comum'
+      };
+    }
+    return {
+      plano_acao: 'Usuário Comum',
+      rnc: 'Usuário Comum',
+      oitod: 'Usuário Comum'
+    };
+  }
+
+  private deriveLegacyRoleFromAppProfiles(profiles: UserAppProfiles): UserRole {
+    const vals = [profiles.plano_acao, profiles.rnc, profiles.oitod];
+    if (vals.includes('Admin')) return 'Admin';
+    if (vals.includes('Editor')) return 'Liderqual';
+    return 'User';
+  }
+
+  public getBaseAtivosForTenant(tenantId?: string): ColaboradorBaseAtivos[] {
     const targetId = tenantId || this.activeTenantId;
-    return this.users.filter(u => u.tenant_id === targetId);
+    const funcItems = this.getActiveOptions('master_funcionarios', targetId);
+    return funcItems.map((item, idx) => {
+      const parsedRe = parseInt((item.codigo || '').replace(/[^0-9]/g, ''), 10);
+      const numPessoal = !isNaN(parsedRe) && parsedRe > 0 ? parsedRe : 30000 + idx + 1;
+      const parts = (item.detalhe || '').split('•').map(s => s.trim());
+      return {
+        numPessoal,
+        nome: item.nome,
+        posicao: parts[0] || 'Colaborador',
+        unidadeOrg: parts[1] || 'Operações Fabris'
+      };
+    });
+  }
+
+  /**
+   * Retorna a Matriz Unificada de Perfis de Usuários combinando toda a Lista Geral de Funcionários (Master)
+   * com os perfis customizados por aplicativo (Plano de Ação, RNC e 8D).
+   * Regra: Funcionários gerais sem perfil específico são automaticamente determinados como 'Usuário Comum'.
+   */
+  public getUnifiedUsersMatrix(tenantId?: string): UsuarioQualidade[] {
+    const targetId = tenantId || this.activeTenantId;
+    this.ensureTenantSchemasInitialized(targetId);
+    const tenant = this.getTenantById(targetId);
+    const slug = tenant?.slug || 'empresa';
+
+    const customUsers = this.users.filter(u => u.tenant_id === targetId);
+    const masterFuncs = this.getActiveOptions('master_funcionarios', targetId);
+    const result: UsuarioQualidade[] = [];
+    const seenRes = new Set<number>();
+    const seenNames = new Set<string>();
+
+    // 1. Percorre todos os funcionários da Lista Geral Master
+    masterFuncs.forEach((funcItem, idx) => {
+      const parsedRe = parseInt((funcItem.codigo || '').replace(/[^0-9]/g, ''), 10);
+      const re = !isNaN(parsedRe) && parsedRe > 0 ? parsedRe : 30500 + idx;
+      const cleanNameLower = funcItem.nome.trim().toLowerCase();
+
+      const matchedUser = customUsers.find(
+        u => u.reAcesso === re || u.nome.trim().toLowerCase() === cleanNameLower
+      );
+
+      const detailParts = (funcItem.detalhe || '').split('•').map(s => s.trim());
+      const defaultCargo = detailParts[0] || 'Colaborador';
+      const defaultSetor = detailParts[1] || 'Operações';
+
+      if (matchedUser) {
+        const profiles =
+          matchedUser.perfisPorApp ||
+          this.getDefaultProfilesForLegacyRole(
+            matchedUser.perfil,
+            matchedUser.papel,
+            Boolean(matchedUser.isDefaultProfile)
+          );
+        const isAllComum =
+          profiles.plano_acao === 'Usuário Comum' &&
+          profiles.rnc === 'Usuário Comum' &&
+          profiles.oitod === 'Usuário Comum';
+
+        result.push({
+          ...matchedUser,
+          nome: matchedUser.nome || funcItem.nome,
+          reAcesso: matchedUser.reAcesso || re,
+          cargo: matchedUser.cargo || defaultCargo,
+          setor: matchedUser.setor || defaultSetor,
+          perfisPorApp: profiles,
+          isDefaultProfile: matchedUser.isDefaultProfile ?? isAllComum
+        });
+        seenRes.add(matchedUser.reAcesso || re);
+        seenNames.add(cleanNameLower);
+      } else {
+        // Funcionário da lista geral sem perfil customizado -> Automaticamente 'Usuário Comum' nos 3 apps
+        const defaultProfiles: UserAppProfiles = {
+          plano_acao: 'Usuário Comum',
+          rnc: 'Usuário Comum',
+          oitod: 'Usuário Comum'
+        };
+        const emailSlug = funcItem.nome
+          .trim()
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^a-z0-9]+/g, '.');
+
+        result.push({
+          id: 50000 + re,
+          tenant_id: targetId,
+          papel: 'operador',
+          ativo: true,
+          nome: funcItem.nome,
+          reAcesso: re,
+          perfil: 'User',
+          perfisPorApp: defaultProfiles,
+          isDefaultProfile: true,
+          cargo: defaultCargo,
+          setor: defaultSetor,
+          email: `${emailSlug}@${slug}.com.br`
+        });
+        seenRes.add(re);
+        seenNames.add(cleanNameLower);
+      }
+    });
+
+    // 2. Inclui usuários customizados que ainda não estavam na lista master_funcionarios (e sincroniza)
+    customUsers.forEach(u => {
+      const cleanNameLower = u.nome.trim().toLowerCase();
+      if (!seenRes.has(u.reAcesso) && !seenNames.has(cleanNameLower)) {
+        const profiles =
+          u.perfisPorApp || this.getDefaultProfilesForLegacyRole(u.perfil, u.papel, false);
+        result.push({
+          ...u,
+          perfisPorApp: profiles,
+          isDefaultProfile: u.isDefaultProfile ?? false
+        });
+      }
+    });
+
+    return result;
+  }
+
+  public getUsersForTenant(tenantId?: string): UsuarioQualidade[] {
+    return this.getUnifiedUsersMatrix(tenantId);
+  }
+
+  public updateUserAppProfile(
+    reAcesso: number,
+    appKey: keyof UserAppProfiles,
+    level: AppPermissionLevel,
+    tenantId?: string
+  ): UsuarioQualidade | undefined {
+    const targetTenantId = tenantId || this.activeTenantId;
+    const matrixUser = this.getUnifiedUsersMatrix(targetTenantId).find(u => u.reAcesso === reAcesso);
+    if (!matrixUser) return undefined;
+
+    const currentProfiles: UserAppProfiles = matrixUser.perfisPorApp || {
+      plano_acao: 'Usuário Comum',
+      rnc: 'Usuário Comum',
+      oitod: 'Usuário Comum'
+    };
+
+    const nextProfiles: UserAppProfiles = {
+      ...currentProfiles,
+      [appKey]: level
+    };
+
+    const isDefault =
+      nextProfiles.plano_acao === 'Usuário Comum' &&
+      nextProfiles.rnc === 'Usuário Comum' &&
+      nextProfiles.oitod === 'Usuário Comum';
+
+    const derivedPerfil = this.deriveLegacyRoleFromAppProfiles(nextProfiles);
+
+    const saved = this.saveUserForTenant(
+      {
+        ...matrixUser,
+        id: matrixUser.id < 50000 ? matrixUser.id : undefined,
+        reAcesso: matrixUser.reAcesso,
+        nome: matrixUser.nome,
+        perfil: derivedPerfil,
+        perfisPorApp: nextProfiles,
+        isDefaultProfile: isDefault
+      },
+      targetTenantId
+    );
+
+    return saved.user;
+  }
+
+  public resetUserToDefaultProfile(reAcesso: number, tenantId?: string): UsuarioQualidade | undefined {
+    const targetTenantId = tenantId || this.activeTenantId;
+    const matrixUser = this.getUnifiedUsersMatrix(targetTenantId).find(u => u.reAcesso === reAcesso);
+    if (!matrixUser) return undefined;
+
+    const defaultProfiles: UserAppProfiles = {
+      plano_acao: 'Usuário Comum',
+      rnc: 'Usuário Comum',
+      oitod: 'Usuário Comum'
+    };
+
+    const saved = this.saveUserForTenant(
+      {
+        ...matrixUser,
+        id: matrixUser.id < 50000 ? matrixUser.id : undefined,
+        reAcesso: matrixUser.reAcesso,
+        nome: matrixUser.nome,
+        perfil: 'User',
+        perfisPorApp: defaultProfiles,
+        isDefaultProfile: true
+      },
+      targetTenantId
+    );
+    return saved.user;
   }
 
   public saveUserForTenant(user: Partial<UsuarioQualidade>, tenantId?: string): {
@@ -2638,26 +4766,57 @@ class SaaSTenantService {
   } {
     const targetTenantId = tenantId || this.activeTenantId;
     const tenant = this.getTenantById(targetTenantId);
-    const currentTenantUsers = this.getUsersForTenant(targetTenantId);
 
-    if (!user.id && tenant && currentTenantUsers.length >= tenant.limites.max_usuarios) {
-      return {
-        success: false,
-        message: `Limite máximo de usuários atingido para ${tenant.nome} (${tenant.limites.max_usuarios} usuários).`
-      };
-    }
+    const profiles: UserAppProfiles =
+      user.perfisPorApp ||
+      this.getDefaultProfilesForLegacyRole(user.perfil, user.papel, user.isDefaultProfile);
+    const derivedPerfil = user.perfil || this.deriveLegacyRoleFromAppProfiles(profiles);
+    const isDefault =
+      user.isDefaultProfile ??
+      (profiles.plano_acao === 'Usuário Comum' &&
+        profiles.rnc === 'Usuário Comum' &&
+        profiles.oitod === 'Usuário Comum');
 
-    if (user.id) {
-      const idx = this.users.findIndex(u => u.id === user.id);
-      if (idx >= 0) {
-        this.users[idx] = { ...this.users[idx], ...user, tenant_id: targetTenantId } as UsuarioQualidade;
-        this.saveToLocalStorage();
-        this.notifyListeners();
-        return { success: true, message: 'Usuário atualizado com sucesso.', user: this.users[idx] };
+    // Sincroniza também na Lista Master de Funcionários (master_funcionarios)
+    if (user.nome && user.nome.trim()) {
+      const cleanName = user.nome.trim();
+      const reStr = String(user.reAcesso || '');
+      const existingMasterFunc = this.masterData.find(
+        m =>
+          m.tenant_id === targetTenantId &&
+          m.tipo === 'master_funcionarios' &&
+          ((reStr && m.codigo === reStr) || m.nome.trim().toLowerCase() === cleanName.toLowerCase())
+      );
+      const detalheStr = [user.cargo || 'Colaborador', user.setor || 'Qualidade']
+        .filter(Boolean)
+        .join(' • ');
+
+      if (existingMasterFunc) {
+        existingMasterFunc.nome = cleanName;
+        if (reStr) existingMasterFunc.codigo = reStr;
+        if (user.cargo || user.setor) existingMasterFunc.detalhe = detalheStr;
+        existingMasterFunc.ativo = true;
+      } else {
+        this.masterData.push({
+          id: `${targetTenantId}-master_funcionarios-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          tenant_id: targetTenantId,
+          tipo: 'master_funcionarios',
+          nome: cleanName,
+          codigo: reStr || String(30150 + this.masterData.length),
+          detalhe: detalheStr,
+          ativo: true
+        });
       }
     }
 
-    const nextId = this.users.reduce((max, u) => (u.id > max ? u.id : max), 100) + 1;
+    // Procura por ID ou por RE na lista de usuários do tenant
+    const existingIdx = this.users.findIndex(
+      u =>
+        u.tenant_id === targetTenantId &&
+        ((user.id && user.id < 50000 && u.id === user.id) ||
+          (user.reAcesso && u.reAcesso === user.reAcesso))
+    );
+
     const roleMap: Record<string, SaaSUserRole> = {
       Admin: 'admin_empresa',
       Adminqual: 'qualidade',
@@ -2666,31 +4825,642 @@ class SaaSTenantService {
       User: 'operador'
     };
 
+    if (existingIdx >= 0) {
+      this.users[existingIdx] = {
+        ...this.users[existingIdx],
+        ...user,
+        id: this.users[existingIdx].id,
+        tenant_id: targetTenantId,
+        perfil: derivedPerfil,
+        papel: roleMap[derivedPerfil] || this.users[existingIdx].papel || 'operador',
+        perfisPorApp: profiles,
+        isDefaultProfile: isDefault
+      } as UsuarioQualidade;
+      this.saveToLocalStorage();
+      this.notifyListeners();
+      return { success: true, message: 'Perfil de usuário atualizado com sucesso.', user: this.users[existingIdx] };
+    }
+
+    const nextId = this.users.reduce((max, u) => (u.id > max && u.id < 50000 ? u.id : max), 100) + 1;
+
     const newUser: UsuarioQualidade = {
       id: nextId,
       tenant_id: targetTenantId,
-      papel: user.papel || roleMap[user.perfil || 'User'] || 'operador',
+      papel: user.papel || roleMap[derivedPerfil] || 'operador',
       ativo: true,
       nome: user.nome || 'Novo Colaborador',
       reAcesso: user.reAcesso || 10000 + nextId,
-      perfil: user.perfil || 'User',
+      perfil: derivedPerfil,
+      perfisPorApp: profiles,
+      isDefaultProfile: isDefault,
       senha: user.senha || '123',
       email: user.email || `colaborador${nextId}@${tenant?.slug || 'empresa'}.com.br`,
-      cargo: user.cargo || 'Analista da Qualidade',
-      setor: user.setor || 'Qualidade'
+      cargo: user.cargo || 'Colaborador',
+      setor: user.setor || 'Operações'
     };
 
     this.users.push(newUser);
     this.saveToLocalStorage();
     this.notifyListeners();
-    return { success: true, message: 'Novo usuário cadastrado na empresa.', user: newUser };
+    return { success: true, message: 'Colaborador salvo na Matriz Unificada de Perfis.', user: newUser };
   }
 
-  public deleteUserForTenant(userId: number): boolean {
-    this.users = this.users.filter(u => u.id !== userId);
+  public deleteUserForTenant(userIdOrRe: number, tenantId?: string): boolean {
+    const targetTenantId = tenantId || this.activeTenantId;
+    const targetUser = this.getUnifiedUsersMatrix(targetTenantId).find(
+      u => u.id === userIdOrRe || u.reAcesso === userIdOrRe
+    );
+    this.users = this.users.filter(
+      u => !(u.tenant_id === targetTenantId && (u.id === userIdOrRe || u.reAcesso === userIdOrRe))
+    );
+    if (targetUser) {
+      this.masterData = this.masterData.filter(
+        m =>
+          !(
+            m.tenant_id === targetTenantId &&
+            m.tipo === 'master_funcionarios' &&
+            (m.codigo === String(targetUser.reAcesso) ||
+              m.nome.trim().toLowerCase() === targetUser.nome.trim().toLowerCase())
+          )
+      );
+    }
     this.saveToLocalStorage();
     this.notifyListeners();
     return true;
+  }
+
+  // ============================================================================
+  // CENTRAL DE BASES MULTI-COLUNAS E RASTREAMENTO DE DEPENDÊNCIAS ENTRE MÓDULOS
+  // ============================================================================
+  public getCategoryColumns(categoryId: string, tenantId?: string): string[] {
+    const targetId = tenantId || this.activeTenantId;
+    const canonicalCat = resolveCanonicalCategory(categoryId);
+    const catMeta = this.optionCategories.find(
+      c => c.tenant_id === targetId && (c.id === canonicalCat || c.id === categoryId)
+    );
+    const baseCols =
+      catMeta?.columns && catMeta.columns.length > 0
+        ? [...catMeta.columns]
+        : [...getDefaultColumnsForCategory(canonicalCat)];
+
+    // Descobre colunas extras já existentes nos registros da base para nunca ocultar dados importados
+    const seen = new Set(baseCols.map(c => c.trim().toLowerCase()));
+    const items = this.masterData.filter(
+      m => m.tenant_id === targetId && m.tipo === canonicalCat
+    );
+    items.forEach(item => {
+      if (item.values) {
+        Object.keys(item.values).forEach(k => {
+          const clean = k.trim();
+          if (clean && !seen.has(clean.toLowerCase())) {
+            seen.add(clean.toLowerCase());
+            baseCols.push(clean);
+          }
+        });
+      }
+    });
+
+    return baseCols;
+  }
+
+  public getItemCellMap(item: MasterDataItem, columnsInput?: string[]): Record<string, string> {
+    const cols =
+      columnsInput && columnsInput.length > 0
+        ? columnsInput
+        : this.getCategoryColumns(item.tipo, item.tenant_id);
+    const result: Record<string, string> = {};
+
+    const canonical = resolveCanonicalCategory(item.tipo);
+    const detailParts = (item.detalhe || '').split('•').map(s => s.trim());
+
+    cols.forEach((colName, idx) => {
+      if (item.values && item.values[colName] !== undefined) {
+        result[colName] = String(item.values[colName] ?? '');
+        return;
+      }
+      // Busca case-insensitive em item.values
+      if (item.values) {
+        const matchedKey = Object.keys(item.values).find(
+          k => k.trim().toLowerCase() === colName.trim().toLowerCase()
+        );
+        if (matchedKey !== undefined) {
+          result[colName] = String(item.values[matchedKey] ?? '');
+          return;
+        }
+      }
+
+      // Fallback para os campos padrão (nome, codigo, detalhe)
+      if (idx === 0) {
+        result[colName] = item.nome || '';
+      } else if (idx === 1) {
+        result[colName] = item.codigo || '';
+      } else if (
+        (canonical === 'master_funcionarios' || canonical === 'master_pecas_produtos') &&
+        cols.length >= 4
+      ) {
+        if (idx === 2) result[colName] = detailParts[0] || '';
+        else if (idx === 3) result[colName] = detailParts.slice(1).join(' • ') || '';
+        else result[colName] = '';
+      } else if (idx === 2) {
+        result[colName] = item.detalhe || '';
+      } else {
+        result[colName] = '';
+      }
+    });
+
+    // Preserva quaisquer chaves adicionais em item.values
+    if (item.values) {
+      Object.entries(item.values).forEach(([k, v]) => {
+        if (result[k] === undefined) {
+          result[k] = String(v ?? '');
+        }
+      });
+    }
+
+    return result;
+  }
+
+  public getBaseUsageDependencies(
+    categoryId: string,
+    tenantId?: string
+  ): Array<{
+    fieldId: string;
+    fieldKey: string;
+    fieldLabel: string;
+    module: FormModuleId;
+    moduleLabel: string;
+    section: FormSectionId;
+    valueColumn?: string;
+    displayColumn?: string;
+  }> {
+    const targetId = tenantId || this.activeTenantId;
+    this.ensureTenantSchemasInitialized(targetId);
+    const canonicalTarget = resolveCanonicalCategory(categoryId);
+
+    const moduleLabelMap: Record<FormModuleId, string> = {
+      rnc: '1. RNC',
+      plano_acao: '2. Plano de Ação',
+      oitod: '3. Metodologia 8D'
+    };
+
+    return this.formFields
+      .filter(f => {
+        if (f.tenant_id !== targetId || f.deleted) return false;
+        if (!f.optionCategory) return false;
+        return (
+          resolveCanonicalCategory(f.optionCategory) === canonicalTarget ||
+          f.optionCategory === categoryId
+        );
+      })
+      .map(f => {
+        const mod: FormModuleId =
+          f.module ||
+          (f.section.startsWith('plano_')
+            ? 'plano_acao'
+            : f.section.startsWith('oitod_')
+            ? 'oitod'
+            : 'rnc');
+        return {
+          fieldId: f.id,
+          fieldKey: f.key,
+          fieldLabel: f.label,
+          module: mod,
+          moduleLabel: moduleLabelMap[mod],
+          section: f.section,
+          valueColumn: f.valueColumn,
+          displayColumn: f.displayColumn
+        };
+      });
+  }
+
+  public addCategoryColumn(
+    categoryId: string,
+    newColName: string,
+    tenantId?: string
+  ): { success: boolean; message: string; columns: string[] } {
+    const targetId = tenantId || this.activeTenantId;
+    const canonicalCat = resolveCanonicalCategory(categoryId);
+    const cleanName = (newColName || '').trim();
+    if (!cleanName) {
+      return {
+        success: false,
+        message: 'Informe um nome válido para a nova coluna.',
+        columns: this.getCategoryColumns(canonicalCat, targetId)
+      };
+    }
+
+    const currentCols = this.getCategoryColumns(canonicalCat, targetId);
+    if (currentCols.some(c => c.toLowerCase() === cleanName.toLowerCase())) {
+      return {
+        success: false,
+        message: `A coluna "${cleanName}" já existe nesta base.`,
+        columns: currentCols
+      };
+    }
+
+    const nextCols = [...currentCols, cleanName];
+    const catIdx = this.optionCategories.findIndex(
+      c => c.tenant_id === targetId && (c.id === canonicalCat || c.id === categoryId)
+    );
+    if (catIdx >= 0) {
+      this.optionCategories[catIdx].columns = nextCols;
+    }
+
+    // Inicializa a chave vazia nos itens existentes da base
+    this.masterData.forEach(item => {
+      if (item.tenant_id === targetId && item.tipo === canonicalCat) {
+        const cellMap = this.getItemCellMap(item, currentCols);
+        item.values = { ...cellMap, [cleanName]: '' };
+      }
+    });
+
+    this.saveToLocalStorage();
+    this.notifyListeners();
+    return {
+      success: true,
+      message: `Coluna "${cleanName}" adicionada à base com sucesso.`,
+      columns: nextCols
+    };
+  }
+
+  public renameCategoryColumn(
+    categoryId: string,
+    oldColName: string,
+    newColName: string,
+    tenantId?: string
+  ): { success: boolean; message: string; columns: string[] } {
+    const targetId = tenantId || this.activeTenantId;
+    const canonicalCat = resolveCanonicalCategory(categoryId);
+    const cleanNew = (newColName || '').trim();
+    const currentCols = this.getCategoryColumns(canonicalCat, targetId);
+
+    if (!cleanNew) {
+      return { success: false, message: 'O nome da coluna não pode ficar vazio.', columns: currentCols };
+    }
+    const targetIdx = currentCols.findIndex(c => c === oldColName);
+    if (targetIdx === -1) {
+      return { success: false, message: 'Coluna original não encontrada.', columns: currentCols };
+    }
+    if (
+      currentCols.some(
+        (c, idx) => idx !== targetIdx && c.toLowerCase() === cleanNew.toLowerCase()
+      )
+    ) {
+      return {
+        success: false,
+        message: `Já existe outra coluna chamada "${cleanNew}" nesta base.`,
+        columns: currentCols
+      };
+    }
+
+    const nextCols = [...currentCols];
+    nextCols[targetIdx] = cleanNew;
+
+    const catIdx = this.optionCategories.findIndex(
+      c => c.tenant_id === targetId && (c.id === canonicalCat || c.id === categoryId)
+    );
+    if (catIdx >= 0) {
+      this.optionCategories[catIdx].columns = nextCols;
+    }
+
+    // Migra os valores nos itens da base
+    this.masterData.forEach(item => {
+      if (item.tenant_id === targetId && item.tipo === canonicalCat) {
+        const cellMap = this.getItemCellMap(item, currentCols);
+        const migrated: Record<string, string> = {};
+        nextCols.forEach((col, i) => {
+          const prevKey = currentCols[i];
+          migrated[col] = cellMap[prevKey] ?? '';
+        });
+        item.values = migrated;
+      }
+    });
+
+    // Atualiza vínculos de colunas nos campos que apontam para esta base
+    this.formFields.forEach(f => {
+      if (
+        f.tenant_id === targetId &&
+        f.optionCategory &&
+        (resolveCanonicalCategory(f.optionCategory) === canonicalCat || f.optionCategory === categoryId)
+      ) {
+        if (f.valueColumn === oldColName) f.valueColumn = cleanNew;
+        if (f.displayColumn === oldColName) f.displayColumn = cleanNew;
+      }
+    });
+
+    this.saveToLocalStorage();
+    this.notifyListeners();
+    return {
+      success: true,
+      message: `Coluna "${oldColName}" renomeada para "${cleanNew}".`,
+      columns: nextCols
+    };
+  }
+
+  public deleteCategoryColumn(
+    categoryId: string,
+    colName: string,
+    tenantId?: string
+  ): {
+    success: boolean;
+    message: string;
+    columns: string[];
+    dependencies?: Array<{ fieldLabel: string; moduleLabel: string }>;
+  } {
+    const targetId = tenantId || this.activeTenantId;
+    const canonicalCat = resolveCanonicalCategory(categoryId);
+    const currentCols = this.getCategoryColumns(canonicalCat, targetId);
+
+    if (currentCols.length <= 1) {
+      return {
+        success: false,
+        message: 'A base precisa manter pelo menos 1 coluna ativa.',
+        columns: currentCols
+      };
+    }
+
+    // Verifica se algum campo vinculado utiliza especificamente esta coluna como valor ou exibição
+    const deps = this.getBaseUsageDependencies(canonicalCat, targetId).filter(
+      d => d.valueColumn === colName || d.displayColumn === colName
+    );
+    if (deps.length > 0) {
+      const listStr = deps.map(d => `${d.fieldLabel} (${d.moduleLabel})`).join(', ');
+      return {
+        success: false,
+        message: `Não é possível excluir a coluna "${colName}" pois ela está configurada como coluna de valor ou exibição nos campos: ${listStr}. Altere a coluna utilizada nesses campos antes de excluí-la.`,
+        columns: currentCols,
+        dependencies: deps.map(d => ({ fieldLabel: d.fieldLabel, moduleLabel: d.moduleLabel }))
+      };
+    }
+
+    const nextCols = currentCols.filter(c => c !== colName);
+    const catIdx = this.optionCategories.findIndex(
+      c => c.tenant_id === targetId && (c.id === canonicalCat || c.id === categoryId)
+    );
+    if (catIdx >= 0) {
+      this.optionCategories[catIdx].columns = nextCols;
+    }
+
+    this.masterData.forEach(item => {
+      if (item.tenant_id === targetId && item.tipo === canonicalCat) {
+        const cellMap = this.getItemCellMap(item, currentCols);
+        delete cellMap[colName];
+        item.values = cellMap;
+        item.nome = cellMap[nextCols[0]] || item.nome;
+        item.codigo = nextCols[1] ? cellMap[nextCols[1]] || '' : '';
+        item.detalhe =
+          nextCols.length > 2
+            ? nextCols
+                .slice(2)
+                .map(c => cellMap[c])
+                .filter(Boolean)
+                .join(' • ')
+            : '';
+      }
+    });
+
+    this.saveToLocalStorage();
+    this.notifyListeners();
+    return {
+      success: true,
+      message: `Coluna "${colName}" removida da base.`,
+      columns: nextCols
+    };
+  }
+
+  public saveMasterDataItemWithColumns(
+    categoryId: MasterDataCategory,
+    rowValues: Record<string, string>,
+    existingId?: string,
+    ativo = true,
+    tenantId?: string
+  ): MasterDataItem {
+    const targetId = tenantId || this.activeTenantId;
+    const canonicalTipo = resolveCanonicalCategory(categoryId);
+    const cols = this.getCategoryColumns(canonicalTipo, targetId);
+
+    const normalizedValues: Record<string, string> = {};
+    cols.forEach(col => {
+      normalizedValues[col] = (rowValues[col] ?? '').trim();
+    });
+    Object.entries(rowValues).forEach(([k, v]) => {
+      if (normalizedValues[k] === undefined) {
+        normalizedValues[k] = (v ?? '').trim();
+      }
+    });
+
+    const firstCol = cols[0] || 'Nome';
+    const secondCol = cols[1];
+    const remainingCols = cols.slice(2);
+
+    const primaryName =
+      normalizedValues[firstCol] ||
+      Object.values(normalizedValues).find(v => v.length > 0) ||
+      'Sem Nome';
+    const codeVal = secondCol ? normalizedValues[secondCol] || '' : '';
+    const detailVal = remainingCols
+      .map(c => normalizedValues[c])
+      .filter(Boolean)
+      .join(' • ');
+
+    if (existingId) {
+      const idx = this.masterData.findIndex(
+        m => m.id === existingId && m.tenant_id === targetId
+      );
+      if (idx >= 0) {
+        this.masterData[idx] = {
+          ...this.masterData[idx],
+          tipo: canonicalTipo,
+          nome: primaryName,
+          codigo: codeVal,
+          detalhe: detailVal,
+          values: normalizedValues,
+          ativo
+        };
+        this.saveToLocalStorage();
+        this.notifyListeners();
+        return this.masterData[idx];
+      }
+    }
+
+    const newItem: MasterDataItem = {
+      id: `${targetId}-${canonicalTipo}-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+      tenant_id: targetId,
+      tipo: canonicalTipo,
+      nome: primaryName,
+      codigo: codeVal,
+      detalhe: detailVal,
+      values: normalizedValues,
+      ativo
+    };
+    this.masterData.push(newItem);
+    this.saveToLocalStorage();
+    this.notifyListeners();
+    return newItem;
+  }
+
+  /**
+   * Importa uma planilha ou texto delimitado (CSV, TXT, TSV do Excel, ; ou |) com suporte a múltiplas colunas dinâmicas
+   * diretamente para dentro da base selecionada.
+   */
+  public importTableIntoCategory(
+    categoryId: MasterDataCategory,
+    rawText: string,
+    mode: 'append' | 'replace_all' = 'append',
+    hasHeaderRow = true,
+    tenantId?: string
+  ): {
+    addedCount: number;
+    updatedCount: number;
+    totalAfter: number;
+    columns: string[];
+  } {
+    const targetId = tenantId || this.activeTenantId;
+    const canonicalCat = resolveCanonicalCategory(categoryId);
+    const rawLines = (rawText || '')
+      .replace(/\r\n/g, '\n')
+      .replace(/\r/g, '\n')
+      .split('\n')
+      .map(l => l.trim())
+      .filter(Boolean);
+
+    let columns = this.getCategoryColumns(canonicalCat, targetId);
+    if (rawLines.length === 0) {
+      return {
+        addedCount: 0,
+        updatedCount: 0,
+        totalAfter: this.getMasterData(canonicalCat, targetId).length,
+        columns
+      };
+    }
+
+    // Detecta o separador predominante na primeira linha
+    const firstLine = rawLines[0];
+    let sep = '';
+    if (firstLine.includes('\t')) sep = '\t';
+    else if (firstLine.includes(';')) sep = ';';
+    else if (firstLine.includes('|')) sep = '|';
+    else if (firstLine.includes(',') && firstLine.split(',').length > 1) sep = ',';
+
+    const splitRow = (line: string): string[] => {
+      if (!sep) return [line.replace(/^"|"$/g, '').trim()];
+      return line.split(sep).map(cell => cell.replace(/^"|"$/g, '').trim());
+    };
+
+    let dataStartIndex = 0;
+    if (hasHeaderRow && rawLines.length > 1 && sep) {
+      const parsedHeaders = splitRow(rawLines[0]).map(
+        (h, i) => h || `Coluna ${i + 1}`
+      );
+      if (parsedHeaders.length > 0) {
+        columns = parsedHeaders;
+        dataStartIndex = 1;
+      }
+    } else if (hasHeaderRow && rawLines.length >= 1) {
+      // Verifica se a linha 0 é um cabeçalho padrão óbvio
+      const lower0 = rawLines[0].toLowerCase();
+      if (
+        lower0.startsWith('nome;') ||
+        lower0.startsWith('nome\t') ||
+        lower0 === 'nome' ||
+        lower0.startsWith('peça / produto;') ||
+        lower0.startsWith('posto de trabalho;')
+      ) {
+        const parsedHeaders = splitRow(rawLines[0]).map(
+          (h, i) => h || `Coluna ${i + 1}`
+        );
+        if (parsedHeaders.length > 0) {
+          columns = parsedHeaders;
+        }
+        dataStartIndex = 1;
+      }
+    }
+
+    if (mode === 'replace_all') {
+      this.masterData = this.masterData.filter(
+        m => !(m.tenant_id === targetId && m.tipo === canonicalCat)
+      );
+    }
+
+    let addedCount = 0;
+    let updatedCount = 0;
+
+    for (let r = dataStartIndex; r < rawLines.length; r++) {
+      const cells = splitRow(rawLines[r]);
+      if (cells.every(c => !c)) continue;
+
+      // Se a linha tiver mais colunas do que o schema atual, expande automaticamente as colunas da base
+      while (cells.length > columns.length) {
+        columns.push(`Coluna ${columns.length + 1}`);
+      }
+
+      const rowValues: Record<string, string> = {};
+      columns.forEach((colName, idx) => {
+        rowValues[colName] = cells[idx] || '';
+      });
+
+      const primaryVal = (rowValues[columns[0]] || '').trim();
+      if (!primaryVal) continue;
+
+      const secondVal = columns[1] ? (rowValues[columns[1]] || '').trim() : '';
+      const detailVal = columns
+        .slice(2)
+        .map(c => rowValues[c])
+        .filter(Boolean)
+        .join(' • ');
+
+      const existing = this.masterData.find(
+        m =>
+          m.tenant_id === targetId &&
+          m.tipo === canonicalCat &&
+          m.nome.trim().toLowerCase() === primaryVal.toLowerCase() &&
+          (!secondVal || !m.codigo || m.codigo.trim().toLowerCase() === secondVal.toLowerCase())
+      );
+
+      if (existing) {
+        const prevMap = this.getItemCellMap(existing, columns);
+        existing.values = { ...prevMap, ...rowValues };
+        existing.nome = primaryVal;
+        if (secondVal) existing.codigo = secondVal;
+        if (detailVal) existing.detalhe = detailVal;
+        existing.ativo = true;
+        updatedCount++;
+      } else {
+        this.masterData.push({
+          id: `${targetId}-${canonicalCat}-${Date.now()}-${r}-${Math.floor(Math.random() * 10000)}`,
+          tenant_id: targetId,
+          tipo: canonicalCat,
+          nome: primaryVal,
+          codigo:
+            secondVal ||
+            (canonicalCat === 'master_funcionarios'
+              ? String(30200 + this.masterData.length + r)
+              : ''),
+          detalhe: detailVal,
+          values: rowValues,
+          ativo: true
+        });
+        addedCount++;
+      }
+    }
+
+    // Persiste as colunas atualizadas na categoria
+    const catIdx = this.optionCategories.findIndex(
+      c => c.tenant_id === targetId && (c.id === canonicalCat || c.id === categoryId)
+    );
+    if (catIdx >= 0) {
+      this.optionCategories[catIdx].columns = columns;
+    }
+
+    this.saveToLocalStorage();
+    this.notifyListeners();
+
+    return {
+      addedCount,
+      updatedCount,
+      totalAfter: this.getMasterData(canonicalCat, targetId).length,
+      columns
+    };
   }
 
   // Categorias de Opções (usadas e não usadas no formulário)
@@ -2699,13 +5469,34 @@ class SaaSTenantService {
     this.ensureTenantSchemasInitialized(targetId);
     return this.optionCategories
       .filter(c => c.tenant_id === targetId)
-      .map(c => ({
-        ...c,
-        title: c.title || c.nome,
-        description: c.description || c.descricao,
-        usedInForm: c.usedInForm ?? c.usadoNoFormulario,
-        formFieldTarget: c.formFieldTarget || c.campoVinculado
-      }));
+      .map(c => {
+        const isMaster = Boolean(c.isMasterShared || MASTER_SHARED_CATEGORIES.includes(c.id));
+        let inferredModule: 'master' | 'rnc' | 'plano_acao' | 'oitod' | 'custom' = c.appModule || 'rnc';
+        if (isMaster) inferredModule = 'master';
+        else if (c.id.startsWith('plano_')) inferredModule = 'plano_acao';
+        else if (c.id.startsWith('oitod_')) inferredModule = 'oitod';
+        else if (!c.isSystem && !c.appModule) inferredModule = 'custom';
+
+        const cols = this.getCategoryColumns(c.id, targetId);
+        const deps = this.getBaseUsageDependencies(c.id, targetId);
+        const dynamicTarget =
+          deps.length > 0
+            ? deps.map(d => `${d.fieldLabel} (${d.moduleLabel})`).join(' • ')
+            : c.campoVinculado || c.formFieldTarget || 'Disponível para vínculo em qualquer módulo';
+
+        return {
+          ...c,
+          columns: cols,
+          isMasterShared: isMaster,
+          appModule: inferredModule,
+          title: c.title || c.nome,
+          description: c.description || c.descricao,
+          usadoNoFormulario: deps.length > 0,
+          usedInForm: deps.length > 0,
+          campoVinculado: dynamicTarget,
+          formFieldTarget: dynamicTarget
+        };
+      });
   }
 
   public saveOptionCategory(
@@ -2714,9 +5505,13 @@ class SaaSTenantService {
   ): OptionCategoryMeta {
     const targetId = tenantId || this.activeTenantId;
     const cleanNome = (cat.nome || cat.title || '').trim();
-    const cleanDesc = (cat.descricao || cat.description || 'Lista de opções personalizada da empresa.').trim();
+    const cleanDesc = (cat.descricao || cat.description || 'Base de dados / lista de opções personalizada da empresa.').trim();
     const usedInForm = cat.usadoNoFormulario ?? cat.usedInForm ?? false;
-    const campoVinculado = cat.campoVinculado || cat.formFieldTarget;
+    const campoVinculado = cat.campoVinculado || cat.formFieldTarget || 'Disponível para RNC, Plano de Ação e 8D';
+    const cleanCols =
+      cat.columns && cat.columns.length > 0
+        ? cat.columns.map(c => c.trim()).filter(Boolean)
+        : undefined;
 
     if (cat.id) {
       const idx = this.optionCategories.findIndex(c => c.id === cat.id && c.tenant_id === targetId);
@@ -2724,14 +5519,16 @@ class SaaSTenantService {
         this.optionCategories[idx] = {
           ...this.optionCategories[idx],
           ...cat,
-          nome: cleanNome,
-          title: cleanNome,
+          nome: cleanNome || this.optionCategories[idx].nome,
+          title: cleanNome || this.optionCategories[idx].title,
           descricao: cleanDesc,
           description: cleanDesc,
+          columns: cleanCols || this.optionCategories[idx].columns || getDefaultColumnsForCategory(cat.id),
           usadoNoFormulario: usedInForm,
           usedInForm,
           campoVinculado,
-          formFieldTarget: campoVinculado
+          formFieldTarget: campoVinculado,
+          appModule: cat.appModule || this.optionCategories[idx].appModule || 'custom'
         };
         this.saveToLocalStorage();
         this.notifyListeners();
@@ -2741,7 +5538,7 @@ class SaaSTenantService {
 
     const cleanId =
       cat.id ||
-      `cat_${cleanNome
+      `base_${cleanNome
         .toLowerCase()
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
@@ -2754,11 +5551,14 @@ class SaaSTenantService {
       title: cleanNome,
       descricao: cleanDesc,
       description: cleanDesc,
+      columns: cleanCols || ['Nome', 'Código', 'Detalhe'],
       usadoNoFormulario: Boolean(usedInForm),
       usedInForm: Boolean(usedInForm),
       campoVinculado,
       formFieldTarget: campoVinculado,
-      isSystem: false
+      isSystem: false,
+      isMasterShared: Boolean(cat.isMasterShared),
+      appModule: cat.appModule || 'custom'
     };
 
     this.optionCategories.push(newCat);
@@ -2767,12 +5567,30 @@ class SaaSTenantService {
     return newCat;
   }
 
-  public deleteOptionCategory(catId: string, tenantId?: string): { success: boolean; message: string } {
+  public deleteOptionCategory(
+    catId: string,
+    tenantId?: string
+  ): {
+    success: boolean;
+    message: string;
+    dependencies?: Array<{ fieldLabel: string; moduleLabel: string }>;
+  } {
     const targetId = tenantId || this.activeTenantId;
     const found = this.optionCategories.find(c => c.id === catId && c.tenant_id === targetId);
     if (!found) {
-      return { success: false, message: 'Categoria não encontrada.' };
+      return { success: false, message: 'Base não encontrada.' };
     }
+
+    const deps = this.getBaseUsageDependencies(catId, targetId);
+    if (deps.length > 0) {
+      const depNames = deps.map(d => `${d.fieldLabel} (${d.moduleLabel})`).join(', ');
+      return {
+        success: false,
+        message: `Não é possível excluir a base "${found.nome}" porque ela está vinculada a ${deps.length} campo(s): ${depNames}. Altere ou desvincule esses campos antes de excluir a base.`,
+        dependencies: deps.map(d => ({ fieldLabel: d.fieldLabel, moduleLabel: d.moduleLabel }))
+      };
+    }
+
     this.optionCategories = this.optionCategories.filter(
       c => !(c.id === catId && c.tenant_id === targetId)
     );
@@ -2781,18 +5599,94 @@ class SaaSTenantService {
     );
     this.saveToLocalStorage();
     this.notifyListeners();
-    return { success: true, message: `Lista de opções "${found.nome}" excluída com sucesso.` };
+    return { success: true, message: `Base "${found.nome}" excluída com sucesso.` };
   }
 
-  // Itens de Opções (Incluir, Editar, Excluir)
+  /**
+   * Limpa todos os itens de uma lista/base de opções (útil antes de substituir uma base grande)
+   */
+  public clearCategoryItems(categoryId: MasterDataCategory, tenantId?: string): number {
+    const targetId = tenantId || this.activeTenantId;
+    const canonicalCat = resolveCanonicalCategory(categoryId);
+    const before = this.masterData.length;
+    this.masterData = this.masterData.filter(
+      m => !(m.tenant_id === targetId && m.tipo === canonicalCat)
+    );
+    const removed = before - this.masterData.length;
+    this.saveToLocalStorage();
+    this.notifyListeners();
+    return removed;
+  }
+
+  /**
+   * Importa ou substitui em lote uma única Base / Lista de Opções (a partir de arquivo CSV/TXT ou colagem direta).
+   */
+  public importSingleCategoryList(
+    categoryId: MasterDataCategory,
+    rawText: string,
+    mode: 'append' | 'replace_all' = 'append',
+    tenantId?: string
+  ): { addedCount: number; updatedCount: number; totalAfter: number } {
+    const res = this.importTableIntoCategory(categoryId, rawText, mode, false, tenantId);
+    return {
+      addedCount: res.addedCount,
+      updatedCount: res.updatedCount,
+      totalAfter: res.totalAfter
+    };
+  }
+
+  /**
+   * Exporta os itens de uma única Base / Lista de Opções em formato texto ou CSV com todas as colunas dinâmicas
+   */
+  public exportSingleCategoryText(
+    categoryId: MasterDataCategory,
+    format: 'lines' | 'csv' | 'tsv' = 'lines',
+    tenantId?: string
+  ): string {
+    const targetId = tenantId || this.activeTenantId;
+    const cols = this.getCategoryColumns(categoryId, targetId);
+    const items = this.getMasterData(categoryId, targetId);
+
+    if (format === 'csv' || format === 'tsv') {
+      const sep = format === 'tsv' ? '\t' : ';';
+      const header = cols
+        .map(c => (format === 'csv' ? `"${c.replace(/"/g, '""')}"` : c))
+        .join(sep);
+      const rows = items.map(item => {
+        const cellMap = this.getItemCellMap(item, cols);
+        return cols
+          .map(c => {
+            const val = (cellMap[c] || '').replace(/\r?\n/g, ' ').trim();
+            return format === 'csv' ? `"${val.replace(/"/g, '""')}"` : val;
+          })
+          .join(sep);
+      });
+      return [header, ...rows].join('\n');
+    }
+
+    const headerLine = cols.join(' ; ');
+    const lines = items.map(item => {
+      const cellMap = this.getItemCellMap(item, cols);
+      const vals = cols.map(c => (cellMap[c] || '').trim());
+      // Remove colunas vazias no final para leitura limpa
+      while (vals.length > 1 && !vals[vals.length - 1]) {
+        vals.pop();
+      }
+      return vals.join(' ; ');
+    });
+    return [headerLine, ...lines].join('\n');
+  }
+
+  // Itens de Opções (Incluir, Editar, Excluir) — com resolução automática de Categorias Master
   public getMasterData(
     tipo?: MasterDataCategory,
     tenantId?: string
   ): MasterDataItem[] {
     const targetId = tenantId || this.activeTenantId;
     this.ensureTenantSchemasInitialized(targetId);
+    const canonicalTipo = tipo ? resolveCanonicalCategory(tipo) : undefined;
     return this.masterData.filter(
-      m => m.tenant_id === targetId && (!tipo || m.tipo === tipo)
+      m => m.tenant_id === targetId && (!canonicalTipo || m.tipo === canonicalTipo)
     );
   }
 
@@ -2808,15 +5702,31 @@ class SaaSTenantService {
     tenantId?: string
   ): MasterDataItem {
     const targetId = tenantId || this.activeTenantId;
+    const canonicalTipo = resolveCanonicalCategory(item.tipo);
+    const cols = this.getCategoryColumns(canonicalTipo, targetId);
+
     if (item.id) {
       const idx = this.masterData.findIndex(m => m.id === item.id && m.tenant_id === targetId);
       if (idx >= 0) {
+        const prevMap = this.getItemCellMap(this.masterData[idx], cols);
+        const nextValues: Record<string, string> = {
+          ...prevMap,
+          ...(item.values || {})
+        };
+        if (cols[0]) nextValues[cols[0]] = item.nome.trim();
+        if (cols[1] && item.codigo !== undefined) nextValues[cols[1]] = item.codigo.trim();
+        if (cols[2] && item.detalhe !== undefined && cols.length === 3) {
+          nextValues[cols[2]] = item.detalhe.trim();
+        }
+
         this.masterData[idx] = {
           ...this.masterData[idx],
           ...item,
+          tipo: canonicalTipo,
           nome: item.nome.trim(),
           codigo: item.codigo !== undefined ? item.codigo.trim() : this.masterData[idx].codigo,
-          detalhe: item.detalhe !== undefined ? item.detalhe.trim() : this.masterData[idx].detalhe
+          detalhe: item.detalhe !== undefined ? item.detalhe.trim() : this.masterData[idx].detalhe,
+          values: nextValues
         };
         this.saveToLocalStorage();
         this.notifyListeners();
@@ -2824,13 +5734,19 @@ class SaaSTenantService {
       }
     }
 
+    const initialValues: Record<string, string> = { ...(item.values || {}) };
+    if (cols[0]) initialValues[cols[0]] = item.nome.trim();
+    if (cols[1] && item.codigo) initialValues[cols[1]] = item.codigo.trim();
+    if (cols[2] && item.detalhe) initialValues[cols[2]] = item.detalhe.trim();
+
     const newItem: MasterDataItem = {
-      id: `${targetId}-${item.tipo}-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      id: `${targetId}-${canonicalTipo}-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       tenant_id: targetId,
-      tipo: item.tipo,
+      tipo: canonicalTipo,
       nome: item.nome.trim(),
       codigo: item.codigo?.trim() || '',
       detalhe: item.detalhe?.trim() || '',
+      values: initialValues,
       ativo: item.ativo !== undefined ? item.ativo : true
     };
     this.masterData.push(newItem);
@@ -2847,21 +5763,545 @@ class SaaSTenantService {
   }
 
   // ============================================================================
-  // GERENCIADOR DE CAMPOS DO FORMULÁRIO RNC (OCULTAR, SEQUÊNCIA, CRIAR, EDITAR, EXCLUIR)
+  // MOTOR DE CONFIGURAÇÃO RÁPIDA EM LOTE (EXPORTAR PADRÃO & COLAR TABELA EXCEL)
   // ============================================================================
-  public getFormFields(tenantId?: string, includeDeleted = false): FormFieldConfig[] {
+  public getBulkConfigColumns(
+    scope: 'all' | 'plano_acao' | 'qualidade_8d' = 'all',
+    tenantId?: string
+  ): BulkConfigColumnDef[] {
+    const targetId = tenantId || this.activeTenantId;
+    this.ensureTenantSchemasInitialized(targetId);
+
+    const allDefs: BulkConfigColumnDef[] = [
+      // 1. Configuração Master (Compartilhada entre Todos os Apps)
+      {
+        categoryId: 'master_funcionarios',
+        headerTitle: 'Funcionários',
+        description: 'Lista Geral de Funcionários (Master)',
+        isMaster: true,
+        appScope: 'master',
+        aliases: ['funcionarios', 'funcionario', 'lista de funcionarios', 'colaboradores', 'colaborador', 'equipe', 'responsavel', 'responsaveis', 'master_funcionarios']
+      },
+      {
+        categoryId: 'master_pecas_produtos',
+        headerTitle: 'Peças / Produtos',
+        description: 'Catálogo de Peças e Produtos (Master)',
+        isMaster: true,
+        appScope: 'master',
+        aliases: ['pecas / produtos', 'pecas', 'produtos', 'lista de pecas', 'lista de produtos', 'produto', 'peca', 'produto / projeto', 'produtos / projetos', 'master_pecas_produtos', 'plano_produto']
+      },
+      {
+        categoryId: 'posto_trabalho',
+        headerTitle: 'Postos de Trabalho',
+        description: 'Postos de Trabalho e Máquinas (Master)',
+        isMaster: true,
+        appScope: 'master',
+        aliases: ['postos de trabalho', 'posto de trabalho', 'lista de postos', 'postos', 'posto', 'posto_trabalho', 'plano_posto']
+      },
+      {
+        categoryId: 'area_fabril',
+        headerTitle: 'Áreas / Setores Fabris',
+        description: 'Áreas, Setores Fabris e Linhas FMDS (Master)',
+        isMaster: true,
+        appScope: 'master',
+        aliases: ['areas / setores fabris', 'areas / setores', 'areas', 'setores', 'area', 'setor', 'area fabril', 'linhas fabris', 'fmds', 'area_fabril', 'plano_area']
+      },
+      {
+        categoryId: 'cliente_montadora',
+        headerTitle: 'Clientes / Montadoras',
+        description: 'Clientes e Montadoras (Master)',
+        isMaster: true,
+        appScope: 'master',
+        aliases: ['clientes / montadoras', 'clientes', 'montadoras', 'cliente', 'montadora', 'cliente_montadora']
+      },
+
+      // 2. Campos Específicos do Plano de Ação
+      {
+        categoryId: 'plano_indicador',
+        headerTitle: 'Indicador Estratégico',
+        description: 'Indicador / Programa Estratégico do Plano',
+        isMaster: false,
+        appScope: 'plano_acao',
+        aliases: ['indicador estrategico', 'indicador', 'indicadores', 'indicador / prog. estrategico', 'programa estrategico', 'plano_indicador']
+      },
+      {
+        categoryId: 'plano_sub1',
+        headerTitle: 'Subindicador',
+        description: 'Subindicador do Plano de Ação',
+        isMaster: false,
+        appScope: 'plano_acao',
+        aliases: ['subindicador', 'subindicadores', 'subindicador 1', 'sub1', 'plano_sub1']
+      },
+      {
+        categoryId: 'plano_prioridade',
+        headerTitle: 'Prioridade',
+        description: 'Níveis de Prioridade do Plano',
+        isMaster: false,
+        appScope: 'plano_acao',
+        aliases: ['prioridade', 'prioridades', 'niveis de prioridade', 'plano_prioridade']
+      },
+
+      // 3. Campos Específicos de Qualidade (RNC & 8D)
+      {
+        categoryId: 'cat_defeito',
+        headerTitle: 'Modos de Falha / Defeitos',
+        description: 'Catálogo de Defeitos e Modos de Falha',
+        isMaster: false,
+        appScope: 'qualidade_8d',
+        aliases: ['modos de falha / defeitos', 'modos de falha', 'modo de falha', 'defeitos', 'defeito', 'catalogo de defeitos', 'cat_defeito']
+      },
+      {
+        categoryId: 'acoes_contencao',
+        headerTitle: 'Ações de Contenção',
+        description: 'Ações de Contenção Padronizadas',
+        isMaster: false,
+        appScope: 'qualidade_8d',
+        aliases: ['acoes de contencao', 'acao de contencao', 'contencao', 'acoes_contencao']
+      },
+      {
+        categoryId: 'setor_deteccao',
+        headerTitle: 'Setores de Detecção',
+        description: 'Setores / Locais de Detecção da RNC',
+        isMaster: false,
+        appScope: 'qualidade_8d',
+        aliases: ['setores de deteccao', 'setor de deteccao', 'setores / locais de deteccao', 'local de deteccao', 'setor_deteccao']
+      },
+      {
+        categoryId: 'impacto_cliente',
+        headerTitle: 'Impactos no Cliente',
+        description: 'Tipos de Impacto no Cliente',
+        isMaster: false,
+        appScope: 'qualidade_8d',
+        aliases: ['impactos no cliente', 'impacto no cliente', 'impacto', 'impacto_cliente']
+      },
+      {
+        categoryId: 'turno',
+        headerTitle: 'Turnos de Trabalho',
+        description: 'Turnos de Detecção',
+        isMaster: false,
+        appScope: 'qualidade_8d',
+        aliases: ['turnos de trabalho', 'turnos', 'turno']
+      },
+      {
+        categoryId: 'tipo_rnc',
+        headerTitle: 'Tipos de Ocorrência',
+        description: 'Tipos de Ocorrência RNC',
+        isMaster: false,
+        appScope: 'qualidade_8d',
+        aliases: ['tipos de ocorrencia', 'tipo de ocorrencia', 'tipo rnc', 'tipo_rnc']
+      },
+      {
+        categoryId: 'gravidade',
+        headerTitle: 'Níveis de Gravidade',
+        description: 'Escala de Gravidade RNC',
+        isMaster: false,
+        appScope: 'qualidade_8d',
+        aliases: ['niveis de gravidade', 'gravidade', 'severidade']
+      },
+      {
+        categoryId: 'disposicao_lote',
+        headerTitle: 'Disposição de Lote',
+        description: 'Disposição de Material / Lote Segregado',
+        isMaster: false,
+        appScope: 'qualidade_8d',
+        aliases: ['disposicao de lote', 'disposicao de material', 'disposicao', 'destino da peca', 'disposicao_lote']
+      },
+      {
+        categoryId: 'origem_fornecedor',
+        headerTitle: 'Fornecedores',
+        description: 'Origens / Fornecedores de Matéria-Prima',
+        isMaster: false,
+        appScope: 'qualidade_8d',
+        aliases: ['fornecedores', 'fornecedor', 'origens / fornecedores', 'origem_fornecedor']
+      },
+      // 4. Campos Específicos da Metodologia 8D
+      {
+        categoryId: 'oitod_tipos_acao',
+        headerTitle: 'Tipos de Ação 8D',
+        description: 'Tipos de Ação (Contenção, Corretiva, Preventiva, Melhoria)',
+        isMaster: false,
+        appScope: 'qualidade_8d',
+        aliases: ['tipos de acao 8d', 'tipos de acao', 'tipo de acao', 'oitod_tipos_acao']
+      },
+      {
+        categoryId: 'oitod_documentos_7d',
+        headerTitle: 'Documentos Prevenção 7D',
+        description: 'Eixos / Documentos de Prevenção 7D (FMEA, Trabalho Padronizado, Auditoria Escalonada)',
+        isMaster: false,
+        appScope: 'qualidade_8d',
+        aliases: ['documentos prevencao 7d', 'documentos 7d', 'eixos 7d', 'prevencao 7d', 'oitod_documentos_7d']
+      },
+      {
+        categoryId: 'oitod_6m_ishikawa',
+        headerTitle: 'Categorias 6M Ishikawa',
+        description: 'Categorias 6M do Diagrama de Ishikawa e Henkaten 4D',
+        isMaster: false,
+        appScope: 'qualidade_8d',
+        aliases: ['categorias 6m ishikawa', '6m ishikawa', 'ishikawa', '6m', 'oitod_6m_ishikawa']
+      },
+      {
+        categoryId: 'oitod_estoques_locais',
+        headerTitle: 'Locais de Estoque 3D',
+        description: 'Locais de Estoque e Quarentena para Triagem 3D',
+        isMaster: false,
+        appScope: 'qualidade_8d',
+        aliases: ['locais de estoque 3d', 'locais de estoque', 'estoques', 'quarentena', 'oitod_estoques_locais']
+      }
+    ];
+
+    // Inclui também bases personalizadas criadas pela empresa
+    const customCats = this.optionCategories.filter(
+      c => c.tenant_id === targetId && !c.isSystem && !allDefs.some(d => d.categoryId === c.id)
+    );
+    customCats.forEach(cc => {
+      allDefs.push({
+        categoryId: cc.id,
+        headerTitle: cc.title || cc.nome,
+        description: cc.description || cc.descricao,
+        isMaster: Boolean(cc.isMasterShared),
+        appScope: cc.appModule === 'plano_acao' ? 'plano_acao' : 'qualidade_8d',
+        aliases: [cc.nome.toLowerCase(), (cc.title || '').toLowerCase(), cc.id.toLowerCase()]
+      });
+    });
+
+    if (scope === 'plano_acao') {
+      return allDefs.filter(d => d.appScope === 'master' || d.appScope === 'plano_acao');
+    }
+    if (scope === 'qualidade_8d') {
+      return allDefs.filter(d => d.appScope === 'master' || d.appScope === 'qualidade_8d');
+    }
+    return allDefs;
+  }
+
+  private normalizeHeaderKey(raw: string): string {
+    return (raw || '')
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9/ ]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  public exportBulkTablePattern(
+    scope: 'all' | 'plano_acao' | 'qualidade_8d' = 'all',
+    format: 'tsv' | 'csv' = 'tsv',
+    tenantId?: string
+  ): { text: string; headers: string[]; rows: string[][]; columns: BulkConfigColumnDef[] } {
+    const targetId = tenantId || this.activeTenantId;
+    const columns = this.getBulkConfigColumns(scope, targetId);
+    const headers = columns.map(c => c.headerTitle);
+
+    const colValues: string[][] = columns.map(col =>
+      this.getActiveOptions(col.categoryId, targetId).map(item => item.nome)
+    );
+
+    const maxRows = colValues.reduce((max, arr) => Math.max(max, arr.length), 0);
+    const rows: string[][] = [];
+
+    for (let r = 0; r < maxRows; r++) {
+      rows.push(colValues.map(colArr => colArr[r] || ''));
+    }
+
+    const sep = format === 'tsv' ? '\t' : ';';
+    const escapeCell = (val: string) => {
+      const clean = (val || '').replace(/\r?\n/g, ' ').trim();
+      if (format === 'csv' && (clean.includes(';') || clean.includes('"'))) {
+        return `"${clean.replace(/"/g, '""')}"`;
+      }
+      return clean;
+    };
+
+    const lines = [
+      headers.map(escapeCell).join(sep),
+      ...rows.map(row => row.map(escapeCell).join(sep))
+    ];
+
+    return {
+      text: lines.join('\n'),
+      headers,
+      rows,
+      columns
+    };
+  }
+
+  public analyzePastedBulkTable(
+    rawText: string,
+    tenantId?: string
+  ): BulkPasteAnalysisResult {
+    const targetId = tenantId || this.activeTenantId;
+    this.ensureTenantSchemasInitialized(targetId);
+
+    const cleanLines = (rawText || '')
+      .replace(/\r\n/g, '\n')
+      .replace(/\r/g, '\n')
+      .split('\n')
+      .filter(line => line.trim().length > 0);
+
+    if (cleanLines.length === 0) {
+      return {
+        recognizedColumns: [],
+        unrecognizedHeaders: [],
+        totalNewCount: 0,
+        totalExistingCount: 0,
+        hasConflicts: false
+      };
+    }
+
+    // Detecta delimitador predominante na linha de cabeçalho (\t do Excel, ; do CSV BR, ou ,)
+    const headerLine = cleanLines[0];
+    let delimiter = '\t';
+    if (headerLine.includes('\t')) {
+      delimiter = '\t';
+    } else if (headerLine.includes(';')) {
+      delimiter = ';';
+    } else if (headerLine.includes(',')) {
+      delimiter = ',';
+    }
+
+    const splitLine = (line: string): string[] =>
+      line.split(delimiter).map(cell => cell.replace(/^"|"$/g, '').trim());
+
+    const rawHeaders = splitLine(headerLine);
+    const allColDefs = this.getBulkConfigColumns('all', targetId);
+    const allTenantCats = this.getOptionCategories(targetId);
+
+    const recognizedColumns: BulkPasteColumnAnalysis[] = [];
+    const unrecognizedHeaders: string[] = [];
+
+    rawHeaders.forEach((rawHeader, colIdx) => {
+      if (!rawHeader) return;
+      const normHeader = this.normalizeHeaderKey(rawHeader);
+
+      // 1. Procura nos BulkConfigColumnDefs por título ou alias
+      let matchedDef = allColDefs.find(
+        def =>
+          this.normalizeHeaderKey(def.headerTitle) === normHeader ||
+          this.normalizeHeaderKey(def.categoryId) === normHeader ||
+          def.aliases.some(a => this.normalizeHeaderKey(a) === normHeader)
+      );
+
+      // 2. Fallback por inclusão parcial se ainda não encontrou
+      if (!matchedDef) {
+        matchedDef = allColDefs.find(def =>
+          def.aliases.some(
+            a =>
+              normHeader.includes(this.normalizeHeaderKey(a)) ||
+              this.normalizeHeaderKey(a).includes(normHeader)
+          )
+        );
+      }
+
+      // 3. Fallback nas categorias customizadas do tenant
+      let categoryId: MasterDataCategory | undefined = matchedDef?.categoryId;
+      let categoryTitle = matchedDef?.headerTitle || '';
+      let isMaster = matchedDef?.isMaster || false;
+
+      if (!categoryId) {
+        const customCat = allTenantCats.find(
+          c =>
+            this.normalizeHeaderKey(c.nome) === normHeader ||
+            this.normalizeHeaderKey(c.title || '') === normHeader ||
+            this.normalizeHeaderKey(c.id) === normHeader
+        );
+        if (customCat) {
+          categoryId = resolveCanonicalCategory(customCat.id);
+          categoryTitle = customCat.title || customCat.nome;
+          isMaster = Boolean(customCat.isMasterShared);
+        }
+      }
+
+      if (!categoryId) {
+        unrecognizedHeaders.push(rawHeader);
+        return;
+      }
+
+      // Coleta todos os valores únicos não vazios desta coluna (linhas 1..N)
+      const pastedValues: string[] = [];
+      const seenInCol = new Set<string>();
+
+      for (let r = 1; r < cleanLines.length; r++) {
+        const rowCells = splitLine(cleanLines[r]);
+        const cellVal = (rowCells[colIdx] || '').trim();
+        if (!cellVal) continue;
+        const lowerVal = cellVal.toLowerCase();
+        if (!seenInCol.has(lowerVal)) {
+          seenInCol.add(lowerVal);
+          pastedValues.push(cellVal);
+        }
+      }
+
+      const existingCategoryItems = this.getMasterData(categoryId, targetId);
+      const existingNamesSet = new Set(
+        existingCategoryItems.map(m => m.nome.trim().toLowerCase())
+      );
+
+      const newItems: string[] = [];
+      const existingItems: string[] = [];
+
+      pastedValues.forEach(val => {
+        if (existingNamesSet.has(val.toLowerCase())) {
+          existingItems.push(val);
+        } else {
+          newItems.push(val);
+        }
+      });
+
+      recognizedColumns.push({
+        colIndex: colIdx,
+        rawHeader,
+        categoryId,
+        categoryTitle,
+        isMaster,
+        newItems,
+        existingItems,
+        totalPasted: pastedValues.length
+      });
+    });
+
+    const totalNewCount = recognizedColumns.reduce((acc, c) => acc + c.newItems.length, 0);
+    const totalExistingCount = recognizedColumns.reduce((acc, c) => acc + c.existingItems.length, 0);
+
+    return {
+      recognizedColumns,
+      unrecognizedHeaders,
+      totalNewCount,
+      totalExistingCount,
+      hasConflicts: totalExistingCount > 0
+    };
+  }
+
+  public applyBulkTableImport(
+    analysis: BulkPasteAnalysisResult,
+    conflictMode: 'replace' | 'skip_existing',
+    tenantId?: string
+  ): {
+    addedCount: number;
+    replacedCount: number;
+    skippedCount: number;
+    affectedCategoriesCount: number;
+  } {
+    const targetId = tenantId || this.activeTenantId;
+    let addedCount = 0;
+    let replacedCount = 0;
+    let skippedCount = 0;
+    let affectedCategoriesCount = 0;
+
+    analysis.recognizedColumns.forEach(col => {
+      const canonicalCat = resolveCanonicalCategory(col.categoryId);
+      let catChanged = false;
+
+      // 1. Adiciona todos os itens que ainda não existem
+      col.newItems.forEach((newVal, idx) => {
+        this.saveMasterDataItem(
+          {
+            tipo: canonicalCat,
+            nome: newVal.trim(),
+            codigo:
+              canonicalCat === 'master_funcionarios'
+                ? String(30200 + this.masterData.length + idx)
+                : `IMP-${idx + 1}`,
+            detalhe: col.isMaster ? 'Importado via Configuração Rápida (Master)' : 'Importado via Configuração Rápida',
+            ativo: true
+          },
+          targetId
+        );
+        addedCount++;
+        catChanged = true;
+      });
+
+      // 2. Trata itens que já existem conforme escolha do usuário
+      col.existingItems.forEach(existVal => {
+        if (conflictMode === 'replace') {
+          const existingItem = this.masterData.find(
+            m =>
+              m.tenant_id === targetId &&
+              m.tipo === canonicalCat &&
+              m.nome.trim().toLowerCase() === existVal.trim().toLowerCase()
+          );
+          if (existingItem) {
+            existingItem.nome = existVal.trim();
+            existingItem.ativo = true;
+            replacedCount++;
+            catChanged = true;
+          }
+        } else {
+          skippedCount++;
+        }
+      });
+
+      if (catChanged) {
+        affectedCategoriesCount++;
+      }
+    });
+
+    this.saveToLocalStorage();
+    this.notifyListeners();
+
+    return {
+      addedCount,
+      replacedCount,
+      skippedCount,
+      affectedCategoriesCount
+    };
+  }
+
+  // ============================================================================
+  // GERENCIADOR DE CAMPOS DOS 3 MÓDULOS (RNC, PLANO DE AÇÃO E METODOLOGIA 8D)
+  // ============================================================================
+  private resolveFieldModule(f: FormFieldConfig): FormModuleId {
+    if (f.module) return f.module;
+    if (f.section.startsWith('plano_')) return 'plano_acao';
+    if (f.section.startsWith('oitod_')) return 'oitod';
+    return 'rnc';
+  }
+
+  public getFormFields(
+    tenantId?: string,
+    includeDeleted = false,
+    moduleFilter?: FormModuleId
+  ): FormFieldConfig[] {
     const targetId = tenantId || this.activeTenantId;
     this.ensureTenantSchemasInitialized(targetId);
     return this.formFields
-      .filter(f => f.tenant_id === targetId && (includeDeleted || !f.deleted))
-      .map(f => ({
-        ...f,
-        fieldKey: f.fieldKey || f.key
-      }))
+      .filter(
+        f =>
+          f.tenant_id === targetId &&
+          f.id !== 'descricaoProblema' &&
+          f.key !== 'descricaoProblema' &&
+          (includeDeleted || !f.deleted)
+      )
+      .map(f => {
+        const mod = this.resolveFieldModule(f);
+        let valCol = f.valueColumn;
+        let dispCol = f.displayColumn;
+        if (f.optionCategory) {
+          const cols = this.getCategoryColumns(f.optionCategory, targetId);
+          if (!valCol || !cols.includes(valCol)) valCol = cols[0] || 'Nome';
+          if (!dispCol || !cols.includes(dispCol)) dispCol = cols[0] || 'Nome';
+        }
+        return {
+          ...f,
+          module: mod,
+          fieldKey: f.fieldKey || f.key,
+          valueColumn: valCol,
+          displayColumn: dispCol
+        };
+      })
+      .filter(f => !moduleFilter || f.module === moduleFilter)
       .sort((a, b) => {
         if (a.section !== b.section) return a.section.localeCompare(b.section);
         return a.order - b.order;
       });
+  }
+
+  public getFormFieldsByModule(
+    module: FormModuleId,
+    tenantId?: string,
+    includeDeleted = false
+  ): FormFieldConfig[] {
+    return this.getFormFields(tenantId, includeDeleted, module);
   }
 
   public getFormFieldsBySection(
@@ -2872,6 +6312,85 @@ class SaaSTenantService {
     return this.getFormFields(tenantId, false)
       .filter(f => f.section === section && (!onlyVisible || f.visible))
       .sort((a, b) => a.order - b.order);
+  }
+
+  /**
+   * Resolve dinamicamente as opções de um campo em qualquer módulo (RNC, Plano de Ação ou 8D),
+   * respeitando a Base vinculada (optionCategory), a Coluna de Valor (valueColumn) e a Coluna Exibida (displayColumn).
+   */
+  public getFieldResolvedOptions(
+    fieldKeyOrId: string,
+    module: FormModuleId = 'rnc',
+    fallbackCategory?: MasterDataCategory,
+    tenantId?: string
+  ): {
+    field?: FormFieldConfig;
+    categoryId?: MasterDataCategory;
+    valueColumn: string;
+    displayColumn: string;
+    options: Array<{
+      id: string;
+      value: string;
+      label: string;
+      sublabel?: string;
+      cellMap: Record<string, string>;
+      rawItem: MasterDataItem;
+    }>;
+  } {
+    const targetId = tenantId || this.activeTenantId;
+    const allFields = this.getFormFields(targetId, false);
+    const field =
+      allFields.find(
+        f => (f.id === fieldKeyOrId || f.key === fieldKeyOrId) && f.module === module
+      ) || allFields.find(f => f.id === fieldKeyOrId || f.key === fieldKeyOrId);
+
+    const rawCat = field?.optionCategory || fallbackCategory;
+    if (!rawCat) {
+      return {
+        field,
+        categoryId: undefined,
+        valueColumn: 'Nome',
+        displayColumn: 'Nome',
+        options: []
+      };
+    }
+
+    const canonicalCat = resolveCanonicalCategory(rawCat);
+    const cols = this.getCategoryColumns(canonicalCat, targetId);
+    const valCol =
+      field?.valueColumn && cols.includes(field.valueColumn)
+        ? field.valueColumn
+        : cols[0] || 'Nome';
+    const dispCol =
+      field?.displayColumn && cols.includes(field.displayColumn)
+        ? field.displayColumn
+        : cols[0] || 'Nome';
+
+    const items = this.getActiveOptions(canonicalCat, targetId);
+    const options = items.map(item => {
+      const cellMap = this.getItemCellMap(item, cols);
+      const val = (cellMap[valCol] || item.nome || '').trim();
+      const disp = (cellMap[dispCol] || val || item.nome || '').trim();
+      const otherCols = cols
+        .filter(c => c !== dispCol && c !== valCol && cellMap[c])
+        .map(c => cellMap[c]);
+      return {
+        id: item.id,
+        value: val,
+        label: disp,
+        sublabel: otherCols.join(' • ') || item.detalhe || undefined,
+        cellMap,
+        rawItem: item
+      };
+    });
+
+    return {
+      field,
+      categoryId: canonicalCat,
+      valueColumn: valCol,
+      displayColumn: dispCol,
+      options
+    };
   }
 
   public saveFormField(
@@ -2885,18 +6404,41 @@ class SaaSTenantService {
     const targetId = tenantId || this.activeTenantId;
     this.ensureTenantSchemasInitialized(targetId);
 
+    const inferredMod: FormModuleId =
+      fieldInput.module ||
+      (fieldInput.section.startsWith('plano_')
+        ? 'plano_acao'
+        : fieldInput.section.startsWith('oitod_')
+        ? 'oitod'
+        : 'rnc');
+
     if (fieldInput.id) {
       const idx = this.formFields.findIndex(
         f => f.id === fieldInput.id && f.tenant_id === targetId
       );
       if (idx >= 0) {
         const resolvedKey = fieldInput.key || fieldInput.fieldKey || this.formFields[idx].key;
+        const optCat =
+          fieldInput.optionCategory !== undefined
+            ? fieldInput.optionCategory
+            : this.formFields[idx].optionCategory;
+        let valCol = fieldInput.valueColumn ?? this.formFields[idx].valueColumn;
+        let dispCol = fieldInput.displayColumn ?? this.formFields[idx].displayColumn;
+        if (optCat) {
+          const cols = this.getCategoryColumns(optCat, targetId);
+          if (!valCol || !cols.includes(valCol)) valCol = cols[0] || 'Nome';
+          if (!dispCol || !cols.includes(dispCol)) dispCol = cols[0] || 'Nome';
+        }
         this.formFields[idx] = {
           ...this.formFields[idx],
           ...fieldInput,
+          module: inferredMod,
           key: resolvedKey,
           fieldKey: resolvedKey,
           label: fieldInput.label.trim(),
+          optionCategory: optCat,
+          valueColumn: valCol,
+          displayColumn: dispCol,
           tenant_id: targetId
         };
         this.saveToLocalStorage();
@@ -2954,6 +6496,14 @@ class SaaSTenantService {
       });
     }
 
+    let valCol = fieldInput.valueColumn;
+    let dispCol = fieldInput.displayColumn;
+    if (optionCategory) {
+      const cols = this.getCategoryColumns(optionCategory, targetId);
+      if (!valCol || !cols.includes(valCol)) valCol = cols[0] || 'Nome';
+      if (!dispCol || !cols.includes(dispCol)) dispCol = cols[0] || 'Nome';
+    }
+
     const newField: FormFieldConfig = {
       id: slugKey,
       key: slugKey,
@@ -2961,6 +6511,7 @@ class SaaSTenantService {
       tenant_id: targetId,
       label: fieldInput.label.trim(),
       section: fieldInput.section,
+      module: inferredMod,
       type: fieldInput.type,
       required: Boolean(fieldInput.required),
       visible: fieldInput.visible !== undefined ? fieldInput.visible : true,
@@ -2968,6 +6519,8 @@ class SaaSTenantService {
       order: fieldInput.order !== undefined ? fieldInput.order : maxOrder + 1,
       isSystem: false,
       optionCategory,
+      valueColumn: valCol,
+      displayColumn: dispCol,
       customOptions: fieldInput.customOptions || [],
       placeholder: fieldInput.placeholder || '',
       helperText: fieldInput.helperText || '',
@@ -3081,10 +6634,19 @@ class SaaSTenantService {
     }
   }
 
-  public resetFormFieldsToDefault(tenantId?: string) {
+  public resetFormFieldsToDefault(tenantId?: string, moduleFilter?: FormModuleId) {
     const targetId = tenantId || this.activeTenantId;
-    this.formFields = this.formFields.filter(f => f.tenant_id !== targetId);
-    this.formFields.push(...getDefaultFormFieldsForTenant(targetId));
+    if (moduleFilter) {
+      this.formFields = this.formFields.filter(
+        f => !(f.tenant_id === targetId && this.resolveFieldModule(f) === moduleFilter)
+      );
+      this.formFields.push(
+        ...getDefaultFormFieldsForTenant(targetId).filter(f => f.module === moduleFilter)
+      );
+    } else {
+      this.formFields = this.formFields.filter(f => f.tenant_id !== targetId);
+      this.formFields.push(...getDefaultFormFieldsForTenant(targetId));
+    }
     this.saveToLocalStorage();
     this.notifyListeners();
   }

@@ -27,7 +27,7 @@ import {
 } from '../types';
 import { spDirect } from './sharepointDirectService';
 import { DEFAULT_CLIENTE } from '../constants/clientes';
-import { tenantService, PILOT_TENANT_ID, normalizeRncRecordCasing } from './tenantService';
+import { tenantService, PILOT_TENANT_ID, normalizeRncRecordCasing, createTechnicalSvgDataUrl } from './tenantService';
 import { normalizeDisplayText, formatOccurrenceId } from '../utils/formatText';
 
 function normalizePecaCasing(p: PecaCatalogo): PecaCatalogo {
@@ -41,7 +41,10 @@ function normalizePecaCasing(p: PecaCatalogo): PecaCatalogo {
     componente: p.componente ? normalizeDisplayText(p.componente) : p.componente,
     carryOver: normalizeDisplayText(p.carryOver),
     coProduto: (p.coProduto ? normalizeDisplayText(p.coProduto) : p.coProduto) as 'Sim' | 'Não' | undefined,
-    caracteristicaSeguranca: (p.caracteristicaSeguranca ? normalizeDisplayText(p.caracteristicaSeguranca) : p.caracteristicaSeguranca) as 'Sim' | 'Não' | undefined
+    caracteristicaSeguranca: (p.caracteristicaSeguranca ? normalizeDisplayText(p.caracteristicaSeguranca) : p.caracteristicaSeguranca) as 'Sim' | 'Não' | undefined,
+    pecasComuns: p.pecasComuns,
+    pecaEspelho: p.pecaEspelho,
+    aspectoSeguranca: p.aspectoSeguranca
   };
 }
 
@@ -113,9 +116,12 @@ const INITIAL_PECAS: PecaCatalogo[] = [
     nestingLevel: 0, 
     codCliText: "53201-0D120", 
     componente: "53201-0D120 - PAINEL DIANTEIRO", 
-    carryOver: "Não",
+    carryOver: "Sim",
     coProduto: "Não",
-    caracteristicaSeguranca: "Sim"
+    caracteristicaSeguranca: "Sim",
+    pecasComuns: "Toyota Yaris Hatch (53201-0D120) / Toyota Yaris Sedan (53201-0D130)",
+    pecaEspelho: "Não aplicável (Conjunto Simétrico Central)",
+    aspectoSeguranca: "Absorção de Energia em Impacto Frontal e Travamento do Capô (FMEA Crítico CC)"
   },
   { 
     identificacao: 2, 
@@ -127,10 +133,11 @@ const INITIAL_PECAS: PecaCatalogo[] = [
     fmds: "SOLDA 2 - CEL. TOYOTA", 
     nestingLevel: 1, 
     codCliText: "53201-0D121", 
-    componente: "53201-0D121 - REFORÇO SUPERIOR", 
+    componente: "53201-0D121 - REFORÇO SUPERIOR PAINEL DIANTEIRO", 
     carryOver: "Sim",
     coProduto: "Não",
-    caracteristicaSeguranca: "Não"
+    caracteristicaSeguranca: "Não",
+    pecasComuns: "53201-0D120 (Painel Dianteiro Yaris) e 53205-0D080 (Conjunto Suporte Radiador)"
   },
   { 
     identificacao: 3, 
@@ -142,10 +149,28 @@ const INITIAL_PECAS: PecaCatalogo[] = [
     fmds: "SOLDA 2 - CEL. TOYOTA", 
     nestingLevel: 1, 
     codCliText: "53201-0D122", 
-    componente: "53201-0D122 - SUPORTE TRAVA CAPÔ", 
+    componente: "53201-0D122 - SUPORTE FIXAÇÃO TRAVA CAPÔ C/ PORCA M8", 
+    carryOver: "Sim",
+    coProduto: "Não",
+    caracteristicaSeguranca: "Sim",
+    pecasComuns: "53201-0D120 (Yaris) e 53201-02310 (Corolla Sedan)",
+    aspectoSeguranca: "Retenção Mecânica da Trava Principal do Capô em Alta Velocidade (Torque Porca M8)"
+  },
+  { 
+    identificacao: 27, 
+    material: "10045213", 
+    descricao: "TRAVESSA INFERIOR DO PAINEL FRONTAL", 
+    cliente: "TDB - SOROCABA", 
+    cliente1: "TDB - SOROCABA", 
+    posto: "POSTO 04 - SOLDA PONTO", 
+    fmds: "SOLDA 2 - CEL. TOYOTA", 
+    nestingLevel: 1, 
+    codCliText: "53201-0D123", 
+    componente: "53201-0D123 - TRAVESSA INFERIOR DO PAINEL FRONTAL", 
     carryOver: "Não",
     coProduto: "Não",
-    caracteristicaSeguranca: "Sim"
+    caracteristicaSeguranca: "Sim",
+    aspectoSeguranca: "Rigidez Estrutural Inferior do Subconjunto Frontal"
   },
   { 
     identificacao: 4, 
@@ -158,9 +183,11 @@ const INITIAL_PECAS: PecaCatalogo[] = [
     nestingLevel: 0, 
     codCliText: "53205-0D080", 
     componente: "53205-0D080 - SUPORTE RADIADOR", 
-    carryOver: "Não",
+    carryOver: "Sim",
     coProduto: "Sim",
-    caracteristicaSeguranca: "Não"
+    caracteristicaSeguranca: "Não",
+    pecasComuns: "53201-0D120 (Painel Dianteiro Completo) e 53205-02190 (Corolla Cross)",
+    pecaEspelho: "53206-0D080 - CONJUNTO SUPORTE RADIADOR AUXILIAR RH"
   },
   { 
     identificacao: 5, 
@@ -172,10 +199,29 @@ const INITIAL_PECAS: PecaCatalogo[] = [
     fmds: "SOLDA 2 - CEL. TOYOTA", 
     nestingLevel: 1, 
     codCliText: "53205-0D081", 
-    componente: "53205-0D081 - SUPORTE LH", 
-    carryOver: "Não",
+    componente: "53205-0D081 - SUPORTE LATERAL RADIADOR LH", 
+    carryOver: "Sim",
     coProduto: "Sim",
-    caracteristicaSeguranca: "Não"
+    caracteristicaSeguranca: "Não",
+    pecasComuns: "53205-0D080 (Yaris) e 53201-0D120 (Painel Dianteiro)",
+    pecaEspelho: "53205-0D082 - SUPORTE LATERAL RADIADOR RH"
+  },
+  { 
+    identificacao: 28, 
+    material: "10045282", 
+    descricao: "SUPORTE LATERAL RADIADOR RH", 
+    cliente: "TDB - SOROCABA", 
+    cliente1: "TDB - SOROCABA", 
+    posto: "POSTO 03 - ESTAMPARIA PROGRESSIVAS", 
+    fmds: "SOLDA 2 - CEL. TOYOTA", 
+    nestingLevel: 1, 
+    codCliText: "53205-0D082", 
+    componente: "53205-0D082 - SUPORTE LATERAL RADIADOR RH", 
+    carryOver: "Sim",
+    coProduto: "Sim",
+    caracteristicaSeguranca: "Não",
+    pecasComuns: "53205-0D080 (Yaris) e 53201-0D120 (Painel Dianteiro)",
+    pecaEspelho: "53205-0D081 - SUPORTE LATERAL RADIADOR LH"
   },
   { 
     identificacao: 6, 
@@ -188,9 +234,12 @@ const INITIAL_PECAS: PecaCatalogo[] = [
     nestingLevel: 0, 
     codCliText: "57011-02230", 
     componente: "57011-02230 - LONGARINA RH", 
-    carryOver: "Não",
+    carryOver: "Sim",
     coProduto: "Sim",
-    caracteristicaSeguranca: "Sim"
+    caracteristicaSeguranca: "Sim",
+    pecasComuns: "Toyota Corolla Sedan (57011-02210) e Corolla Cross (57011-02230)",
+    pecaEspelho: "57012-02230 - LONGARINA DIANTEIRA COMPLETA LH (CROSS)",
+    aspectoSeguranca: "Deformação Programada (Crash Box) e Absorção de Impacto Frontal (FMEA Segurança Veicular)"
   },
   { 
     identificacao: 7, 
@@ -202,10 +251,31 @@ const INITIAL_PECAS: PecaCatalogo[] = [
     fmds: "SOLDA 2 - CEL. TOYOTA", 
     nestingLevel: 1, 
     codCliText: "57011-02231", 
-    componente: "57011-02231 - FECHAMENTO RH", 
+    componente: "57011-02231 - FECHAMENTO INTERNO LONGARINA RH", 
     carryOver: "Sim",
     coProduto: "Sim",
-    caracteristicaSeguranca: "Sim"
+    caracteristicaSeguranca: "Sim",
+    pecasComuns: "57011-02230 (Corolla Cross RH) e 57011-02210 (Corolla Sedan RH)",
+    pecaEspelho: "57012-02231 - FECHAMENTO INTERNO LONGARINA LH",
+    aspectoSeguranca: "Integridade de Solda Ponto na Zona de Colapso Frontal (Crash Test)"
+  },
+  { 
+    identificacao: 29, 
+    material: "10045302", 
+    descricao: "REFORÇO CENTRAL DE ABSORÇÃO DE IMPACTO RH", 
+    cliente: "TDB - SOROCABA", 
+    cliente1: "TDB - SOROCABA", 
+    posto: "POSTO 07 - GEOMETRIA SOLDA TOYOTA", 
+    fmds: "SOLDA 2 - CEL. TOYOTA", 
+    nestingLevel: 1, 
+    codCliText: "57011-02232", 
+    componente: "57011-02232 - REFORÇO CENTRAL DE ABSORÇÃO DE IMPACTO RH", 
+    carryOver: "Sim",
+    coProduto: "Sim",
+    caracteristicaSeguranca: "Sim",
+    pecasComuns: "57011-02230 (Corolla Cross) e 57011-02210 (Corolla Sedan)",
+    pecaEspelho: "57012-02232 - REFORÇO CENTRAL DE ABSORÇÃO DE IMPACTO LH",
+    aspectoSeguranca: "Ancoragem do Berço do Motor e Absorção de Impacto Frontal"
   },
   { 
     identificacao: 8, 
@@ -218,9 +288,30 @@ const INITIAL_PECAS: PecaCatalogo[] = [
     nestingLevel: 0, 
     codCliText: "57012-02230", 
     componente: "57012-02230 - LONGARINA LH", 
-    carryOver: "Não",
+    carryOver: "Sim",
     coProduto: "Sim",
-    caracteristicaSeguranca: "Sim"
+    caracteristicaSeguranca: "Sim",
+    pecasComuns: "Toyota Corolla Sedan (57012-02210) e Corolla Cross (57012-02230)",
+    pecaEspelho: "57011-02230 - LONGARINA DIANTEIRA COMPLETA RH (CROSS)",
+    aspectoSeguranca: "Deformação Programada (Crash Box) e Absorção de Impacto Frontal (FMEA Segurança Veicular)"
+  },
+  { 
+    identificacao: 30, 
+    material: "10045311", 
+    descricao: "FECHAMENTO INTERNO LONGARINA LH", 
+    cliente: "TDB - SOROCABA", 
+    cliente1: "TDB - SOROCABA", 
+    posto: "POSTO 01 - PRENSA TANDEM LINHA A", 
+    fmds: "SOLDA 2 - CEL. TOYOTA", 
+    nestingLevel: 1, 
+    codCliText: "57012-02231", 
+    componente: "57012-02231 - FECHAMENTO INTERNO LONGARINA LH", 
+    carryOver: "Sim",
+    coProduto: "Sim",
+    caracteristicaSeguranca: "Sim",
+    pecasComuns: "57012-02230 (Corolla Cross LH) e 57012-02210 (Corolla Sedan LH)",
+    pecaEspelho: "57011-02231 - FECHAMENTO INTERNO LONGARINA RH",
+    aspectoSeguranca: "Integridade de Solda Ponto na Zona de Colapso Frontal (Crash Test)"
   },
   { 
     identificacao: 9, 
@@ -233,9 +324,47 @@ const INITIAL_PECAS: PecaCatalogo[] = [
     nestingLevel: 0, 
     codCliText: "61201-02380", 
     componente: "61201-02380 - COLUNA B", 
-    carryOver: "Não",
+    carryOver: "Sim",
+    coProduto: "Sim",
+    caracteristicaSeguranca: "Sim",
+    pecasComuns: "Toyota Corolla Sedan (61201-02380) e Corolla Cross (61201-0A010)",
+    pecaEspelho: "61202-02380 - COLUNA CENTRAL B-PILLAR LH",
+    aspectoSeguranca: "Proteção de Habitáculo contra Impacto Lateral e Ancoragem do Cinto de Segurança (Hot Stamping)"
+  },
+  { 
+    identificacao: 31, 
+    material: "10045401", 
+    descricao: "REFORÇO INTERNO B-PILLAR (HOT STAMPING)", 
+    cliente: "TDB - SOROCABA", 
+    cliente1: "TDB - SOROCABA", 
+    posto: "POSTO 04 - SOLDA PONTO", 
+    fmds: "SOLDA 2 - CEL. TOYOTA", 
+    nestingLevel: 1, 
+    codCliText: "61201-02381", 
+    componente: "61201-02381 - REFORÇO INTERNO B-PILLAR", 
+    carryOver: "Sim",
+    coProduto: "Sim",
+    caracteristicaSeguranca: "Sim",
+    pecasComuns: "61201-02380 (Corolla) e 61201-0A010 (Corolla Cross)",
+    pecaEspelho: "61202-02381 - REFORÇO INTERNO B-PILLAR LH",
+    aspectoSeguranca: "Resistência Ultra-Alta (1500 MPa) contra Intrusão Lateral"
+  },
+  { 
+    identificacao: 32, 
+    material: "10045402", 
+    descricao: "SUPORTE ANCORAGEM DO CINTO DE SEGURANÇA B-PILLAR", 
+    cliente: "TDB - SOROCABA", 
+    cliente1: "TDB - SOROCABA", 
+    posto: "POSTO 06 - PROJEÇÃO PORCA/PARAFUSO", 
+    fmds: "SOLDA 2 - CEL. TOYOTA", 
+    nestingLevel: 1, 
+    codCliText: "61201-02382", 
+    componente: "61201-02382 - SUPORTE ANCORAGEM CINTO B-PILLAR", 
+    carryOver: "Sim",
     coProduto: "Não",
-    caracteristicaSeguranca: "Sim"
+    caracteristicaSeguranca: "Sim",
+    pecasComuns: "61201-02380 (Coluna B RH) e 61202-02380 (Coluna B LH)",
+    aspectoSeguranca: "Fixação Homologada de Retrator de Cinto de Segurança (Regulamentação CONTRAN/ECE)"
   },
 
   // --- HONDA (CITY / HR-V) ---
@@ -250,20 +379,44 @@ const INITIAL_PECAS: PecaCatalogo[] = [
     nestingLevel: 0, 
     codCliText: "71101-T9A-M00", 
     componente: "71101-T9A-M00 - TRAVESSA SUP", 
-    carryOver: "Não" 
+    carryOver: "Sim",
+    coProduto: "Não",
+    caracteristicaSeguranca: "Sim",
+    pecasComuns: "Honda City Hatch / Honda City Sedan / Honda HR-V",
+    aspectoSeguranca: "Suporte do Sensor de Impacto do Airbag Dianteiro"
   },
   { 
     identificacao: 11, 
     material: "20088101", 
-    descricao: "SUPORTE CENTRAL DA BUZINA HONDA", 
+    descricao: "SUPORTE CENTRAL DA BUZINA E SENSOR AIRBAG HONDA", 
     cliente: "HONDA", 
     cliente1: "HONDA", 
     posto: "POSTO 03 - ESTAMPARIA PROGRESSIVAS", 
     fmds: "SOLDA 3 - CEL. HONDA/HYUNDAI", 
     nestingLevel: 1, 
     codCliText: "71101-T9A-M01", 
-    componente: "71101-T9A-M01 - SUPORTE BUZINA", 
-    carryOver: "Sim" 
+    componente: "71101-T9A-M01 - SUPORTE BUZINA E SENSOR", 
+    carryOver: "Sim",
+    coProduto: "Não",
+    caracteristicaSeguranca: "Sim",
+    pecasComuns: "71101-T9A-M00 (City) e 71101-3W0-M00 (HR-V)",
+    aspectoSeguranca: "Posicionamento Dimensional do Sensor de Desaceleração (Airbag SRS)"
+  },
+  { 
+    identificacao: 33, 
+    material: "20088102", 
+    descricao: "CANTONEIRA DE FIXAÇÃO DO FAROL DIANTEIRO LH", 
+    cliente: "HONDA", 
+    cliente1: "HONDA", 
+    posto: "POSTO 03 - ESTAMPARIA PROGRESSIVAS", 
+    fmds: "SOLDA 3 - CEL. HONDA/HYUNDAI", 
+    nestingLevel: 1, 
+    codCliText: "71101-T9A-M02", 
+    componente: "71101-T9A-M02 - CANTONEIRA FAROL LH", 
+    carryOver: "Não",
+    coProduto: "Sim",
+    caracteristicaSeguranca: "Não",
+    pecaEspelho: "71101-T9A-M03 - CANTONEIRA DE FIXAÇÃO DO FAROL DIANTEIRO RH"
   },
   { 
     identificacao: 12, 
@@ -276,7 +429,10 @@ const INITIAL_PECAS: PecaCatalogo[] = [
     nestingLevel: 0, 
     codCliText: "65100-3W0-M00", 
     componente: "65100-3W0-M00 - PAINEL TRASEIRO", 
-    carryOver: "Não" 
+    carryOver: "Não",
+    coProduto: "Não",
+    caracteristicaSeguranca: "Sim",
+    aspectoSeguranca: "Travamento da Porta do Porta-Malas e Absorção de Colisão Traseira"
   },
   { 
     identificacao: 13, 
@@ -289,7 +445,10 @@ const INITIAL_PECAS: PecaCatalogo[] = [
     nestingLevel: 1, 
     codCliText: "65100-3W0-M01", 
     componente: "65100-3W0-M01 - GUIA LANTERNA LH", 
-    carryOver: "Não" 
+    carryOver: "Não",
+    coProduto: "Sim",
+    caracteristicaSeguranca: "Não",
+    pecaEspelho: "65100-3W0-M02 - GUIA LANTERNA TRASEIRA DIREITA"
   },
   { 
     identificacao: 14, 
@@ -302,7 +461,12 @@ const INITIAL_PECAS: PecaCatalogo[] = [
     nestingLevel: 0, 
     codCliText: "60610-TG0-T00", 
     componente: "60610-TG0-T00 - CX RODA LH", 
-    carryOver: "Não" 
+    carryOver: "Sim",
+    coProduto: "Sim",
+    caracteristicaSeguranca: "Sim",
+    pecasComuns: "Honda City Hatch / Sedan (Plataforma Global)",
+    pecaEspelho: "60620-TG0-T00 - CAIXA DE RODA DIANTEIRA RH",
+    aspectoSeguranca: "Torre de Ancoragem do Amortecedor Dianteiro (Geometria de Suspensão)"
   },
 
   // --- HYUNDAI (HB20 / CRETA) ---
@@ -317,7 +481,12 @@ const INITIAL_PECAS: PecaCatalogo[] = [
     nestingLevel: 0, 
     codCliText: "64510-1S000", 
     componente: "64510-1S000 - LONGARINA TRAS LH", 
-    carryOver: "Não" 
+    carryOver: "Sim",
+    coProduto: "Sim",
+    caracteristicaSeguranca: "Sim",
+    pecasComuns: "Hyundai HB20 Hatch e Hyundai HB20S Sedan",
+    pecaEspelho: "64520-1S000 - LONGARINA TRASEIRA COMPLETA RH (HB20)",
+    aspectoSeguranca: "Integridade Estrutural do Tanque de Combustível em Colisão Traseira"
   },
   { 
     identificacao: 16, 
@@ -330,7 +499,12 @@ const INITIAL_PECAS: PecaCatalogo[] = [
     nestingLevel: 1, 
     codCliText: "64510-1S001", 
     componente: "64510-1S001 - REFORÇO REBOQUE", 
-    carryOver: "Sim" 
+    carryOver: "Sim",
+    coProduto: "Sim",
+    caracteristicaSeguranca: "Sim",
+    pecasComuns: "64510-1S000 (HB20) e 64510-BV000 (Creta)",
+    pecaEspelho: "64520-1S001 - REFORÇO DO GANCHO DE REBOQUE RH",
+    aspectoSeguranca: "Resistência à Tração de Reboque e Ancoragem Traseira"
   },
   { 
     identificacao: 17, 
@@ -343,7 +517,9 @@ const INITIAL_PECAS: PecaCatalogo[] = [
     nestingLevel: 0, 
     codCliText: "64101-BV000", 
     componente: "64101-BV000 - MODULO FRONTAL", 
-    carryOver: "Não" 
+    carryOver: "Não",
+    coProduto: "Não",
+    caracteristicaSeguranca: "Não"
   },
 
   // --- VOLKSWAGEN (POLO / VIRTUS / NIVUS / T-CROSS) ---
@@ -351,66 +527,88 @@ const INITIAL_PECAS: PecaCatalogo[] = [
     identificacao: 18, 
     material: "40099100", 
     descricao: "CAIXA DE RODA DIANTEIRA LH (POLO/NIVUS)", 
-    cliente: "TDB - INDAIATUBA", 
+    cliente: "VOLKSWAGEN", 
     cliente1: "TDB - INDAIATUBA", 
     posto: "POSTO 10 - GEOMETRIA SOLDA VOLKSWAGEN", 
     fmds: "SOLDA 1 - ESTACIONÁRIAS", 
     nestingLevel: 0, 
     codCliText: "2G0.803.101.C", 
     componente: "2G0.803.101.C - CAIXA DE RODA LH", 
-    carryOver: "Não" 
+    carryOver: "Sim",
+    coProduto: "Sim",
+    caracteristicaSeguranca: "Sim",
+    pecasComuns: "VW Polo, VW Virtus, VW Nivus e VW T-Cross (Plataforma MQB-A0)",
+    pecaEspelho: "2G0.803.102.C - CAIXA DE RODA DIANTEIRA RH (POLO/NIVUS)",
+    aspectoSeguranca: "Fixação Superior da Torre de Suspensão McPherson (FMEA Crítico)"
   },
   { 
     identificacao: 19, 
     material: "40099101", 
     descricao: "FLANGE DE LIGAÇÃO SUSPENSÃO LH", 
-    cliente: "TDB - INDAIATUBA", 
+    cliente: "VOLKSWAGEN", 
     cliente1: "TDB - INDAIATUBA", 
     posto: "POSTO 03 - ESTAMPARIA PROGRESSIVAS", 
-    fmds: "ESTAMPARIA PROGRESSIVAS", 
+    fmds: "ESTAMPARIA TANDEM & PROGRESSIVA", 
     nestingLevel: 1, 
     codCliText: "2G0.803.101.01", 
     componente: "2G0.803.101.01 - FLANGE SUSP LH", 
-    carryOver: "Sim" 
+    carryOver: "Sim",
+    coProduto: "Sim",
+    caracteristicaSeguranca: "Sim",
+    pecasComuns: "2G0.803.101.C (Polo/Nivus) e 2GP.803.101 (T-Cross)",
+    pecaEspelho: "2G0.803.102.01 - FLANGE DE LIGAÇÃO SUSPENSÃO RH",
+    aspectoSeguranca: "Apoio Estrutural do Rolamento da Torre de Suspensão"
   },
   { 
     identificacao: 20, 
     material: "40099200", 
     descricao: "CAIXA DE RODA DIANTEIRA RH (POLO/NIVUS)", 
-    cliente: "TDB - INDAIATUBA", 
+    cliente: "VOLKSWAGEN", 
     cliente1: "TDB - INDAIATUBA", 
     posto: "POSTO 10 - GEOMETRIA SOLDA VOLKSWAGEN", 
     fmds: "SOLDA 1 - ESTACIONÁRIAS", 
     nestingLevel: 0, 
     codCliText: "2G0.803.102.C", 
     componente: "2G0.803.102.C - CAIXA DE RODA RH", 
-    carryOver: "Não" 
+    carryOver: "Sim",
+    coProduto: "Sim",
+    caracteristicaSeguranca: "Sim",
+    pecasComuns: "VW Polo, VW Virtus, VW Nivus e VW T-Cross (Plataforma MQB-A0)",
+    pecaEspelho: "2G0.803.101.C - CAIXA DE RODA DIANTEIRA LH (POLO/NIVUS)",
+    aspectoSeguranca: "Fixação Superior da Torre de Suspensão McPherson (FMEA Crítico)"
   },
   { 
     identificacao: 21, 
     material: "40099300", 
     descricao: "PAINEL TRANSVERSAL DIANTEIRO (VIRTUS)", 
-    cliente: "TDB - INDAIATUBA", 
+    cliente: "VOLKSWAGEN", 
     cliente1: "TDB - INDAIATUBA", 
     posto: "POSTO 01 - PRENSA TANDEM LINHA A", 
-    fmds: "ESTAMPARIA TANDEM", 
+    fmds: "ESTAMPARIA TANDEM & PROGRESSIVA", 
     nestingLevel: 0, 
     codCliText: "2G0.805.591.A", 
     componente: "2G0.805.591.A - PAINEL TRANSVERSAL", 
-    carryOver: "Não" 
+    carryOver: "Sim",
+    coProduto: "Não",
+    caracteristicaSeguranca: "Não",
+    pecasComuns: "VW Polo e VW Virtus"
   },
   { 
     identificacao: 22, 
     material: "40099400", 
     descricao: "LONGARINA TRASEIRA COMPLETA (T-CROSS)", 
-    cliente: "TDB - INDAIATUBA", 
+    cliente: "VOLKSWAGEN", 
     cliente1: "TDB - INDAIATUBA", 
     posto: "POSTO 10 - GEOMETRIA SOLDA VOLKSWAGEN", 
     fmds: "SOLDA 1 - ESTACIONÁRIAS", 
     nestingLevel: 0, 
     codCliText: "2GP.803.501", 
     componente: "2GP.803.501 - LONGARINA TRAS T-CROSS", 
-    carryOver: "Não" 
+    carryOver: "Não",
+    coProduto: "Sim",
+    caracteristicaSeguranca: "Sim",
+    pecaEspelho: "2GP.803.502 - LONGARINA TRASEIRA COMPLETA RH (T-CROSS)",
+    aspectoSeguranca: "Absorção de Energia em Colisão Traseira e Fixação do Eixo de Torção"
   },
 
   // --- STELLANTIS (TORO / RENEGADE / COMPASS / COMMANDER) ---
@@ -418,53 +616,71 @@ const INITIAL_PECAS: PecaCatalogo[] = [
     identificacao: 23, 
     material: "50011948", 
     descricao: "TRAVESSA SUSPENSÃO TRASEIRA (TORO)", 
-    cliente: "KDB - SOROCABA", 
+    cliente: "STELLANTIS", 
     cliente1: "KDB - SOROCABA", 
     posto: "POSTO 11 - GEOMETRIA SOLDA STELLANTIS", 
-    fmds: "OUTROS", 
+    fmds: "SOLDA 1 - ESTACIONÁRIAS", 
     nestingLevel: 0, 
     codCliText: "52012948", 
     componente: "52012948 - TRAVESSA SUSPENSÃO", 
-    carryOver: "Não" 
+    carryOver: "Sim",
+    coProduto: "Não",
+    caracteristicaSeguranca: "Sim",
+    pecasComuns: "Fiat Toro, Jeep Compass, Jeep Renegade 4x4 e Ram Rampage (Plataforma Small Wide)",
+    aspectoSeguranca: "Sustentação do Diferencial e Geometria da Suspensão Multilink Traseira"
   },
   { 
     identificacao: 24, 
     material: "50011949", 
     descricao: "BRAÇO ESTRUTURAL ESQUERDO DA SUSPENSÃO", 
-    cliente: "KDB - SOROCABA", 
+    cliente: "STELLANTIS", 
     cliente1: "KDB - SOROCABA", 
     posto: "POSTO 05 - SOLDA MIG/MAG ROBÔ ABB CÉLULA 2", 
-    fmds: "OUTROS", 
+    fmds: "SOLDA 1 - ESTACIONÁRIAS", 
     nestingLevel: 1, 
     codCliText: "52012949", 
-    componente: "52012949 - BRAÇO LH", 
-    carryOver: "Sim" 
+    componente: "52012949 - BRAÇO ESTRUTURAL ESQUERDO DA SUSPENSÃO", 
+    carryOver: "Sim",
+    coProduto: "Sim",
+    caracteristicaSeguranca: "Sim",
+    pecasComuns: "52012948 (Travessa Toro/Compass) e 52044812 (Sub-chassi Small Wide)",
+    pecaEspelho: "52012950 - BRAÇO ESTRUTURAL DIREITO DA SUSPENSÃO",
+    aspectoSeguranca: "Controle de Cambagem e Sustentação Dinâmica da Roda Traseira LH"
   },
   { 
     identificacao: 25, 
     material: "50011950", 
     descricao: "BRAÇO ESTRUTURAL DIREITO DA SUSPENSÃO", 
-    cliente: "KDB - SOROCABA", 
+    cliente: "STELLANTIS", 
     cliente1: "KDB - SOROCABA", 
     posto: "POSTO 05 - SOLDA MIG/MAG ROBÔ ABB CÉLULA 2", 
-    fmds: "OUTROS", 
+    fmds: "SOLDA 1 - ESTACIONÁRIAS", 
     nestingLevel: 1, 
     codCliText: "52012950", 
-    componente: "52012950 - BRAÇO RH", 
-    carryOver: "Sim" 
+    componente: "52012950 - BRAÇO ESTRUTURAL DIREITO DA SUSPENSÃO", 
+    carryOver: "Sim",
+    coProduto: "Sim",
+    caracteristicaSeguranca: "Sim",
+    pecasComuns: "52012948 (Travessa Toro/Compass) e 52044812 (Sub-chassi Small Wide)",
+    pecaEspelho: "52012949 - BRAÇO ESTRUTURAL ESQUERDO DA SUSPENSÃO",
+    aspectoSeguranca: "Controle de Cambagem e Sustentação Dinâmica da Roda Traseira RH"
   },
   { 
     identificacao: 26, 
     material: "50012812", 
     descricao: "BERÇO MOTOR E SUB-CHASSI DIANTEIRO (COMPASS)", 
-    cliente: "KDB - SOROCABA", 
+    cliente: "STELLANTIS", 
     cliente1: "KDB - SOROCABA", 
     posto: "POSTO 11 - GEOMETRIA SOLDA STELLANTIS", 
-    fmds: "OUTROS", 
+    fmds: "SOLDA 1 - ESTACIONÁRIAS", 
     nestingLevel: 0, 
     codCliText: "52044812", 
     componente: "52044812 - BERÇO MOTOR COMPASS", 
-    carryOver: "Não" 
+    carryOver: "Sim",
+    coProduto: "Não",
+    caracteristicaSeguranca: "Sim",
+    pecasComuns: "Jeep Compass, Jeep Commander e Fiat Toro",
+    aspectoSeguranca: "Fixação da Caixa de Direção e Bandejas Inferiores da Suspensão Dianteira"
   }
 ];
 
@@ -495,9 +711,9 @@ const INITIAL_RNCS: RNCRecord[] = [
     descricaoProblema: "Ponto de SOLDA  Pegou  fora Dedevido a PEÇA AMASSADA ",
     descricaoCompleta: "Ponto de SOLDA  Pegou  fora Dedevido a PEÇA AMASSADA ",
     descricaoProblemaInterno: "PEÇA AMASSADA /DEFORMADO ",
-    fotoPecaNg: "https://gitservices.sharepoint.com/sites/QualityGate/Lists/Resumo%20dos%20Incidentes%20de%20qualidade/Attachments/6119/Reserved_ImageAttachment_[32]_[Foto_x0020_da_x0020_pe_x00e7_a_x][32]_[0638902df5f44ae7a6b0cec5132c4ff7][1]_[2].jpeg",
-    fotoPecaOk: "https://gitservices.sharepoint.com/sites/QualityGate/Lists/Resumo%20dos%20Incidentes%20de%20qualidade/Attachments/6119/Reserved_ImageAttachment_[30]_[Foto_x0020_pe_x00e7_a_x0020_OK][32]_[0f9d95996d23445f8c664a581162e9e7][1]_[4].jpeg",
-    fotoAuxiliar: "https://gitservices.sharepoint.com/sites/QualityGate/Lists/Resumo%20dos%20Incidentes%20de%20qualidade/Attachments/6119/Reserved_ImageAttachment_[32]_[Foto_x0020_auxiliar_x0020__x0028][32]_[a763c4884f9b4b719697fea0cdd14a44][1]_[6].jpeg",
+    fotoPecaNg: createTechnicalSvgDataUrl('NG', 'RNC-6119', 'Peça Amassada / Ponto de Solda Fora', 'Célula Solda 3 • Robô 33'),
+    fotoPecaOk: createTechnicalSvgDataUrl('OK', 'RNC-6119', 'Geometria e Ponto de Solda Validados', 'Gabarito DCO Aprovado pela Qualidade'),
+    fotoAuxiliar: createTechnicalSvgDataUrl('OK', 'RNC-6119', 'Gabarito de Controle Dimensional DCO', 'Validação 100% Pós-Retrabalho'),
     caracteristicaSeguranca: "Não",
     coProduto: "Não",
     carryOver: "Não",
@@ -957,13 +1173,14 @@ const INITIAL_ACTION_ITEMS: ActionPlanItem[] = [
     id_rel2: 1,
     id_programa_acoes: 'I - 1',
     tipo_acao: 'CONTENÇÃO',
+    etapa_8d: '3D',
     contra_medida: 'Inspeção 100% visual e ensaio de macrografia amostral em todas as peças do lote WIP e estoque expedido.',
     responsavel_acao: 'Roberto Mendes Silva',
     email: 'rmendes@br.gestamp.com',
     data_acompanhamento: '2026-10-19',
     data_planejada: '2026-10-20',
     status: 'Validado',
-    yokoten: 'SIM',
+    yokoten: 'NÃO',
     poka_yoke: 'NÃO',
     evidencia_obrigatoria: 'SIM',
     validacao_acao: 'SIM',
@@ -977,6 +1194,7 @@ const INITIAL_ACTION_ITEMS: ActionPlanItem[] = [
     id_rel2: 1,
     id_programa_acoes: 'I - 1',
     tipo_acao: 'CORRETIVA',
+    etapa_8d: '5D',
     causa: 'Instabilidade térmica e desgaste precoce do bico de contato de cobre gerando oscilação na tensão do arco de solda.',
     contra_medida: 'Substituição do bico de contato de cobre comum por liga CuCrZr de alta durabilidade e ajuste do fluxo de gás de proteção para 16 L/min.',
     responsavel_acao: 'André Ferreira Santos',
@@ -984,8 +1202,8 @@ const INITIAL_ACTION_ITEMS: ActionPlanItem[] = [
     data_acompanhamento: '2026-10-22',
     data_planejada: '2026-10-25',
     status: 'Concluído',
-    yokoten: 'SIM',
-    poka_yoke: 'SIM',
+    yokoten: 'NÃO',
+    poka_yoke: 'NÃO',
     evidencia_obrigatoria: 'SIM',
     validacao_acao: 'SIM',
     data_conclusao: '2026-10-24',
@@ -997,6 +1215,7 @@ const INITIAL_ACTION_ITEMS: ActionPlanItem[] = [
     id_rel2: 1,
     id_programa_acoes: 'I - 1',
     tipo_acao: 'PREVENTIVA',
+    etapa_8d: '7D',
     causa: 'Falta de parametrização no plano de manutenção preditiva para monitoramento contínuo da corrente de solda.',
     contra_medida: 'Atualização da folha de processo FMEA e implementação de inspeção periódica com LPA diária.',
     responsavel_acao: 'Carlos Eduardo Ferreira',
@@ -1005,7 +1224,7 @@ const INITIAL_ACTION_ITEMS: ActionPlanItem[] = [
     data_planejada: '2026-10-30',
     status: 'Aberto',
     oData_8d_7d: 'FMEA',
-    yokoten: 'SIM',
+    yokoten: 'NÃO',
     poka_yoke: 'NÃO',
     evidencia_obrigatoria: 'SIM',
     validacao_acao: 'SIM'
@@ -1016,6 +1235,7 @@ const INITIAL_ACTION_ITEMS: ActionPlanItem[] = [
     id_rel2: 2,
     id_programa_acoes: 'C - 2',
     tipo_acao: 'CORRETIVA',
+    etapa_8d: '5D',
     causa: 'Folga excessiva na bucha guia da matriz de corte provocando rebarba na estampagem.',
     contra_medida: 'Usinagem de novas buchas temperadas e troca do conjunto na ferramentaria.',
     responsavel_acao: 'Juliana Santos Oliveira',
@@ -1052,13 +1272,14 @@ const INITIAL_ACTION_ITEMS: ActionPlanItem[] = [
     id_rel2: 4,
     id_programa_acoes: 'I - 6119',
     tipo_acao: 'CONTENÇÃO',
+    etapa_8d: '3D',
     contra_medida: 'Inspeção 100% no posto de trabalho B643033 e segregação de todas as peças com deformação para retrabalho.',
     responsavel_acao: 'LEANDRO APARECIDO POSSOMATO',
     email: 'leandro.possomato@br.gestamp.com',
     data_acompanhamento: '2026-10-19',
     data_planejada: '2026-10-20',
     status: 'Validado',
-    yokoten: 'SIM',
+    yokoten: 'NÃO',
     poka_yoke: 'NÃO',
     evidencia_obrigatoria: 'SIM',
     validacao_acao: 'SIM',
@@ -1072,6 +1293,7 @@ const INITIAL_ACTION_ITEMS: ActionPlanItem[] = [
     id_rel2: 4,
     id_programa_acoes: 'I - 6119',
     tipo_acao: 'CORRETIVA',
+    etapa_8d: '5D',
     causa: 'Bico graxeiro entupido impediu lubrificação do canal interno do grampo 3, gerando desgaste na bucha de articulação e pressão fora de esquadro.',
     contra_medida: 'Substituição das buchas de articulação do grampo 3 por modelo sinterizado autolubrificante e desobstrução do bico graxeiro.',
     responsavel_acao: 'Matheus Henrique de Luca',
@@ -1079,8 +1301,8 @@ const INITIAL_ACTION_ITEMS: ActionPlanItem[] = [
     data_acompanhamento: '2026-10-22',
     data_planejada: '2026-10-26',
     status: 'Concluído',
-    yokoten: 'SIM',
-    poka_yoke: 'SIM',
+    yokoten: 'NÃO',
+    poka_yoke: 'NÃO',
     evidencia_obrigatoria: 'SIM',
     validacao_acao: 'SIM',
     data_conclusao: '2026-10-24',
@@ -1092,6 +1314,7 @@ const INITIAL_ACTION_ITEMS: ActionPlanItem[] = [
     id_rel2: 4,
     id_programa_acoes: 'I - 6119',
     tipo_acao: 'CORRETIVA',
+    etapa_8d: '6D',
     contra_medida: 'Avaliação de folga e alinhamento mecânico dos grampos pneumáticos nos robôs 31, 32 e 34 da linha Hyundai.',
     responsavel_acao: 'Carlos Eduardo Ferreira',
     email: 'ceduardo@mhleansolucoes.com.br',
@@ -1109,6 +1332,7 @@ const INITIAL_ACTION_ITEMS: ActionPlanItem[] = [
     id_rel2: 4,
     id_programa_acoes: 'I - 6119',
     tipo_acao: 'PREVENTIVA',
+    etapa_8d: '7D',
     oData_8d_7d: 'FMEA',
     contra_medida: 'Revisão do PFMEA da operação B643033 incluindo o modo de falha de folga por deficiência de lubrificação no grampo de fixação.',
     responsavel_acao: 'Carlos Eduardo Ferreira',
@@ -1116,7 +1340,7 @@ const INITIAL_ACTION_ITEMS: ActionPlanItem[] = [
     data_acompanhamento: '2026-10-26',
     data_planejada: '2026-11-02',
     status: 'Aberto',
-    yokoten: 'SIM',
+    yokoten: 'NÃO',
     poka_yoke: 'NÃO',
     evidencia_obrigatoria: 'SIM',
     validacao_acao: 'SIM'
@@ -1127,6 +1351,7 @@ const INITIAL_ACTION_ITEMS: ActionPlanItem[] = [
     id_rel2: 4,
     id_programa_acoes: 'I - 6119',
     tipo_acao: 'PREVENTIVA',
+    etapa_8d: '7D',
     oData_8d_7d: 'Trabalho Padronizado',
     contra_medida: 'Atualização da Instrução de Trabalho SOS 044 com inclusão da checagem diária de lubrificação de graxeiros no início do turno.',
     responsavel_acao: 'Paulo Henrique Vicente',
@@ -1379,13 +1604,19 @@ class SharePointDataStore {
     this.rncs = this.rncs.map(normalizeRncRecordCasing);
     this.rncs.sort((a, b) => b.id - a.id);
     this.rncMap.clear();
+    const deduped: RNCRecord[] = [];
     for (let i = 0; i < this.rncs.length; i++) {
       const r = this.rncs[i];
       const tId = r.tenant_id || PILOT_TENANT_ID;
       r.tenant_id = tId;
-      this.rncMap.set(this.getRncCompositeKey(tId, r.id), r);
-      (r as any)._searchStr = `${r.id} ${r.field1 || ''} ${r.cliente || ''} ${r.produto || ''} ${r.componente || ''} ${r.codigoRastreabilidade || ''} ${r.descricaoProblema || ''} ${r.participantesAtendimento || ''} ${r.setorDeteccao || ''}`.toLowerCase();
+      const compKey = this.getRncCompositeKey(tId, r.id);
+      if (!this.rncMap.has(compKey)) {
+        (r as any)._searchStr = `${r.id} ${r.field1 || ''} ${r.cliente || ''} ${r.produto || ''} ${r.componente || ''} ${r.codigoRastreabilidade || ''} ${r.descricaoProblema || ''} ${r.participantesAtendimento || ''} ${r.setorDeteccao || ''}`.toLowerCase();
+        this.rncMap.set(compKey, r);
+        deduped.push(r);
+      }
     }
+    this.rncs = deduped;
   }
 
   private indexPecas() {
@@ -1462,23 +1693,35 @@ class SharePointDataStore {
       const savedRncsV2 = localStorage.getItem('sor_saas_rncs_v2');
       if (savedRncsV2) {
         const parsed: RNCRecord[] = JSON.parse(savedRncsV2);
-        this.rncs = parsed;
-        // Garante que o contador monotônico de cada empresa nunca seja menor que o maior ID já existente nela
+        // Sanitiza eventuais URLs legadas do SharePoint (Reserved_ImageAttachment / sharepoint.com) e remove IDs globais legados > 5000 se já houver seeds v2
+        const hasV2Seeds = parsed.some(r => r.id >= 1 && r.id <= 50);
+        this.rncs = parsed
+          .filter(r => !(hasV2Seeds && (r.id === 6119 || r.id === 5970 || r.id === 5507 || r.id === 5470 || r.id === 5400)))
+          .map(r => {
+            const cleanR = { ...r };
+            if (cleanR.fotoPecaNg && (cleanR.fotoPecaNg.includes('sharepoint.com') || cleanR.fotoPecaNg.includes('Reserved_ImageAttachment'))) {
+              cleanR.fotoPecaNg = createTechnicalSvgDataUrl('NG', cleanR.field1 || `RNC-${cleanR.id}`, cleanR.modoFalha || 'Evidência Não Conforme (NG)', cleanR.posto || cleanR.fmds || 'Inspeção de Qualidade');
+            }
+            if (cleanR.fotoPecaOk && (cleanR.fotoPecaOk.includes('sharepoint.com') || cleanR.fotoPecaOk.includes('Reserved_ImageAttachment'))) {
+              cleanR.fotoPecaOk = createTechnicalSvgDataUrl('OK', cleanR.field1 || `RNC-${cleanR.id}`, 'Padrão Homologado (OK)', cleanR.posto || cleanR.fmds || 'Conformidade Validada');
+            }
+            if (cleanR.fotoAuxiliar && (cleanR.fotoAuxiliar.includes('sharepoint.com') || cleanR.fotoAuxiliar.includes('Reserved_ImageAttachment'))) {
+              cleanR.fotoAuxiliar = '';
+            }
+            return cleanR;
+          });
+
+        // Garante que o contador monotônico de cada empresa nunca seja menor que o maior ID válido já existente nela
         const maxByTenant = new Map<string, number>();
         this.rncs.forEach(r => {
-          const tId = r.tenant_id || PILOT_TENANT_ID;
-          const prev = maxByTenant.get(tId) || 0;
-          if (r.id > prev) maxByTenant.set(tId, r.id);
+          if (r.id < 5000) {
+            const tId = r.tenant_id || PILOT_TENANT_ID;
+            const prev = maxByTenant.get(tId) || 0;
+            if (r.id > prev) maxByTenant.set(tId, r.id);
+          }
         });
         maxByTenant.forEach((maxId, tId) => {
           tenantService.ensureTenantRncSequenceAtLeast(tId, maxId);
-        });
-
-        // Garante que a RNC 6119 e as demais RNCs essenciais de referência existam no banco em memória
-        INITIAL_RNCS.forEach(initRnc => {
-          if (!this.rncs.some(r => r.id === initRnc.id)) {
-            this.rncs.push({ ...initRnc, tenant_id: PILOT_TENANT_ID });
-          }
         });
       } else {
         // Primeira inicialização do modelo v2 (IDs iniciando em 1 para cada empresa)
@@ -1606,11 +1849,12 @@ class SharePointDataStore {
 
       // Caso o localStorage de RNCs tenha excedido limite de tamanho por fotos, recupera do IndexedDB v2
       idbGet<RNCRecord[]>('rncs_v2').then(cachedRncsV2 => {
-        if (cachedRncsV2 && cachedRncsV2.length > 0 && !localStorage.getItem('sor_saas_rncs_v2')) {
+        if (cachedRncsV2 && cachedRncsV2.length > 0 && (!localStorage.getItem('sor_saas_rncs_v2') || cachedRncsV2.length > this.rncs.length)) {
           this.rncs = cachedRncsV2;
           this.indexRNCs();
           tenantService.recalculateTenantStorage(this.rncs);
         }
+        this.syncWithCloudAndSupabase('pull');
       });
 
       idbGet<PecaCatalogo[]>('pecas').then(cachedPecas => {
@@ -1625,7 +1869,117 @@ class SharePointDataStore {
     }
   }
 
-  private saveToStorage() {
+  private deletedRncKeys: Set<string> = new Set();
+  private isSyncingCloud = false;
+
+  public async syncWithCloudAndSupabase(mode: 'pull' | 'push' = 'pull'): Promise<void> {
+    if (this.isSyncingCloud) return;
+    this.isSyncingCloud = true;
+    try {
+      // 1. Busca registros salvos na tabela 'rncs' do Supabase (se RLS permitir)
+      const supaRncs = await tenantService.fetchRncsFromSupabase();
+      if (supaRncs.length > 0) {
+        const map = new Map<string, RNCRecord>();
+        this.rncs.forEach(r => map.set(this.getRncCompositeKey(r.tenant_id || PILOT_TENANT_ID, r.id), r));
+        supaRncs.forEach(r => map.set(this.getRncCompositeKey(r.tenant_id || PILOT_TENANT_ID, r.id), r));
+        this.rncs = Array.from(map.values()).sort((a, b) => b.id - a.id);
+      }
+
+      // 2. Sincroniza com o Cloud Store do Servidor (/api/cloud-sync)
+      const masterSnap = tenantService.getCloudMasterStateSnapshot();
+      const res =
+        mode === 'push'
+          ? await fetch('/api/cloud-sync', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                rncs: this.rncs,
+                actionPlans: this.actionPlans,
+                actionItems: this.actionItems,
+                eightDMetadataList: this.eightDMetadataList,
+                ishikawaCauses: this.ishikawaCauses,
+                henkatenList: this.henkatenList,
+                entrevistaList: this.entrevistaList,
+                lotesSAP: this.lotesSAP,
+                treinamentos: this.treinamentos,
+                masterData: masterSnap.masterData,
+                optionCategories: masterSnap.optionCategories,
+                formFields: masterSnap.formFields,
+                deletedRncKeys: Array.from(this.deletedRncKeys)
+              })
+            })
+          : await fetch('/api/cloud-sync', { method: 'GET' });
+
+      if (res.ok) {
+        const merged = await res.json();
+        let updated = false;
+        if (Array.isArray(merged.rncs) && merged.rncs.length > 0) {
+          const prevIds = this.rncs.map(r => `${r.tenant_id || PILOT_TENANT_ID}:${r.id}:${r.status}`).join('|');
+          const map = new Map<string, RNCRecord>();
+          this.rncs.forEach(r => {
+            const k = this.getRncCompositeKey(r.tenant_id || PILOT_TENANT_ID, r.id);
+            if (!this.deletedRncKeys.has(k)) map.set(k, r);
+          });
+          merged.rncs.forEach((r: RNCRecord) => {
+            const k = this.getRncCompositeKey(r.tenant_id || PILOT_TENANT_ID, r.id);
+            if (!this.deletedRncKeys.has(k)) map.set(k, r);
+          });
+          this.rncs = Array.from(map.values()).sort((a: RNCRecord, b: RNCRecord) => b.id - a.id);
+          const nextIds = this.rncs.map(r => `${r.tenant_id || PILOT_TENANT_ID}:${r.id}:${r.status}`).join('|');
+          if (prevIds !== nextIds) updated = true;
+          this.rncs.forEach(r => {
+            if (r.id < 5000) {
+              tenantService.ensureTenantRncSequenceAtLeast(r.tenant_id || PILOT_TENANT_ID, r.id);
+            }
+          });
+        }
+        if (Array.isArray(merged.actionPlans) && merged.actionPlans.length > 0) {
+          if (merged.actionPlans.length !== this.actionPlans.length) updated = true;
+          this.actionPlans = merged.actionPlans;
+        }
+        if (Array.isArray(merged.actionItems) && merged.actionItems.length > 0) {
+          if (merged.actionItems.length !== this.actionItems.length) updated = true;
+          this.actionItems = merged.actionItems;
+        }
+        if (Array.isArray(merged.eightDMetadataList) && merged.eightDMetadataList.length > 0) {
+          this.eightDMetadataList = merged.eightDMetadataList;
+        }
+        if (Array.isArray(merged.ishikawaCauses) && merged.ishikawaCauses.length > 0) {
+          this.ishikawaCauses = merged.ishikawaCauses;
+        }
+        if (Array.isArray(merged.henkatenList) && merged.henkatenList.length > 0) {
+          this.henkatenList = merged.henkatenList;
+        }
+        if (Array.isArray(merged.entrevistaList) && merged.entrevistaList.length > 0) {
+          this.entrevistaList = merged.entrevistaList;
+        }
+        if (Array.isArray(merged.lotesSAP) && merged.lotesSAP.length > 0) {
+          this.lotesSAP = merged.lotesSAP;
+        }
+        if (Array.isArray(merged.treinamentos) && merged.treinamentos.length > 0) {
+          this.treinamentos = merged.treinamentos;
+        }
+        tenantService.applyCloudMasterStateSnapshot({
+          masterData: merged.masterData,
+          optionCategories: merged.optionCategories,
+          formFields: merged.formFields
+        });
+
+        this.indexRNCs();
+        this.persistLocalOnly();
+        if (updated) {
+          tenantService.recalculateTenantStorage(this.rncs);
+          tenantService.notifyListeners();
+        }
+      }
+    } catch {
+      // Operação offline silenciosa se sem rede
+    } finally {
+      this.isSyncingCloud = false;
+    }
+  }
+
+  private persistLocalOnly() {
     try {
       localStorage.setItem('sor_saas_rncs_v2', JSON.stringify(this.rncs));
     } catch (e) {
@@ -1653,9 +2007,13 @@ class SharePointDataStore {
       console.warn("Storage warning:", e);
     }
 
-    // Salva também no IndexedDB v2 assíncrono para suportar evidências fotográficas volumosas
     idbSet('rncs_v2', this.rncs);
     idbSet('pecas', this.pecas);
+  }
+
+  private saveToStorage() {
+    this.persistLocalOnly();
+    this.syncWithCloudAndSupabase('push');
   }
 
   public resetToDefaults() {
@@ -1938,58 +2296,119 @@ class SharePointDataStore {
   }
 
   public getColPecasGeraisAA3(): PecaCatalogo[] {
-    return this.pecas;
+    const masterProds = tenantService.getActiveOptions('master_pecas_produtos');
+    const existingNames = new Set(
+      this.pecas.map(p => p.descricao.trim().toLowerCase())
+    );
+    const existingCodCli = new Set(
+      this.pecas.map(p => `${p.codCliText} - ${p.descricao}`.trim().toLowerCase())
+    );
+
+    const extraPecas: PecaCatalogo[] = [];
+    masterProds.forEach((m, idx) => {
+      const cleanName = m.nome.trim();
+      const lower = cleanName.toLowerCase();
+      if (!existingNames.has(lower) && !existingCodCli.has(lower)) {
+        const dashParts = cleanName.split(' - ');
+        const codCli = dashParts.length > 1 ? dashParts[0].trim() : m.codigo || `PROD-${idx + 1}`;
+        const desc = dashParts.length > 1 ? dashParts.slice(1).join(' - ').trim() : cleanName;
+        const detParts = (m.detalhe || '').split('•').map(s => s.trim());
+        extraPecas.push({
+          identificacao: 9000 + idx,
+          material: m.codigo || `MAT-${9000 + idx}`,
+          descricao: desc,
+          cliente: detParts[0] || DEFAULT_CLIENTE,
+          cliente1: detParts[0] || DEFAULT_CLIENTE,
+          posto: detParts[1] || 'POSTO 01 - ALIMENTAÇÃO',
+          fmds: detParts[2] || 'SOLDA 2 - CEL. TOYOTA',
+          nestingLevel: 0,
+          codCliText: codCli,
+          componente: detParts[3] || cleanName,
+          carryOver: detParts[4] ? 'Sim' : 'Não',
+          pecasComuns: detParts[4] || '',
+          coProduto: detParts[5] ? 'Sim' : 'Não',
+          pecaEspelho: detParts[5] || '',
+          caracteristicaSeguranca: detParts[6] ? 'Sim' : 'Não',
+          aspectoSeguranca: detParts[6] || ''
+        });
+      }
+    });
+
+    return [...this.pecas, ...extraPecas];
   }
 
   public getPecas(): PecaCatalogo[] {
-    return this.pecas;
+    return this.getColPecasGeraisAA3();
   }
 
   // Filter(colpecasgerais_AA3, Cliente1 = cxcliente.Selected.Value, 'Nesting level' = 0)
   public getProdutosPorCliente(cliente: string): PecaCatalogo[] {
     const key = (cliente || '').toUpperCase();
-    if (this.produtosPorClienteCache.has(key)) {
-      return this.produtosPorClienteCache.get(key)!;
-    }
-    const res = !key 
-      ? this.pecas.filter(p => p.nestingLevel === 0)
-      : this.pecas.filter(p => 
-          (p.cliente.toUpperCase() === key || 
-           (p.cliente1 && p.cliente1.toUpperCase() === key) ||
-           (key.includes('TDB') && (p.cliente.toUpperCase().includes('TOYOTA') || p.cliente.toUpperCase().includes('TDB'))) ||
-           (key.includes('TOYOTA') && (p.cliente.toUpperCase().includes('TDB') || p.cliente.toUpperCase().includes('TOYOTA')))) &&
-          p.nestingLevel === 0
-        );
-    this.produtosPorClienteCache.set(key, res);
-    return res;
-  }
-
-  // Filter(colpecasgerais_AA3, Componente <> Left(cxproduto.Selected.CodCliText, 9))
-  public getComponentesPorProduto(codCliText: string): PecaCatalogo[] {
-    const key = (codCliText || '').toUpperCase();
-    if (this.componentesPorProdutoCache.has(key)) {
-      return this.componentesPorProdutoCache.get(key)!;
-    }
+    const allPecas = this.getColPecasGeraisAA3();
     if (!key) {
-      const res = this.pecas.filter(p => p.nestingLevel > 0);
-      this.componentesPorProdutoCache.set(key, res);
-      return res;
+      return allPecas.filter(p => p.nestingLevel === 0);
     }
-    const prefix = key.substring(0, 9);
-    const res = this.pecas.filter(p => {
-      if (p.nestingLevel === 0) return false;
-      const compPrefix = (p.componente || p.codCliText).substring(0, 9).toUpperCase();
-      return compPrefix !== prefix;
-    });
-    this.componentesPorProdutoCache.set(key, res);
-    return res;
+    const filtered = allPecas.filter(
+      p =>
+        (p.cliente.toUpperCase() === key ||
+          (p.cliente1 && p.cliente1.toUpperCase() === key) ||
+          p.identificacao >= 9000 ||
+          (key.includes('TDB') &&
+            (p.cliente.toUpperCase().includes('TOYOTA') || p.cliente.toUpperCase().includes('TDB'))) ||
+          (key.includes('TOYOTA') &&
+            (p.cliente.toUpperCase().includes('TDB') || p.cliente.toUpperCase().includes('TOYOTA')))) &&
+        p.nestingLevel === 0
+    );
+    return filtered.length > 0 ? filtered : allPecas.filter(p => p.nestingLevel === 0);
   }
 
-  // Distinct(colpecasgerais_AA3, Posto) + Postos do Tenant Ativo
+  // Retorna os componentes (nestingLevel > 0) vinculados ao produto final selecionado (ou todos se não filtrado)
+  public getComponentesPorProduto(codCliText: string): PecaCatalogo[] {
+    const key = (codCliText || '').trim().toUpperCase();
+    const allComponents = this.pecas.filter(p => p.nestingLevel > 0);
+    if (!key) {
+      return allComponents;
+    }
+
+    // Procura o produto final correspondente para identificar família de código e cliente
+    const parentProduct = this.getColPecasGeraisAA3().find(
+      p => p.codCliText.toUpperCase() === key || `${p.codCliText} - ${p.descricao}`.toUpperCase() === key
+    );
+    const cleanCode = (parentProduct?.codCliText || key.split(' - ')[0] || key).trim().toUpperCase();
+    const familyPrefix = cleanCode.substring(0, 5);
+
+    // 1. Componentes que pertencem à mesma família de código da peça final (ex: 53201-0D120 -> 53201-0D121, 53201-0D122...)
+    const byFamily = allComponents.filter(p => {
+      const compCode = (p.codCliText || p.componente || '').trim().toUpperCase();
+      return familyPrefix.length >= 4 && compCode.startsWith(familyPrefix);
+    });
+
+    // 2. Complementa com os demais componentes do mesmo cliente para permitir detalhar qualquer subcomponente aplicável
+    if (parentProduct?.cliente) {
+      const parentCli = parentProduct.cliente.toUpperCase();
+      const byClient = allComponents.filter(
+        p =>
+          p.cliente.toUpperCase() === parentCli ||
+          (p.cliente1 && p.cliente1.toUpperCase() === parentCli)
+      );
+      const merged = [...byFamily];
+      byClient.forEach(c => {
+        if (!merged.some(m => m.identificacao === c.identificacao)) {
+          merged.push(c);
+        }
+      });
+      if (merged.length > 0) {
+        return merged;
+      }
+    }
+
+    return byFamily.length > 0 ? byFamily : allComponents;
+  }
+
+  // Distinct(colpecasgerais_AA3, Posto) + Postos do Tenant Ativo (Master)
   public getDistinctPostos(): string[] {
     const tenantPostos = tenantService
-      .getMasterData('posto_trabalho')
-      .filter(m => m.ativo)
+      .getActiveOptions('posto_trabalho')
       .map(m => m.nome);
     const activeTenantId = tenantService.getActiveTenantId();
     if (activeTenantId !== PILOT_TENANT_ID && tenantPostos.length > 0) {
@@ -1998,11 +2417,10 @@ class SharePointDataStore {
     return Array.from(new Set([...tenantPostos, ...this.cachedPostos])).sort();
   }
 
-  // Distinct(colpecasgerais_AA3, FMDS) + Áreas Fabris do Tenant Ativo
+  // Distinct(colpecasgerais_AA3, FMDS) + Áreas Fabris do Tenant Ativo (Master)
   public getDistinctFMDS(): string[] {
     const tenantAreas = tenantService
-      .getMasterData('area_fabril')
-      .filter(m => m.ativo)
+      .getActiveOptions('area_fabril')
       .map(m => m.nome);
     const activeTenantId = tenantService.getActiveTenantId();
     if (activeTenantId !== PILOT_TENANT_ID && tenantAreas.length > 0) {
@@ -2013,8 +2431,7 @@ class SharePointDataStore {
 
   public getDistinctClientes(): string[] {
     const tenantClientes = tenantService
-      .getMasterData('cliente_montadora')
-      .filter(m => m.ativo)
+      .getActiveOptions('cliente_montadora')
       .map(m => m.nome);
     const activeTenantId = tenantService.getActiveTenantId();
     if (activeTenantId !== PILOT_TENANT_ID && tenantClientes.length > 0) {
@@ -2025,18 +2442,21 @@ class SharePointDataStore {
 
   public getDistinctDefeitos(): string[] {
     return tenantService
-      .getMasterData('cat_defeito')
-      .filter(m => m.ativo)
+      .getActiveOptions('cat_defeito')
       .map(m => m.nome);
   }
 
-  // BASE_ATIVOS (varPessoas)
+  // BASE_ATIVOS (varPessoas) sincronizado com Lista Master de Funcionários
   public getBaseAtivos(): ColaboradorBaseAtivos[] {
+    const masterAtivos = tenantService.getBaseAtivosForTenant();
+    if (masterAtivos.length > 0) {
+      return masterAtivos;
+    }
     return this.baseAtivos;
   }
 
   public getUsuarios(): UsuarioQualidade[] {
-    const tenantUsers = tenantService.getUsersForTenant();
+    const tenantUsers = tenantService.getUnifiedUsersMatrix();
     if (tenantUsers.length > 0) {
       return tenantUsers;
     }
@@ -2101,9 +2521,14 @@ class SharePointDataStore {
       return globalMatch;
     }
 
-    // 4. Fallback especial para 6119 ou itens em INITIAL_RNCS
-    const seedMatch = INITIAL_RNCS.find(r => r.id === numId || r.id === 6119);
+    // 4. Fallback para itens em INITIAL_RNCS quando o ID exato existir na semente
+    const seedMatch = INITIAL_RNCS.find(r => r.id === numId);
     if (seedMatch) {
+      const existingSeed = this.rncs.find(
+        r => (r.tenant_id || PILOT_TENANT_ID) === activeTenantId && r.id === seedMatch.id
+      );
+      if (existingSeed) return existingSeed;
+
       const cloned: RNCRecord = { ...seedMatch, tenant_id: activeTenantId };
       this.rncs.push(cloned);
       this.indexRNCs();
@@ -2121,8 +2546,7 @@ class SharePointDataStore {
       if (partialMatch) return partialMatch;
     }
 
-    // 6. Último recurso defensivo: retorna a primeira ocorrência disponível se houver
-    return this.rncs[0];
+    return undefined;
   }
 
   public saveRNC(rnc: Partial<RNCRecord>): RNCRecord & { success: boolean; message: string } {
@@ -2140,6 +2564,7 @@ class SharePointDataStore {
         } as RNCRecord;
         this.indexRNCs();
         this.saveToStorage();
+        tenantService.upsertRncToSupabase(this.rncs[idx]);
         tenantService.recalculateTenantStorage(this.rncs, activeTenantId);
         tenantService.addHistoricoAcao(
           Number(rnc.id),
@@ -2147,10 +2572,6 @@ class SharePointDataStore {
           'Atualização de RNC',
           `Status: ${this.rncs[idx].status}`
         );
-        // Sincroniza diretamente no SharePoint Online via Microsoft Graph API
-        spDirect.updateRNC(rnc.id, rnc).catch(err => {
-          console.error("Falha ao atualizar no SharePoint:", err);
-        });
         return { ...this.rncs[idx], success: true, message: "Ocorrência atualizada com sucesso!" };
       }
     }
@@ -2188,6 +2609,9 @@ class SharePointDataStore {
       caracteristicaSeguranca: rnc.caracteristicaSeguranca || "Não",
       coProduto: rnc.coProduto || "Não",
       carryOver: rnc.carryOver || "Não",
+      pecasComuns: rnc.pecasComuns || "",
+      pecaEspelho: rnc.pecaEspelho || "",
+      aspectoSeguranca: rnc.aspectoSeguranca || "",
       reincidente: rnc.reincidente || "NÃO",
       gravidade: rnc.gravidade || "Média",
       possivelDetectar: rnc.possivelDetectar || "Sim",
@@ -2215,12 +2639,14 @@ class SharePointDataStore {
       protcliente: rnc.protcliente || (rnc.codigoRastreabilidade ? "Sim" : "Não"),
       abrir8D: rnc.abrir8D || "Sim",
       detector: this.currentUser.nome,
-      reDetector: this.currentUser.reAcesso
+      reDetector: this.currentUser.reAcesso,
+      dataHoraAbertura: rnc.dataHoraAbertura || new Date().toISOString()
     };
 
     this.rncs.unshift(newRecord);
     this.indexRNCs();
     this.saveToStorage();
+    tenantService.upsertRncToSupabase(newRecord);
     tenantService.recalculateTenantStorage(this.rncs, activeTenantId);
     tenantService.addHistoricoAcao(
       newRecord.id,
@@ -2228,11 +2654,6 @@ class SharePointDataStore {
       'Abertura de RNC',
       `${newRecord.field1} • ${newRecord.descricaoProblema}`
     );
-
-    // Sincroniza criação diretamente no SharePoint Online via Microsoft Graph API mantendo o ID monotônico da empresa
-    spDirect.createRNC(newRecord).catch(err => {
-      console.error("Falha ao registrar novo item no SharePoint:", err);
-    });
 
     return { ...newRecord, success: true, message: `Nova ocorrência ${formatOccurrenceId(newRecord.id, newRecord.codOcorrenciaCliente || newRecord.field1)} registrada com sucesso!` };
   }
@@ -2308,16 +2729,7 @@ class SharePointDataStore {
     this.rncs[idx].observacoesConclusao = obs || "";
     this.indexRNCs();
     this.saveToStorage();
-
-    // Atualiza diretamente no SharePoint
-    spDirect.updateRNC(id, {
-      status: "Concluído",
-      responsavelConclusao: responsavel,
-      dataConclusao: this.rncs[idx].dataConclusao,
-      observacoesConclusao: obs || ""
-    }).catch(err => {
-      console.error("Erro ao concluir no SharePoint:", err);
-    });
+    tenantService.upsertRncToSupabase(this.rncs[idx]);
 
     return { success: true, message: `RNC ${this.rncs[idx].field1 || id} concluída com sucesso!` };
   }
@@ -2327,6 +2739,7 @@ class SharePointDataStore {
     const activeTenantId = tenantService.getActiveTenantId();
     // Garante que o maior ID já atingido pela empresa fique registrado antes de excluir
     tenantService.ensureTenantRncSequenceAtLeast(activeTenantId, id);
+    this.deletedRncKeys.add(`${activeTenantId}::${id}`);
 
     this.rncs = this.rncs.filter(
       r => !((r.tenant_id || PILOT_TENANT_ID) === activeTenantId && r.id === id)
@@ -2342,12 +2755,8 @@ class SharePointDataStore {
     );
     this.indexRNCs();
     this.saveToStorage();
+    tenantService.deleteRncFromSupabase(id, activeTenantId);
     tenantService.recalculateTenantStorage(this.rncs, activeTenantId);
-
-    // Exclui diretamente no SharePoint
-    spDirect.deleteRNC(id).catch(err => {
-      console.error("Erro ao excluir no SharePoint:", err);
-    });
     return true;
   }
 
@@ -2447,13 +2856,19 @@ class SharePointDataStore {
       }
       if (activeTenantId === PILOT_TENANT_ID && idRnc === 1) {
         return [{
+          id: 1,
           tenant_id: PILOT_TENANT_ID,
           idRnc: 1,
           seqRel: "1",
           produto: "U005000B6",
           lote: "28926",
+          estoque: "Almoxarifado Expedição",
           qtd: 308,
-          data: "2026-10-16"
+          qtdVerificada: 308,
+          qtdNg: 3,
+          qtdOk: 305,
+          data: "2026-10-16",
+          responsavel: "Leandro Serafim de Lima"
         }];
       }
       return [];
@@ -2461,10 +2876,56 @@ class SharePointDataStore {
     return tenantItems;
   }
 
-  public addLoteSAP(item: LoteSAPParsed): void {
+  public addLoteSAP(item: LoteSAPParsed): LoteSAPParsed {
     const activeTenantId = tenantService.getActiveTenantId();
-    this.lotesSAP.push({ ...item, tenant_id: item.tenant_id || activeTenantId });
+    const nextId = this.lotesSAP.length > 0
+      ? Math.max(...this.lotesSAP.map((l, idx) => l.id || idx + 1)) + 1
+      : 1;
+    const qtdVerificada = Number(item.qtdVerificada ?? item.qtd ?? 0);
+    const qtdNg = Math.max(0, Number(item.qtdNg ?? 0));
+    const qtdOk = item.qtdOk !== undefined ? Number(item.qtdOk) : Math.max(0, qtdVerificada - qtdNg);
+
+    const novoLote: LoteSAPParsed = {
+      ...item,
+      id: item.id || nextId,
+      tenant_id: item.tenant_id || activeTenantId,
+      qtd: qtdVerificada,
+      qtdVerificada,
+      qtdNg,
+      qtdOk
+    };
+    this.lotesSAP.push(novoLote);
+
+    // Sincroniza os contadores de contenção da RNC
+    this.syncRncContainmentCounters(item.idRnc, activeTenantId);
     this.saveToStorage();
+    return novoLote;
+  }
+
+  public deleteLoteSAP(idOrIndex: number, idRnc: number): void {
+    const activeTenantId = tenantService.getActiveTenantId();
+    this.lotesSAP = this.lotesSAP.filter(
+      (l, idx) => !((l.tenant_id || PILOT_TENANT_ID) === activeTenantId && l.idRnc === idRnc && (l.id === idOrIndex || idx === idOrIndex))
+    );
+    this.syncRncContainmentCounters(idRnc, activeTenantId);
+    this.saveToStorage();
+  }
+
+  private syncRncContainmentCounters(idRnc: number, tenantId: string): void {
+    const lotes = this.lotesSAP.filter(
+      l => (l.tenant_id || PILOT_TENANT_ID) === tenantId && l.idRnc === idRnc
+    );
+    const rncIdx = this.rncs.findIndex(
+      r => (r.tenant_id || PILOT_TENANT_ID) === tenantId && r.id === idRnc
+    );
+    if (rncIdx !== -1 && lotes.length > 0) {
+      const totalVerificado = lotes.reduce((acc, l) => acc + Number(l.qtdVerificada ?? l.qtd ?? 0), 0);
+      const totalNg = lotes.reduce((acc, l) => acc + Number(l.qtdNg ?? 0), 0);
+      this.rncs[rncIdx].qtdInspecionada = totalVerificado;
+      this.rncs[rncIdx].qtdBloqueada = totalNg;
+      this.rncs[rncIdx].qtdSuspeita = totalVerificado;
+      this.indexRNCs();
+    }
   }
 
   public getRastCabeceiras(idRnc?: number): RastCabeceiraParsed[] {
@@ -2847,6 +3308,7 @@ class SharePointDataStore {
       email: item.email || this.currentUser.email || '',
       email_super: item.email_super || '',
       tipo_acao: item.tipo_acao || 'CORRETIVA',
+      etapa_8d: item.etapa_8d,
       yokoten: item.yokoten || 'NÃO',
       poka_yoke: item.poka_yoke || 'NÃO',
       oData_8d_7d: item.oData_8d_7d,
@@ -2935,11 +3397,14 @@ class SharePointDataStore {
       id: nextId,
       tenant_id: activeTenantId,
       id8d: targetKey,
-      participantes_8d: metadata.participantes_8d || this.currentUser.nome,
+      participantes_8d: metadata.participantes_8d ?? '',
       validar_8d: metadata.validar_8d || 'Em Andamento',
       diretriz_yokoten: metadata.diretriz_yokoten || '',
       diretriz_pokayoke: metadata.diretriz_pokayoke || '',
-      comentarios_validacao: metadata.comentarios_validacao || ''
+      yokoten_na: metadata.yokoten_na ?? false,
+      pokayoke_na: metadata.pokayoke_na ?? false,
+      comentarios_validacao: metadata.comentarios_validacao || '',
+      ...metadata
     };
     this.eightDMetadataList.push(newMeta);
     this.saveToStorage();
@@ -3069,9 +3534,9 @@ class SharePointDataStore {
     const activeTenantId = tenantService.getActiveTenantId();
     const allRncs = this.rncs.filter(r => (r.tenant_id || PILOT_TENANT_ID) === activeTenantId);
 
-    // Considera dossiê concluído se a RNC estiver como 'Concluído' ou se o 8D estiver 'Aprovado' em EightDMetadata
+    // Retorna apenas ocorrências que possuem 8D habilitado (abrir8D === 'Sim')
     return allRncs
-      .filter(r => r.status === 'Concluído' || r.abrir8D === 'Sim')
+      .filter(r => r.abrir8D === 'Sim')
       .map(r => {
         const id8d = `${r.tipoRnc === 'Formal' ? 'C' : 'I'} - ${r.id}`;
         const meta = this.eightDMetadataList.find(m => m.id8d === id8d && (m.tenant_id || PILOT_TENANT_ID) === activeTenantId);

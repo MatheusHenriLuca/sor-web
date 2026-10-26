@@ -123,11 +123,9 @@ export const SharePointSyncModal: React.FC<SharePointSyncModalProps> = ({
   };
 
   const handleResetDefaults = () => {
-    if (window.confirm("Deseja restaurar as bases originais da Gestamp com o catálogo fabril completo?")) {
-      spStore.resetToDefaults();
-      onDataRefreshed();
-      setStatusMsg({ text: "Bases restauradas para o catálogo padrão Gestamp Brasil!", type: 'success' });
-    }
+    spStore.resetToDefaults();
+    onDataRefreshed();
+    setStatusMsg({ text: "Bases restauradas para o catálogo padrão com sucesso!", type: 'success' });
   };
 
   return (

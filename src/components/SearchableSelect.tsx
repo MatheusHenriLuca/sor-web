@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Search, ChevronDown, Check, X } from 'lucide-react';
+import { Search, ChevronDown, Check, X, Plus } from 'lucide-react';
 
 export interface SearchableOption {
   value: string;
@@ -20,6 +20,8 @@ interface SearchableSelectProps {
   error?: string;
   className?: string;
   allowClear?: boolean;
+  allowCustom?: boolean;
+  compact?: boolean;
   maxDisplay?: number;
   id?: string;
 }
@@ -35,6 +37,8 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   error,
   className = '',
   allowClear = true,
+  allowCustom = false,
+  compact = false,
   maxDisplay = 100,
   id
 }) => {
@@ -82,8 +86,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
     if (caseInsensitive) return caseInsensitive;
     return {
       value: value,
-      label: value,
-      sublabel: 'Valor selecionado'
+      label: value
     };
   }, [options, value]);
 
@@ -91,7 +94,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   const filteredOptions = useMemo(() => {
     let base = options;
     if (value && !options.some(opt => opt.value === value)) {
-      base = [{ value: value, label: value, sublabel: 'Valor selecionado' }, ...options];
+      base = [{ value: value, label: value }, ...options];
     }
     if (!searchTerm.trim()) return base;
     const term = searchTerm.toLowerCase().trim();
@@ -136,7 +139,9 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
             setIsOpen(true);
           }
         }}
-        className={`w-full min-h-[40px] px-3 py-2 flex items-center justify-between gap-2 rounded-xl border text-xs sm:text-sm transition-all select-none ${
+        className={`w-full ${
+          compact ? 'min-h-[34px] px-2.5 py-1 text-xs rounded-lg' : 'min-h-[40px] px-3 py-2 text-xs sm:text-sm rounded-xl'
+        } flex items-center justify-between gap-2 border transition-all select-none ${
           disabled
             ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed italic'
             : isOpen
@@ -161,7 +166,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
               <span className="truncate font-medium text-slate-800">
                 {selectedOption.label}
               </span>
-              {selectedOption.sublabel && (
+              {!compact && selectedOption.sublabel && (
                 <span className="text-[11px] text-slate-400 truncate hidden sm:inline">
                   • {selectedOption.sublabel}
                 </span>
@@ -179,7 +184,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
             <button
               type="button"
               onClick={handleClear}
-              className="p-1 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+              className="p-1 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
               title="Limpar seleção"
             >
               <X className="w-3.5 h-3.5" />
@@ -192,58 +197,91 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
       {/* Dropdown Flutuante Pesquisável */}
       {isOpen && !disabled && (
         <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white rounded-xl border border-slate-200 shadow-2xl overflow-hidden flex flex-col max-h-80 animate-in fade-in slide-in-from-top-2 duration-150">
-          {/* Caixa de Pesquisa Fixa no Topo */}
-          <div className="p-2 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
-            <Search className="w-4 h-4 text-slate-400 shrink-0 ml-1" />
-            <input
-              ref={searchInputRef}
-              type="text"
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              placeholder={searchPlaceholder}
-              className="w-full h-8 px-2 bg-transparent text-xs text-slate-800 placeholder-slate-400 outline-none"
-              onKeyDown={e => {
-                if (e.key === 'Escape') {
-                  setIsOpen(false);
-                } else if (e.key === 'Enter' && displayedOptions.length > 0) {
-                  e.preventDefault();
-                  handleSelect(displayedOptions[0].value);
-                }
-              }}
-            />
-            {searchTerm && (
-              <button
-                type="button"
-                onClick={() => setSearchTerm('')}
-                className="p-1 text-slate-400 hover:text-slate-600 rounded"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
+          {/* Caixa de Pesquisa Fixa no Topo (exibida apenas quando há mais de 5 opções ou allowCustom) */}
+          {(options.length > 5 || allowCustom) && (
+            <div className="p-2 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
+              <Search className="w-4 h-4 text-slate-400 shrink-0 ml-1" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                placeholder={searchPlaceholder}
+                className="w-full h-8 px-2 bg-transparent text-xs text-slate-800 placeholder-slate-400 outline-none"
+                onKeyDown={e => {
+                  if (e.key === 'Escape') {
+                    setIsOpen(false);
+                  } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (displayedOptions.length > 0) {
+                      handleSelect(displayedOptions[0].value);
+                    } else if (allowCustom && searchTerm.trim()) {
+                      handleSelect(searchTerm.trim());
+                    }
+                  }
+                }}
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  className="p-1 text-slate-400 hover:text-slate-600 rounded cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          )}
 
-          {/* Contador de Resultados */}
-          <div className="px-3 py-1 bg-slate-100/60 border-b border-slate-100 flex items-center justify-between text-[10px] text-slate-500 font-medium">
-            <span>
-              {filteredOptions.length === 0
-                ? 'Nenhum resultado'
-                : filteredOptions.length > maxDisplay
-                ? `Exibindo ${maxDisplay} de ${filteredOptions.length} resultados (digite para refinar)`
-                : `${filteredOptions.length} opções disponíveis`}
-            </span>
-            {searchTerm && (
-              <span className="text-slate-400 italic truncate max-w-[150px]">
-                Busca: "{searchTerm}"
+          {/* Opção Rápida de Adicionar Valor Personalizado (quando allowCustom) */}
+          {allowCustom && searchTerm.trim() && !options.some(opt => opt.value.toLowerCase() === searchTerm.trim().toLowerCase()) && (
+            <div
+              onClick={() => handleSelect(searchTerm.trim())}
+              className="p-2.5 mx-1.5 my-1 bg-blue-50/80 hover:bg-blue-100 text-[#0b5796] border border-blue-200 rounded-lg flex items-center justify-between text-xs font-semibold cursor-pointer transition-colors"
+            >
+              <div className="flex items-center gap-1.5 truncate">
+                <Plus className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate">Usar "{searchTerm.trim()}"</span>
+              </div>
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-200 text-blue-900 font-bold shrink-0">
+                Novo
               </span>
-            )}
-          </div>
+            </div>
+          )}
+
+          {/* Contador de Resultados (exibido apenas quando há mais de 5 opções ou allowCustom) */}
+          {(options.length > 5 || allowCustom) && (
+            <div className="px-3 py-1 bg-slate-100/60 border-b border-slate-100 flex items-center justify-between text-[10px] text-slate-500 font-medium">
+              <span>
+                {filteredOptions.length === 0
+                  ? (allowCustom && searchTerm.trim() ? 'Pressione Enter ou clique acima para usar este valor' : 'Nenhum resultado')
+                  : filteredOptions.length > maxDisplay
+                  ? `Exibindo ${maxDisplay} de ${filteredOptions.length} resultados (digite para refinar)`
+                  : `${filteredOptions.length} opções disponíveis`}
+              </span>
+              {searchTerm && (
+                <span className="text-slate-400 italic truncate max-w-[150px]">
+                  Busca: "{searchTerm}"
+                </span>
+              )}
+            </div>
+          )}
 
           {/* Lista de Opções Rolável */}
           <div className="overflow-y-auto max-h-60 p-1 divide-y divide-slate-50">
             {displayedOptions.length === 0 ? (
-              <div className="p-6 text-center text-xs text-slate-400 flex flex-col items-center gap-1">
-                <span>Nenhum resultado encontrado</span>
-                {searchTerm && <span className="font-semibold text-slate-600">"{searchTerm}"</span>}
+              <div className="p-5 text-center text-xs text-slate-400 flex flex-col items-center gap-2">
+                <span>Nenhum resultado encontrado para "{searchTerm}"</span>
+                {allowCustom && searchTerm.trim() && (
+                  <button
+                    type="button"
+                    onClick={() => handleSelect(searchTerm.trim())}
+                    className="btn-primary h-7 px-3 text-xs font-bold bg-[#0b5796] text-white flex items-center gap-1 cursor-pointer"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>Usar "{searchTerm.trim()}"</span>
+                  </button>
+                )}
               </div>
             ) : (
               displayedOptions.map(opt => {

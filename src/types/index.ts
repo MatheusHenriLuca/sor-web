@@ -46,6 +46,8 @@ export interface TenantRecord {
 }
 
 export type MasterDataCategory =
+  | 'master_funcionarios'
+  | 'master_pecas_produtos'
   | 'cliente_montadora'
   | 'area_fabril'
   | 'posto_trabalho'
@@ -64,6 +66,17 @@ export type MasterDataCategory =
   | 'criticidade'
   | 'origem_fornecedor'
   | 'disposicao_lote'
+  | 'plano_indicador'
+  | 'plano_sub1'
+  | 'plano_sub2'
+  | 'plano_area'
+  | 'plano_posto'
+  | 'plano_produto'
+  | 'plano_prioridade'
+  | 'oitod_tipos_acao'
+  | 'oitod_documentos_7d'
+  | 'oitod_6m_ishikawa'
+  | 'oitod_estoques_locais'
   | string;
 
 export interface MasterDataItem {
@@ -73,6 +86,7 @@ export interface MasterDataItem {
   nome: string;
   codigo?: string;
   detalhe?: string;
+  values?: Record<string, string>;
   ativo: boolean;
 }
 
@@ -84,6 +98,9 @@ export interface OptionCategoryMeta {
   usadoNoFormulario: boolean;
   campoVinculado?: string;
   isSystem?: boolean;
+  isMasterShared?: boolean;
+  appModule?: 'master' | 'rnc' | 'plano_acao' | 'oitod' | 'custom';
+  columns?: string[];
   // Aliases de compatibilidade
   title?: string;
   description?: string;
@@ -91,7 +108,21 @@ export interface OptionCategoryMeta {
   formFieldTarget?: string;
 }
 
-export type FormSectionId = 'secao_1' | 'secao_2' | 'secao_3' | 'secao_4' | 'secao_5';
+export type FormModuleId = 'rnc' | 'plano_acao' | 'oitod';
+
+export type FormSectionId =
+  | 'secao_1'
+  | 'secao_2'
+  | 'secao_3'
+  | 'secao_4'
+  | 'secao_5'
+  | 'plano_cabecalho'
+  | 'plano_acoes'
+  | 'oitod_equipe_2d'
+  | 'oitod_contencao_3d'
+  | 'oitod_causa_4d'
+  | 'oitod_acoes_5d_6d'
+  | 'oitod_prevencao_7d_8d';
 
 export type FormFieldType =
   | 'text'
@@ -108,6 +139,7 @@ export interface FormFieldConfig {
   key: string;
   fieldKey: string;
   tenant_id: string;
+  module?: FormModuleId;
   label: string;
   section: FormSectionId;
   type: FormFieldType;
@@ -117,6 +149,8 @@ export interface FormFieldConfig {
   order: number;
   isSystem: boolean;
   optionCategory?: MasterDataCategory;
+  valueColumn?: string;
+  displayColumn?: string;
   customOptions?: string[];
   placeholder?: string;
   helperText?: string;
@@ -149,6 +183,16 @@ export type ActiveScreen =
   | 'plano-acao'
   | 'repositorio-8d';
 
+export type ActiveApp = 'qualidade_8d' | 'plano_acao';
+
+export type AppPermissionLevel = 'Sem Acesso' | 'Usuário Comum' | 'Editor' | 'Admin';
+
+export interface UserAppProfiles {
+  plano_acao: AppPermissionLevel;
+  rnc: AppPermissionLevel;
+  oitod: AppPermissionLevel;
+}
+
 export interface UsuarioQualidade {
   id: number;
   tenant_id?: string;
@@ -157,6 +201,8 @@ export interface UsuarioQualidade {
   nome: string;
   reAcesso: number;
   perfil: UserRole;
+  perfisPorApp?: UserAppProfiles;
+  isDefaultProfile?: boolean;
   senha?: string;
   email?: string;
   cargo?: string;
@@ -184,6 +230,9 @@ export interface PecaCatalogo {
   carryOver?: string;
   coProduto?: 'Sim' | 'Não';
   caracteristicaSeguranca?: 'Sim' | 'Não';
+  pecasComuns?: string;
+  pecaEspelho?: string;
+  aspectoSeguranca?: string;
 }
 
 export interface SharePointConfig {
@@ -234,6 +283,9 @@ export interface RNCRecord {
   caracteristicaSeguranca: 'Sim' | 'Não' | string;
   coProduto: 'Sim' | 'Não' | string;
   carryOver: 'Sim' | 'Não' | string;
+  pecasComuns?: string;
+  pecaEspelho?: string;
+  aspectoSeguranca?: string;
   reincidente: 'SIM' | 'NÃO' | string;
   dataReincidente?: string;
   gravidade?: string;
@@ -283,6 +335,7 @@ export interface RNCRecord {
   // Responsáveis e Auditoria
   detector: string;
   reDetector?: number;
+  dataHoraAbertura?: string; // Carimbo exato ISO (Data e Hora da abertura da ocorrência)
   responsavelConclusao?: string;
   dataConclusao?: string;
   observacoesConclusao?: string;
@@ -308,13 +361,19 @@ export interface RastreabilidadeItem {
 }
 
 export interface LoteSAPParsed {
+  id?: number;
   tenant_id?: string;
   idRnc: number;
   seqRel: string;
   produto: string;
   lote: string;
+  estoque?: string;
   qtd: number;
+  qtdVerificada?: number;
+  qtdOk?: number;
+  qtdNg?: number;
   data: string;
+  responsavel?: string;
 }
 
 export interface EtiquetaVivaParsed {
@@ -437,6 +496,7 @@ export interface ActionPlanItem {
   email?: string;
   email_super?: string;
   tipo_acao: ActionItemType;
+  etapa_8d?: '3D' | '5D' | '6D' | '7D'; // Etapa específica do 8D à qual a ação pertence
   yokoten?: 'SIM' | 'NÃO'; // Abrangência 6D
   poka_yoke?: 'SIM' | 'NÃO'; // Dispositivo à prova de erro 6D
   oData_8d_7d?: 'FMEA' | 'Trabalho Padronizado' | 'Auditoria Escalonada'; // Ações preventivas 7D
@@ -453,6 +513,8 @@ export interface ActionPlanItem {
   revisao_data?: number; // Contador de prorrogações
 }
 
+export type EtapaRevisaoStatus = 'none' | 'pendente' | 'revisado' | 'ok';
+
 /**
  * Metadados, Equipe Multidisciplinar e Aprovação Final do 8D (Lista SharePoint: 'lista_participantes')
  */
@@ -463,20 +525,38 @@ export interface EightDMetadata {
   participantes_8d: string; // Lista de nomes separados por vírgula
   validar_8d?: 'Aprovado' | 'Reprovado' | 'Em Andamento' | 'Pendente';
   comentarios_validacao?: string;
-  // Ciclos de revisão por etapa
+  motivo_revisao_8d?: string;
+  data_solicitacao_revisao?: string;
+  solicitado_revisao_por?: string;
+  etapas_revisao_solicitadas?: ('4D' | '5D' | '6D' | '7D')[];
+  // Ciclos de revisão por etapa (4D, 5D, 6D, 7D)
+  status_revisao_4d?: EtapaRevisaoStatus;
   revisado_4d?: boolean;
   comentarios_revisao_4d?: string;
+  status_revisao_5d?: EtapaRevisaoStatus;
   revisado_5d?: boolean;
   comentarios_revisao_5d?: string;
+  status_revisao_6d?: EtapaRevisaoStatus;
   revisado_6d?: boolean;
   comentarios_revisao_6d?: string;
+  status_revisao_7d?: EtapaRevisaoStatus;
   revisado_7d?: boolean;
   comentarios_revisao_7d?: string;
-  // Diretrizes 6D (Yokoten & Poka-Yoke)
+  // Diretrizes e Aplicabilidade 6D (Yokoten & Poka-Yoke)
   diretriz_yokoten?: string;
   diretriz_pokayoke?: string;
+  yokoten_na?: boolean;
+  pokayoke_na?: boolean;
+  // Dados de Assinatura Digital da Análise (2D a 7D)
+  responsavel_analise_8d?: string;
+  cargo_analise_8d?: string;
+  data_hora_analise_8d?: string;
+  // Dados de Assinatura Digital da Validação Final (8D - Admin da Qualidade)
   data_aprovacao?: string;
+  data_hora_aprovacao?: string;
   aprovado_por?: string;
+  cargo_aprovador?: string;
+  re_aprovador?: number;
 }
 
 /**

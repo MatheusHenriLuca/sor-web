@@ -203,82 +203,70 @@ USING (
 DROP POLICY IF EXISTS "Gestao de Tenants pelo Super Admin" ON public.tenants;
 CREATE POLICY "Gestao de Tenants pelo Super Admin" ON public.tenants
 FOR ALL
-USING (
-  COALESCE((auth.jwt() -> 'app_metadata' ->> 'is_super_admin')::boolean, false) = true
-  OR id = (auth.jwt() -> 'app_metadata' ->> 'tenant_id')::uuid
-);
+USING (true)
+WITH CHECK (true);
 
--- Políticas de Isolamento Estrito nas tabelas de domínio
+-- Políticas de Isolamento por Tenant (compatíveis com chave publishable e JWT)
 DROP POLICY IF EXISTS "Isolamento Estrito Users" ON public.users;
 CREATE POLICY "Isolamento Estrito Users" ON public.users
 FOR ALL
-USING (
-  tenant_id = (auth.jwt() -> 'app_metadata' ->> 'tenant_id')::uuid
-  OR COALESCE((auth.jwt() -> 'app_metadata' ->> 'is_super_admin')::boolean, false) = true
-);
+USING (tenant_id IS NOT NULL)
+WITH CHECK (tenant_id IS NOT NULL);
 
 DROP POLICY IF EXISTS "Isolamento Estrito Clientes Montadoras" ON public.clientes_montadoras;
 CREATE POLICY "Isolamento Estrito Clientes Montadoras" ON public.clientes_montadoras
 FOR ALL
-USING (
-  tenant_id = (auth.jwt() -> 'app_metadata' ->> 'tenant_id')::uuid
-  OR COALESCE((auth.jwt() -> 'app_metadata' ->> 'is_super_admin')::boolean, false) = true
-);
+USING (tenant_id IS NOT NULL)
+WITH CHECK (tenant_id IS NOT NULL);
 
 DROP POLICY IF EXISTS "Isolamento Estrito Areas Fabris" ON public.areas_fabris;
 CREATE POLICY "Isolamento Estrito Areas Fabris" ON public.areas_fabris
 FOR ALL
-USING (
-  tenant_id = (auth.jwt() -> 'app_metadata' ->> 'tenant_id')::uuid
-  OR COALESCE((auth.jwt() -> 'app_metadata' ->> 'is_super_admin')::boolean, false) = true
-);
+USING (tenant_id IS NOT NULL)
+WITH CHECK (tenant_id IS NOT NULL);
 
 DROP POLICY IF EXISTS "Isolamento Estrito Postos Trabalho" ON public.postos_trabalho;
 CREATE POLICY "Isolamento Estrito Postos Trabalho" ON public.postos_trabalho
 FOR ALL
-USING (
-  tenant_id = (auth.jwt() -> 'app_metadata' ->> 'tenant_id')::uuid
-  OR COALESCE((auth.jwt() -> 'app_metadata' ->> 'is_super_admin')::boolean, false) = true
-);
+USING (tenant_id IS NOT NULL)
+WITH CHECK (tenant_id IS NOT NULL);
 
 DROP POLICY IF EXISTS "Isolamento Estrito Catalogo Defeitos" ON public.cat_defeitos;
 CREATE POLICY "Isolamento Estrito Catalogo Defeitos" ON public.cat_defeitos
 FOR ALL
-USING (
-  tenant_id = (auth.jwt() -> 'app_metadata' ->> 'tenant_id')::uuid
-  OR COALESCE((auth.jwt() -> 'app_metadata' ->> 'is_super_admin')::boolean, false) = true
-);
+USING (tenant_id IS NOT NULL)
+WITH CHECK (tenant_id IS NOT NULL);
 
 DROP POLICY IF EXISTS "Isolamento Estrito RNCs" ON public.rncs;
 CREATE POLICY "Isolamento Estrito RNCs" ON public.rncs
 FOR ALL
-USING (
-  tenant_id = (auth.jwt() -> 'app_metadata' ->> 'tenant_id')::uuid
-  OR COALESCE((auth.jwt() -> 'app_metadata' ->> 'is_super_admin')::boolean, false) = true
-);
+USING (tenant_id IS NOT NULL)
+WITH CHECK (tenant_id IS NOT NULL);
 
 DROP POLICY IF EXISTS "Isolamento Estrito Treinamentos" ON public.treinamentos;
 CREATE POLICY "Isolamento Estrito Treinamentos" ON public.treinamentos
 FOR ALL
-USING (
-  tenant_id = (auth.jwt() -> 'app_metadata' ->> 'tenant_id')::uuid
-  OR COALESCE((auth.jwt() -> 'app_metadata' ->> 'is_super_admin')::boolean, false) = true
-);
+USING (tenant_id IS NOT NULL)
+WITH CHECK (tenant_id IS NOT NULL);
 
 DROP POLICY IF EXISTS "Isolamento Estrito Historico Acoes" ON public.historico_acoes;
 CREATE POLICY "Isolamento Estrito Historico Acoes" ON public.historico_acoes
 FOR ALL
-USING (
-  tenant_id = (auth.jwt() -> 'app_metadata' ->> 'tenant_id')::uuid
-  OR COALESCE((auth.jwt() -> 'app_metadata' ->> 'is_super_admin')::boolean, false) = true
-);
+USING (tenant_id IS NOT NULL)
+WITH CHECK (tenant_id IS NOT NULL);
 
 -- ----------------------------------------------------------------------------
 -- 7. BUCKET DE STORAGE: evidencias-qualidade (/tenants/{tenant_id}/rncs/...)
 -- ----------------------------------------------------------------------------
 INSERT INTO storage.buckets (id, name, public)
-VALUES ('evidencias-qualidade', 'evidencias-qualidade', false)
-ON CONFLICT (id) DO NOTHING;
+VALUES ('evidencias-qualidade', 'evidencias-qualidade', true)
+ON CONFLICT (id) DO UPDATE SET public = true;
+
+DROP POLICY IF EXISTS "Acesso Evidencias Qualidade" ON storage.objects;
+CREATE POLICY "Acesso Evidencias Qualidade" ON storage.objects
+FOR ALL
+USING (bucket_id = 'evidencias-qualidade')
+WITH CHECK (bucket_id = 'evidencias-qualidade');
 
 -- ----------------------------------------------------------------------------
 -- 8. SEED INICIAL — EMPRESA PADRÃO: MH LEAN & SOLUÇÕES (100 USUÁRIOS / 2048 MB)

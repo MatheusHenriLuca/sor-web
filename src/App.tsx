@@ -19,7 +19,7 @@ import { AppHeader } from './components/AppHeader';
 import { AppSidebar } from './components/AppSidebar';
 import { spStore } from './services/sharepointService';
 import { tenantService } from './services/tenantService';
-import { UsuarioQualidade, ActiveScreen, TenantRecord } from './types';
+import { UsuarioQualidade, ActiveScreen, TenantRecord, ActiveApp } from './types';
 
 function resolveInitialRouteFromUrl(): {
   screen: ActiveScreen;
@@ -85,16 +85,18 @@ function resolveInitialRouteFromUrl(): {
 }
 
 export function App() {
-  const initialRoute = resolveInitialRouteFromUrl();
+  const [initialRoute] = useState(() => resolveInitialRouteFromUrl());
 
   const [currentUser, setCurrentUser] = useState<UsuarioQualidade>(
     tenantService.getAuthenticatedUser() || spStore.getCurrentUser()
   );
   const [currentScreen, setCurrentScreen] = useState<ActiveScreen>(initialRoute.screen);
+  const [activeApp, setActiveApp] = useState<ActiveApp>(initialRoute.screen === 'plano-acao' ? 'plano_acao' : 'qualidade_8d');
   const [loginSlugPreview, setLoginSlugPreview] = useState<string | undefined>(initialRoute.loginSlug);
   const [screenParams, setScreenParams] = useState<any>({ rncId: initialRoute.rncId });
   const [lastListParams, setLastListParams] = useState<any>({ tipo: 'Tudo' });
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [lastGalleryScreen, setLastGalleryScreen] = useState<ActiveScreen>('lista-8d');
+  const [, setRefreshKey] = useState(0);
   const [syncModalOpen, setSyncModalOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -132,15 +134,44 @@ export function App() {
   const handleNavigate = (screen: any, params?: any) => {
     const targetScreen = screen === 'dashboard' ? 'menu-2' : screen;
 
+    if (targetScreen === 'plano-acao') {
+      setActiveApp('plano_acao');
+    } else if (['menu-2', 'lista-8d', 'registro-8d', 'detalhes-8d', 'rastreabilidade', 'repositorio-8d'].includes(targetScreen)) {
+      setActiveApp('qualidade_8d');
+    }
+
     if (currentScreen === 'lista-8d') {
       const activeTipo = screenParams?.tipo || spStore.getListFiltersState().tipoFilter || 'Tudo';
       setLastListParams({ ...screenParams, tipo: activeTipo });
     }
 
+    const galleryScreens: ActiveScreen[] = ['lista-8d', 'repositorio-8d', 'plano-acao', 'menu-2'];
+    let resolvedGalleryOrigin: ActiveScreen = lastGalleryScreen;
+
+    if (params?.fromScreen && galleryScreens.includes(params.fromScreen)) {
+      resolvedGalleryOrigin = params.fromScreen;
+      setLastGalleryScreen(params.fromScreen);
+    } else if (galleryScreens.includes(currentScreen)) {
+      resolvedGalleryOrigin = currentScreen;
+      setLastGalleryScreen(currentScreen);
+    }
+
     let resolvedParams: any = {
       fromScreen: params?.fromScreen || currentScreen,
+      originGallery: resolvedGalleryOrigin,
       ...(params || {})
     };
+
+    if (targetScreen === 'detalhes-8d') {
+      if (currentScreen === 'repositorio-8d' || params?.fromScreen === 'repositorio-8d') {
+        resolvedParams.initialViewMode = params?.initialViewMode || 'metodologia8d';
+      } else if (
+        ['impressao-8d', 'rastreabilidade', 'registro-8d'].includes(currentScreen) &&
+        resolvedGalleryOrigin === 'repositorio-8d'
+      ) {
+        resolvedParams.initialViewMode = params?.initialViewMode || screenParams?.initialViewMode || 'metodologia8d';
+      }
+    }
 
     if (targetScreen === 'lista-8d') {
       if (!params || Object.keys(params).length === 0) {
@@ -257,7 +288,7 @@ export function App() {
 
   // 5. ESTRUTURA PRINCIPAL DO TENANT ATIVO (/:empresa-slug/*)
   return (
-    <div className="min-h-screen bg-[#f8fafc] flex flex-col font-sans antialiased text-[#0f172a]" key={`${activeTenant.id}-${refreshKey}`}>
+    <div className="min-h-screen bg-[#f8fafc] flex flex-col font-sans antialiased text-[#0f172a]" key={activeTenant.id}>
       
       {/* Barra Superior de Impersonation quando o Super Admin está visualizando como a Empresa */}
       {isImpersonating && (
@@ -289,9 +320,11 @@ export function App() {
         onRefreshData={handleRefreshData}
         onUserChange={handleUserChange}
         showBackButton={currentScreen !== 'menu-2'}
-        backScreen={currentScreen === 'detalhes-8d' || currentScreen === 'registro-8d' ? 'lista-8d' : 'menu-2'}
+        backScreen={currentScreen === 'detalhes-8d' || currentScreen === 'registro-8d' ? (screenParams?.originGallery || lastGalleryScreen || 'lista-8d') : 'menu-2'}
         onToggleMobileMenu={() => setMobileMenuOpen(!mobileMenuOpen)}
         isMobileMenuOpen={mobileMenuOpen}
+        activeApp={activeApp}
+        onAppChange={setActiveApp}
       />
 
       {/* Corpo Central: Sidebar Lateral + Canvas de Trabalho */}
@@ -305,11 +338,12 @@ export function App() {
           currentUser={currentUser}
           isMobileOpen={mobileMenuOpen}
           onCloseMobile={() => setMobileMenuOpen(false)}
+          activeApp={activeApp}
         />
 
         {/* Canvas de Conteúdo da Página */}
-        <main className="flex-1 overflow-y-auto overflow-x-hidden min-w-0 bg-[#f8fafc] p-3 sm:p-6 pb-24">
-          <div className="w-full max-w-[1600px] mx-auto flex flex-col gap-5 min-w-0">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden min-w-0 bg-[#f8fafc] p-3 sm:p-5 lg:p-6 pb-24">
+          <div className={`w-full flex flex-col gap-5 min-w-0 ${currentScreen === 'plano-acao' ? 'max-w-none' : 'max-w-[1680px] mx-auto'}`}>
             {currentScreen === 'menu-2' && (
               <Menu2View 
                 currentUser={currentUser}
@@ -347,6 +381,8 @@ export function App() {
                 onNavigate={handleNavigate}
                 currentUser={currentUser}
                 initialViewMode={screenParams?.initialViewMode}
+                initialEtapa8D={screenParams?.initialEtapa8D}
+                fromScreen={screenParams?.originGallery || lastGalleryScreen || 'lista-8d'}
               />
             )}
 
@@ -354,6 +390,7 @@ export function App() {
               <DetalhesImpressaoView 
                 rncId={Number(screenParams?.rncId || screenParams?.id || 6119)}
                 onNavigate={handleNavigate}
+                fromScreen={screenParams?.fromScreen}
               />
             )}
 
@@ -377,14 +414,24 @@ export function App() {
                 currentUser={currentUser}
                 onNavigate={handleNavigate}
                 onTenantUpdated={handleRefreshData}
+                initialTab={screenParams?.tab}
+                activeApp={activeApp}
               />
             )}
 
             {currentScreen === 'plano-acao' && (
               <PlanoAcaoView
+                key={`plano-${screenParams?.planHeaderId || 'root'}-${screenParams?.timestamp || 'default'}`}
                 currentUser={currentUser}
                 onNavigate={handleNavigate}
                 initialFilterPrograma={screenParams?.programa}
+                initialPlanHeaderId={screenParams?.planHeaderId}
+                openNewPlan={screenParams?.openNewPlan}
+                viewMode={screenParams?.viewMode}
+                filterEtapa={screenParams?.filterEtapa}
+                fromScreen={screenParams?.fromScreen}
+                originRncId={screenParams?.rncId ? Number(screenParams.rncId) : undefined}
+                returnEtapa8D={screenParams?.returnEtapa8D}
               />
             )}
 

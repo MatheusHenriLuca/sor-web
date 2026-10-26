@@ -27,7 +27,14 @@ import {
   ShieldAlert,
   FolderKanban,
   Check,
-  ChevronRight
+  ChevronRight,
+  ChevronDown,
+  ChevronUp,
+  Pencil,
+  Trash2,
+  ArrowLeft,
+  Printer,
+  Image as ImageIcon
 } from 'lucide-react';
 import { 
   ActionPlanHeader, 
@@ -42,11 +49,19 @@ import { spStore } from '../services/sharepointService';
 import { tenantService } from '../services/tenantService';
 import { formatDateBR } from '../utils/date';
 import { normalizeDisplayText, formatOccurrenceId } from '../utils/formatText';
+import { SearchableSelect, SearchableOption } from '../components/SearchableSelect';
 
 interface PlanoAcaoViewProps {
   onNavigate: (screen: ActiveScreen, params?: any) => void;
   currentUser: UsuarioQualidade;
   initialFilterPrograma?: string;
+  initialPlanHeaderId?: number;
+  openNewPlan?: boolean;
+  viewMode?: 'kanban' | 'list';
+  filterEtapa?: 'todas' | 'validacao' | 'minhas';
+  fromScreen?: ActiveScreen;
+  originRncId?: number;
+  returnEtapa8D?: string;
 }
 
 const PROGRAMAS_LIST = [
@@ -62,29 +77,41 @@ const PROGRAMAS_LIST = [
 export const PlanoAcaoView: React.FC<PlanoAcaoViewProps> = ({ 
   onNavigate, 
   currentUser, 
-  initialFilterPrograma 
+  initialFilterPrograma,
+  initialPlanHeaderId,
+  openNewPlan,
+  viewMode: initialViewMode,
+  filterEtapa,
+  fromScreen,
+  originRncId,
+  returnEtapa8D
 }) => {
-  const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban');
+  const [viewMode, setViewMode] = useState<'kanban' | 'list'>(initialViewMode || 'kanban');
   const [activeEtapaAcoes, setActiveEtapaAcoes] = useState<
-    'todas' | 'validacao' | 'minhas' | 'planos_mestres'
-  >('todas');
+    'todas' | 'validacao' | 'minhas'
+  >(filterEtapa || 'todas');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterPrograma, setFilterPrograma] = useState(initialFilterPrograma || 'Todos');
   const [filterPrioridade, setFilterPrioridade] = useState<string>('Todas');
   const [filterTipoAcao, setFilterTipoAcao] = useState<string>('Todos');
+  const [filterResponsavelPlano, setFilterResponsavelPlano] = useState<string>('Todos');
   const [filterSomenteMinhas, setFilterSomenteMinhas] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Modais e Navegação em Tela Única (Plano + Ações / Ação Específica)
-  const [modalNovoPlanoOpen, setModalNovoPlanoOpen] = useState(false);
+  const [modalNovoPlanoOpen, setModalNovoPlanoOpen] = useState(openNewPlan || false);
+  const [editingPlanId, setEditingPlanId] = useState<number | null>(null);
   const [modalNovaAcaoOpen, setModalNovaAcaoOpen] = useState(false);
+  const [editingActionId, setEditingActionId] = useState<number | null>(null);
+  const [actionToDelete, setActionToDelete] = useState<ActionPlanItem | null>(null);
+  const [planToDelete, setPlanToDelete] = useState<ActionPlanHeader | null>(null);
   const [modalConcluirOpen, setModalConcluirOpen] = useState<ActionPlanItem | null>(null);
   const [modalValidarOpen, setModalValidarOpen] = useState<ActionPlanItem | null>(null);
   const [expandedPlanId, setExpandedPlanId] = useState<number | null>(null);
-  const [singleScreenPlanId, setSingleScreenPlanId] = useState<number | null>(null);
+  const [singleScreenPlanId, setSingleScreenPlanId] = useState<number | null>(initialPlanHeaderId || null);
   const [singleScreenActionId, setSingleScreenActionId] = useState<number | null>(null);
 
-  // Formulário Novo Plano
+  // Formulário Novo / Editar Plano
   const [formPlano, setFormPlano] = useState<Partial<ActionPlanHeader>>({
     indicador_programa_estrategico: 'ATENDIMENTO AO CLIENTE',
     prioridade: 'Alta',
@@ -94,10 +121,12 @@ export const PlanoAcaoView: React.FC<PlanoAcaoViewProps> = ({
     posto_: '',
     sub1: '',
     sub2: '',
-    idprograma: ''
+    foto_acao: '',
+    idprograma: '',
+    responsavel_abertura: currentUser.nome
   });
 
-  // Formulário Nova Ação
+  // Formulário Nova / Editar Ação
   const [formAcao, setFormAcao] = useState<Partial<ActionPlanItem>>({
     tipo_acao: 'CORRETIVA',
     contra_medida: '',
@@ -115,11 +144,47 @@ export const PlanoAcaoView: React.FC<PlanoAcaoViewProps> = ({
   });
 
   // Formulário Conclusão
-  const [formConclusao, setFormConclusao] = useState({
+  const [formConclusao, setFormConclusao] = useState<{
+    dataConclusao: string;
+    comentarios: string;
+    anexos: { name: string; url: string; type: string }[];
+  }>({
     dataConclusao: new Date().toISOString().split('T')[0],
     comentarios: '',
-    anexoUrl: ''
+    anexos: []
   });
+
+  const handleEvidenciaFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    Array.from(files).forEach(file => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === 'string') {
+          setFormConclusao(prev => ({
+            ...prev,
+            anexos: [
+              ...prev.anexos,
+              {
+                name: file.name,
+                url: reader.result as string,
+                type: file.type || (file.name.match(/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i) ? 'image/png' : 'application/octet-stream')
+              }
+            ]
+          }));
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = '';
+  };
+
+  const handleRemoveAnexoConclusao = (index: number) => {
+    setFormConclusao(prev => ({
+      ...prev,
+      anexos: prev.anexos.filter((_, i) => i !== index)
+    }));
+  };
 
   // Formulário Validação
   const [formValidacao, setFormValidacao] = useState<{
@@ -134,12 +199,174 @@ export const PlanoAcaoView: React.FC<PlanoAcaoViewProps> = ({
 
   // Dados do Store
   const planos = useMemo(() => spStore.getActionPlans(), [refreshTrigger]);
-  const baseAtivos = useMemo(() => spStore.getBaseAtivos(), []);
+  const baseAtivos = useMemo(() => spStore.getBaseAtivos(), [refreshTrigger]);
   const allActions = useMemo(() => spStore.getActionItems(), [refreshTrigger]);
   const allRncs = useMemo(() => spStore.getRNCs(), [refreshTrigger]);
 
   const activeTenant = tenantService.getActiveTenant();
   const brandColor = activeTenant.customizacao.cor_primaria || '#0b5796';
+
+  // Opções customizáveis do Plano de Ação resolvidas via Central de Bases e Campos (respeitando Base, Coluna de Valor e Coluna de Exibição)
+  const resolvedIndicadores = useMemo(
+    () => tenantService.getFieldResolvedOptions('plano_indicador', 'plano_acao', 'plano_indicador', activeTenant.id),
+    [activeTenant.id, refreshTrigger]
+  );
+  const resolvedSub1 = useMemo(
+    () => tenantService.getFieldResolvedOptions('plano_sub1', 'plano_acao', 'plano_sub1', activeTenant.id),
+    [activeTenant.id, refreshTrigger]
+  );
+  const resolvedAreas = useMemo(
+    () => tenantService.getFieldResolvedOptions('plano_area', 'plano_acao', 'area_fabril', activeTenant.id),
+    [activeTenant.id, refreshTrigger]
+  );
+  const resolvedPostos = useMemo(
+    () => tenantService.getFieldResolvedOptions('plano_posto_acao', 'plano_acao', 'posto_trabalho', activeTenant.id),
+    [activeTenant.id, refreshTrigger]
+  );
+  const resolvedProdutos = useMemo(
+    () => tenantService.getFieldResolvedOptions('plano_produto', 'plano_acao', 'master_pecas_produtos', activeTenant.id),
+    [activeTenant.id, refreshTrigger]
+  );
+  const resolvedPrioridades = useMemo(
+    () => tenantService.getFieldResolvedOptions('plano_prioridade', 'plano_acao', 'plano_prioridade', activeTenant.id),
+    [activeTenant.id, refreshTrigger]
+  );
+  const resolvedResponsaveis = useMemo(
+    () => tenantService.getFieldResolvedOptions('plano_responsavel', 'plano_acao', 'master_funcionarios', activeTenant.id),
+    [activeTenant.id, refreshTrigger]
+  );
+  const resolvedTiposAcao = useMemo(
+    () => tenantService.getFieldResolvedOptions('plano_tipo_acao', 'plano_acao', 'oitod_tipos_acao', activeTenant.id),
+    [activeTenant.id, refreshTrigger]
+  );
+
+  // Opções para SearchableSelect no modal de Novo / Editar Plano
+  const optionsResponsaveis = useMemo<SearchableOption[]>(() => {
+    if (resolvedResponsaveis.options.length > 0) {
+      return resolvedResponsaveis.options.map(o => ({
+        value: o.value,
+        label: o.label,
+        sublabel: o.sublabel,
+        badge: o.rawItem.codigo ? `#${o.rawItem.codigo}` : undefined
+      }));
+    }
+    return baseAtivos.map(a => ({
+      value: a.nome,
+      label: a.nome,
+      sublabel: a.posicao ? `${a.posicao}${a.unidadeOrg ? ` • ${a.unidadeOrg}` : ''}` : undefined,
+      badge: a.numPessoal ? `#${a.numPessoal}` : undefined
+    }));
+  }, [resolvedResponsaveis, baseAtivos]);
+
+  const optionsIndicadores = useMemo<SearchableOption[]>(() => {
+    if (resolvedIndicadores.options.length > 0) {
+      return resolvedIndicadores.options.map(item => ({
+        value: item.value,
+        label: item.label,
+        sublabel: item.sublabel
+      }));
+    }
+    return PROGRAMAS_LIST.filter(p => p !== 'Todos').map(item => ({
+      value: item,
+      label: item
+    }));
+  }, [resolvedIndicadores]);
+
+  const optionsSubindicador = useMemo<SearchableOption[]>(() => {
+    return resolvedSub1.options.map(item => ({
+      value: item.value,
+      label: item.label,
+      sublabel: item.sublabel
+    }));
+  }, [resolvedSub1]);
+
+  const optionsAreas = useMemo<SearchableOption[]>(() => {
+    return resolvedAreas.options.map(item => ({
+      value: item.value,
+      label: item.label,
+      sublabel: item.sublabel
+    }));
+  }, [resolvedAreas]);
+
+  const optionsPostos = useMemo<SearchableOption[]>(() => {
+    return resolvedPostos.options.map(item => ({
+      value: item.value,
+      label: item.label,
+      sublabel: item.sublabel
+    }));
+  }, [resolvedPostos]);
+
+  const optionsProdutos = useMemo<SearchableOption[]>(() => {
+    return resolvedProdutos.options.map(item => ({
+      value: item.value,
+      label: item.label,
+      sublabel: item.sublabel
+    }));
+  }, [resolvedProdutos]);
+
+  const optionsPrioridades = useMemo<SearchableOption[]>(() => {
+    if (resolvedPrioridades.options.length > 0) {
+      return resolvedPrioridades.options.map(p => ({
+        value: p.value,
+        label: p.label,
+        badgeColor: p.value === 'Alta' ? 'bg-rose-500' : p.value === 'Média' ? 'bg-amber-500' : 'bg-emerald-500'
+      }));
+    }
+    return ['Alta', 'Média', 'Baixa'].map(p => ({
+      value: p,
+      label: p,
+      badgeColor: p === 'Alta' ? 'bg-rose-500' : p === 'Média' ? 'bg-amber-500' : 'bg-emerald-500'
+    }));
+  }, [resolvedPrioridades]);
+
+  const optionsTiposAcao = useMemo<SearchableOption[]>(() => {
+    if (resolvedTiposAcao.options.length > 0) {
+      return resolvedTiposAcao.options.map(t => ({
+        value: t.value.toUpperCase(),
+        label: t.label,
+        sublabel: t.sublabel,
+        badgeColor:
+          t.value.toUpperCase() === 'CONTENÇÃO'
+            ? 'bg-amber-500'
+            : t.value.toUpperCase() === 'CORRETIVA'
+            ? 'bg-rose-500'
+            : t.value.toUpperCase() === 'PREVENTIVA'
+            ? 'bg-blue-500'
+            : 'bg-emerald-500'
+      }));
+    }
+    return [
+      { value: 'CONTENÇÃO', label: 'Contenção', badgeColor: 'bg-amber-500' },
+      { value: 'CORRETIVA', label: 'Corretiva', badgeColor: 'bg-rose-500' },
+      { value: 'PREVENTIVA', label: 'Preventiva', badgeColor: 'bg-blue-500' },
+      { value: 'MELHORIA', label: 'Melhoria', badgeColor: 'bg-emerald-500' }
+    ];
+  }, [resolvedTiposAcao]);
+
+  const optionsPlanosVinculo = useMemo<SearchableOption[]>(() => {
+    return planos.map(p => ({
+      value: String(p.id),
+      label: `#${p.id} - ${p.indicador_programa_estrategico}`,
+      sublabel: p.descricao_problema_oportunidade.length > 55 
+        ? `${p.descricao_problema_oportunidade.substring(0, 55)}...` 
+        : p.descricao_problema_oportunidade,
+      badge: p.prioridade,
+      badgeColor: p.prioridade === 'Alta' ? 'bg-rose-500' : p.prioridade === 'Média' ? 'bg-amber-500' : 'bg-emerald-500'
+    }));
+  }, [planos]);
+
+  const handleFotoAuxiliarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setFormPlano(prev => ({ ...prev, foto_acao: reader.result as string }));
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
 
   // Navegação segura para o registro vinculado
   const handleNavigateTo8D = (refCode?: string) => {
@@ -188,8 +415,7 @@ export const PlanoAcaoView: React.FC<PlanoAcaoViewProps> = ({
     if (actionItem) {
       setSingleScreenActionId(actionItem.id);
     } else {
-      const firstAction = allActions.find(a => a.id_rel2 === finalPlanId);
-      setSingleScreenActionId(firstAction ? firstAction.id : null);
+      setSingleScreenActionId(null);
     }
   };
 
@@ -249,12 +475,12 @@ export const PlanoAcaoView: React.FC<PlanoAcaoViewProps> = ({
   );
 
   const activeSingleAction = useMemo(() => {
-    if (!activeSinglePlan) return null;
-    if (singleScreenActionId !== null) {
-      const found = activeSinglePlan.actions.find(a => a.id === singleScreenActionId) || allActions.find(a => a.id === singleScreenActionId);
-      if (found) return found;
-    }
-    return activeSinglePlan.actions[0] || null;
+    if (!activeSinglePlan || singleScreenActionId === null) return null;
+    return (
+      activeSinglePlan.actions.find(a => a.id === singleScreenActionId) ||
+      allActions.find(a => a.id === singleScreenActionId) ||
+      null
+    );
   }, [activeSinglePlan, singleScreenActionId, allActions]);
 
   // Filtra Planos para o Kanban conforme filtros selecionados
@@ -298,6 +524,12 @@ export const PlanoAcaoView: React.FC<PlanoAcaoViewProps> = ({
       result = result.filter(p => p.actions.some(a => a.tipo_acao === filterTipoAcao));
     }
 
+    if (filterResponsavelPlano !== 'Todos') {
+      result = result.filter(
+        p => p.responsavel_abertura.toLowerCase() === filterResponsavelPlano.toLowerCase()
+      );
+    }
+
     if (filterSomenteMinhas) {
       result = result.filter(p =>
         p.actions.some(a => a.responsavel_acao.toLowerCase() === currentUser.nome.toLowerCase())
@@ -312,9 +544,21 @@ export const PlanoAcaoView: React.FC<PlanoAcaoViewProps> = ({
     filterPrograma,
     filterPrioridade,
     filterTipoAcao,
+    filterResponsavelPlano,
     filterSomenteMinhas,
     currentUser.nome
   ]);
+
+  // Lista de Responsáveis únicos de Planos para o filtro
+  const listaResponsaveisPlanos = useMemo(() => {
+    const set = new Set<string>();
+    planos.forEach(p => {
+      if (p.responsavel_abertura && p.responsavel_abertura.trim()) {
+        set.add(p.responsavel_abertura.trim());
+      }
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [planos]);
 
   // Contadores gerais
   const etapaCounts = useMemo(() => {
@@ -364,12 +608,21 @@ export const PlanoAcaoView: React.FC<PlanoAcaoViewProps> = ({
       result = result.filter(a => planIds.includes(a.id_rel2));
     }
 
+    if (filterResponsavelPlano !== 'Todos') {
+      const planIdsWithResp = new Set(
+        planos
+          .filter(p => p.responsavel_abertura.toLowerCase() === filterResponsavelPlano.toLowerCase())
+          .map(p => p.id)
+      );
+      result = result.filter(a => a.id_rel2 && planIdsWithResp.has(a.id_rel2));
+    }
+
     if (filterSomenteMinhas) {
       result = result.filter(a => a.responsavel_acao.toLowerCase() === currentUser.nome.toLowerCase());
     }
 
     return result;
-  }, [allActions, planos, activeEtapaAcoes, searchQuery, filterPrograma, filterTipoAcao, filterPrioridade, filterSomenteMinhas, currentUser.nome]);
+  }, [allActions, planos, activeEtapaAcoes, searchQuery, filterPrograma, filterTipoAcao, filterPrioridade, filterResponsavelPlano, filterSomenteMinhas, currentUser.nome]);
 
   // Contadores de KPIs (Planos e Ações)
   const stats = useMemo(() => {
@@ -440,12 +693,144 @@ export const PlanoAcaoView: React.FC<PlanoAcaoViewProps> = ({
     }
   ];
 
+  // =========================================================================
+  // REGRAS DE PERMISSÃO DO PLANO E DAS AÇÕES
+  // - Responsável pelo Plano: pode editar o plano, editar/excluir/concluir ações e validar ações
+  // - Responsável pela Execução da Ação: pode concluir a ação
+  // =========================================================================
+  const isSamePerson = (nameA?: string, nameB?: string): boolean => {
+    if (!nameA || !nameB) return false;
+    return normalizeDisplayText(nameA).trim().toLowerCase() === normalizeDisplayText(nameB).trim().toLowerCase();
+  };
+
+  const isPlanResponsible = (plano?: ActionPlanHeader | null): boolean => {
+    if (!plano) return false;
+    return isSamePerson(plano.responsavel_abertura, currentUser.nome);
+  };
+
+  const isActionResponsible = (acao?: ActionPlanItem | null): boolean => {
+    if (!acao) return false;
+    return isSamePerson(acao.responsavel_acao, currentUser.nome);
+  };
+
+  const canEditOrDeleteAction = (plano?: ActionPlanHeader | null): boolean => {
+    return isPlanResponsible(plano);
+  };
+
+  const canConcludeAction = (plano?: ActionPlanHeader | null, acao?: ActionPlanItem | null): boolean => {
+    return isActionResponsible(acao) || isPlanResponsible(plano);
+  };
+
+  const canValidateAction = (plano?: ActionPlanHeader | null): boolean => {
+    return isPlanResponsible(plano);
+  };
+
+  // Abre modal de Novo Plano
+  const handleOpenNewPlanModal = () => {
+    setEditingPlanId(null);
+    setFormPlano({
+      indicador_programa_estrategico: optionsIndicadores[0]?.value || 'ATENDIMENTO AO CLIENTE',
+      prioridade: (optionsPrioridades[0]?.value as ActionPlanPriority) || 'Alta',
+      setor_: optionsAreas[0]?.value || 'Qualidade',
+      descricao_problema_oportunidade: '',
+      produto_: optionsProdutos[0]?.value || '',
+      posto_: optionsPostos[0]?.value || '',
+      sub1: optionsSubindicador[0]?.value || '',
+      sub2: '',
+      foto_acao: '',
+      idprograma: '',
+      responsavel_abertura: currentUser.nome
+    });
+    setModalNovoPlanoOpen(true);
+  };
+
+  // Abre modal para Editar Plano existente
+  const handleOpenEditPlanModal = (plano: ActionPlanHeader) => {
+    if (!isPlanResponsible(plano)) return;
+    setEditingPlanId(plano.id);
+    setFormPlano({
+      id: plano.id,
+      indicador_programa_estrategico: plano.indicador_programa_estrategico,
+      prioridade: plano.prioridade,
+      setor_: plano.setor_ || 'Qualidade',
+      descricao_problema_oportunidade: plano.descricao_problema_oportunidade,
+      produto_: plano.produto_ || '',
+      posto_: plano.posto_ || '',
+      sub1: plano.sub1 || '',
+      sub2: plano.sub2 || '',
+      foto_acao: plano.foto_acao || '',
+      idprograma: plano.idprograma || '',
+      responsavel_abertura: plano.responsavel_abertura || currentUser.nome
+    });
+    setModalNovoPlanoOpen(true);
+  };
+
+  // Abre modal para Nova Ação dentro de um plano
+  const handleOpenNewActionModal = (plano: ActionPlanHeader) => {
+    setEditingActionId(null);
+    setFormAcao({
+      tipo_acao: 'CORRETIVA',
+      contra_medida: '',
+      causa: '',
+      data_acompanhamento: new Date().toISOString().split('T')[0],
+      data_planejada: new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0],
+      responsavel_acao: currentUser.nome,
+      email: currentUser.email || '',
+      yokoten: 'NÃO',
+      poka_yoke: 'NÃO',
+      evidencia_obrigatoria: 'SIM',
+      validacao_acao: 'SIM',
+      id_rel2: plano.id,
+      id_programa_acoes: plano.idprograma || ''
+    });
+    setModalNovaAcaoOpen(true);
+  };
+
+  // Abre modal para Editar Ação existente
+  const handleOpenEditActionModal = (plano: ActionPlanHeader, acao: ActionPlanItem) => {
+    if (!canEditOrDeleteAction(plano)) return;
+    setEditingActionId(acao.id);
+    setFormAcao({
+      id: acao.id,
+      id_rel2: acao.id_rel2 || plano.id,
+      id_programa_acoes: acao.id_programa_acoes || plano.idprograma || '',
+      tipo_acao: acao.tipo_acao,
+      causa: acao.causa || '',
+      contra_medida: acao.contra_medida,
+      data_acompanhamento: acao.data_acompanhamento,
+      data_planejada: acao.data_planejada,
+      responsavel_acao: acao.responsavel_acao,
+      email: acao.email || '',
+      yokoten: acao.yokoten || 'NÃO',
+      poka_yoke: acao.poka_yoke || 'NÃO',
+      evidencia_obrigatoria: acao.evidencia_obrigatoria || 'SIM',
+      validacao_acao: acao.validacao_acao || 'SIM'
+    });
+    setModalNovaAcaoOpen(true);
+  };
+
+  // Confirma exclusão de Ação
+  const handleConfirmDeleteAction = () => {
+    if (!actionToDelete) return;
+    const deletedId = actionToDelete.id;
+    spStore.deleteActionItem(deletedId);
+    setActionToDelete(null);
+    if (singleScreenActionId === deletedId) {
+      setSingleScreenActionId(null);
+    }
+    setRefreshTrigger(prev => prev + 1);
+  };
+
   // Ações de formulário
   const handleCreatePlano = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formPlano.descricao_problema_oportunidade) return;
-    spStore.saveActionPlan(formPlano);
+    const isCreatingNew = !editingPlanId;
+    const savedPlan = spStore.saveActionPlan(
+      editingPlanId ? { ...formPlano, id: editingPlanId } : formPlano
+    );
     setModalNovoPlanoOpen(false);
+    setEditingPlanId(null);
     setFormPlano({
       indicador_programa_estrategico: 'ATENDIMENTO AO CLIENTE',
       prioridade: 'Alta',
@@ -455,16 +840,26 @@ export const PlanoAcaoView: React.FC<PlanoAcaoViewProps> = ({
       posto_: '',
       sub1: '',
       sub2: '',
-      idprograma: ''
+      foto_acao: '',
+      idprograma: '',
+      responsavel_abertura: currentUser.nome
     });
     setRefreshTrigger(prev => prev + 1);
+    if (isCreatingNew && savedPlan?.id) {
+      setSingleScreenPlanId(savedPlan.id);
+      setSingleScreenActionId(null);
+    }
   };
 
   const handleCreateAcao = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formAcao.contra_medida) return;
-    spStore.saveActionItem(formAcao);
+    const saved = spStore.saveActionItem(editingActionId ? { ...formAcao, id: editingActionId } : formAcao);
     setModalNovaAcaoOpen(false);
+    setEditingActionId(null);
+    if (singleScreenPlanId === saved.id_rel2) {
+      setSingleScreenActionId(saved.id);
+    }
     setFormAcao({
       tipo_acao: 'CORRETIVA',
       contra_medida: '',
@@ -486,14 +881,17 @@ export const PlanoAcaoView: React.FC<PlanoAcaoViewProps> = ({
   const handleConfirmConclusao = (e: React.FormEvent) => {
     e.preventDefault();
     if (!modalConcluirOpen) return;
+    const serializedAnexos = formConclusao.anexos.map(a =>
+      a.url.startsWith('data:') ? `${a.name}:::${a.url}` : a.url
+    );
     spStore.concluirActionItem(
       modalConcluirOpen.id,
       formConclusao.dataConclusao,
       formConclusao.comentarios,
-      formConclusao.anexoUrl ? [formConclusao.anexoUrl] : []
+      serializedAnexos
     );
     setModalConcluirOpen(null);
-    setFormConclusao({ dataConclusao: new Date().toISOString().split('T')[0], comentarios: '', anexoUrl: '' });
+    setFormConclusao({ dataConclusao: new Date().toISOString().split('T')[0], comentarios: '', anexos: [] });
     setRefreshTrigger(prev => prev + 1);
   };
 
@@ -525,9 +923,6 @@ export const PlanoAcaoView: React.FC<PlanoAcaoViewProps> = ({
               <h1 className="text-lg sm:text-2xl font-display font-bold text-slate-900 tracking-tight">
                 Planejamento &amp; Planos de Ação
               </h1>
-              <span className="text-[11px] font-semibold text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded border border-slate-200">
-                Geral Fábrica
-              </span>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
               Gestão de planos de ação e acompanhamento de contramedidas
@@ -535,7 +930,7 @@ export const PlanoAcaoView: React.FC<PlanoAcaoViewProps> = ({
           </div>
         </div>
 
-        {/* Alternador de Visão & Botões de Ação */}
+        {/* Alternador de Visão (Kanban / Lista) & Novo Plano */}
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex items-center p-1 bg-slate-100 border border-slate-200 rounded-xl gap-1 shrink-0 shadow-2xs">
             <button
@@ -551,68 +946,24 @@ export const PlanoAcaoView: React.FC<PlanoAcaoViewProps> = ({
               }`}
             >
               <LayoutGrid className="w-3.5 h-3.5" />
-              <span>Kanban de Planos</span>
+              <span>Kanban</span>
             </button>
             <button
               type="button"
               onClick={() => {
                 setSingleScreenPlanId(null);
-                setViewMode('table');
+                setViewMode('list');
               }}
               className={`h-8 px-3 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer select-none ${
-                singleScreenPlanId === null && viewMode === 'table'
+                singleScreenPlanId === null && viewMode === 'list'
                   ? 'bg-white text-[#0b5796] shadow-xs border border-slate-200'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
               }`}
             >
               <List className="w-3.5 h-3.5" />
-              <span>Lista de Ações</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (singleScreenPlanId === null) {
-                  handleOpenSingleScreen(filteredPlans[0]?.id || planos[0]?.id || 1);
-                }
-              }}
-              className={`h-8 px-3 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer select-none ${
-                singleScreenPlanId !== null
-                  ? 'bg-white text-[#0b5796] shadow-xs border border-slate-200'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-              }`}
-            >
-              <FolderKanban className="w-3.5 h-3.5" />
-              <span>Tela do Plano de Ação</span>
+              <span>Lista</span>
             </button>
           </div>
-
-          <button
-            type="button"
-            onClick={() => setModalNovoPlanoOpen(true)}
-            className="btn-secondary h-8 px-3 text-xs font-semibold gap-1.5 shrink-0"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Novo Plano</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              if (activeSinglePlan) {
-                setFormAcao(prev => ({
-                  ...prev,
-                  id_rel2: activeSinglePlan.id,
-                  id_programa_acoes: activeSinglePlan.idprograma || ''
-                }));
-              }
-              setModalNovaAcaoOpen(true);
-            }}
-            style={{ backgroundColor: brandColor }}
-            className="btn-primary h-8 px-3.5 text-xs font-semibold gap-1.5 text-white shrink-0 shadow-xs"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Nova Ação</span>
-          </button>
         </div>
       </div>
 
@@ -627,31 +978,23 @@ export const PlanoAcaoView: React.FC<PlanoAcaoViewProps> = ({
               <button
                 type="button"
                 onClick={() => {
+                  if (fromScreen === 'detalhes-8d' && (originRncId || activeSinglePlan.idprograma)) {
+                    const targetRncId = originRncId || Number(activeSinglePlan.idprograma);
+                    onNavigate('detalhes-8d', {
+                      rncId: targetRncId,
+                      initialViewMode: 'metodologia8d',
+                      initialEtapa8D: returnEtapa8D || '3D'
+                    });
+                    return;
+                  }
                   setSingleScreenPlanId(null);
                   setSingleScreenActionId(null);
                 }}
-                className="btn-secondary h-8 px-3 text-xs font-bold text-slate-700 hover:text-slate-900 gap-1.5"
+                className="btn-secondary h-8 px-3 text-xs font-bold text-slate-700 hover:text-slate-900 gap-1.5 cursor-pointer"
               >
-                <span>← Voltar para {viewMode === 'kanban' ? 'Quadro Kanban' : 'Lista de Ações'}</span>
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>{fromScreen === 'detalhes-8d' ? 'Voltar para Metodologia 8D' : 'Voltar'}</span>
               </button>
-
-              <div className="h-5 w-px bg-slate-200 hidden sm:block" />
-
-              {/* Seletor rápido para trocar de Plano sem sair da Tela Única */}
-              <div className="flex items-center gap-1.5 text-xs">
-                <span className="font-bold text-slate-500">Plano:</span>
-                <select
-                  value={activeSinglePlan.id}
-                  onChange={e => handleOpenSingleScreen(Number(e.target.value))}
-                  className="form-select text-xs font-bold py-1.5 px-2.5 bg-slate-50 border-slate-200 rounded-lg text-slate-900"
-                >
-                  {enrichedPlans.map(p => (
-                    <option key={p.id} value={p.id}>
-                      Plano #{p.id} • {p.idprograma ? `${p.idprograma}` : p.indicador_programa_estrategico} ({p.computedStatus})
-                    </option>
-                  ))}
-                </select>
-              </div>
 
               <span className={`px-2.5 py-1 rounded-lg text-xs font-bold border ${
                 activeSinglePlan.computedStatus === 'Validado' ? 'bg-emerald-50 text-emerald-800 border-emerald-300' :
@@ -677,19 +1020,33 @@ export const PlanoAcaoView: React.FC<PlanoAcaoViewProps> = ({
 
               <button
                 type="button"
-                onClick={() => {
-                  setFormAcao(prev => ({
-                    ...prev,
-                    id_rel2: activeSinglePlan.id,
-                    id_programa_acoes: activeSinglePlan.idprograma || ''
-                  }));
-                  setModalNovaAcaoOpen(true);
-                }}
-                style={{ backgroundColor: brandColor }}
-                className="btn-primary h-8 px-3 text-xs font-semibold text-white gap-1.5"
+                onClick={() => handleOpenEditPlanModal(activeSinglePlan)}
+                disabled={!isPlanResponsible(activeSinglePlan)}
+                title={isPlanResponsible(activeSinglePlan) ? 'Editar Plano' : `Apenas o responsável pelo plano (${activeSinglePlan.responsavel_abertura}) pode editar`}
+                className="btn-secondary h-8 px-3 text-xs font-bold text-[#0b5796] border-blue-200 hover:bg-blue-50 gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Nova Ação neste Plano</span>
+                <Pencil className="w-3.5 h-3.5" />
+                <span>Editar Plano</span>
+              </button>
+
+              {isPlanResponsible(activeSinglePlan) && (
+                <button
+                  type="button"
+                  onClick={() => setPlanToDelete(activeSinglePlan)}
+                  className="btn-secondary h-8 px-3 text-xs font-bold text-rose-700 border-rose-200 hover:bg-rose-50 gap-1.5 cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Excluir Plano</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="btn-secondary h-8 px-3 text-xs font-bold text-slate-700 border-slate-200 hover:bg-slate-50 gap-1.5 cursor-pointer"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                <span>Imprimir</span>
               </button>
             </div>
           </div>
@@ -697,7 +1054,7 @@ export const PlanoAcaoView: React.FC<PlanoAcaoViewProps> = ({
           {/* BLOCO 1: CABEÇALHO DO PLANO DE AÇÃO */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
             <div className="px-5 py-3.5 bg-slate-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-2.5 flex-wrap">
                 <span className="px-2.5 py-1 rounded-lg bg-white/15 font-mono font-bold text-xs text-white border border-white/20">
                   Plano #{activeSinglePlan.id}
                 </span>
@@ -706,10 +1063,19 @@ export const PlanoAcaoView: React.FC<PlanoAcaoViewProps> = ({
                     Cabeçalho do Plano de Ação
                   </h2>
                 </div>
+                {isPlanResponsible(activeSinglePlan) ? (
+                  <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-200 border border-emerald-400/30 text-[11px] font-bold">
+                    Você é o Responsável pelo Plano
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-200 border border-amber-400/30 text-[11px] font-semibold">
+                    Responsável pelo Plano: {activeSinglePlan.responsavel_abertura}
+                  </span>
+                )}
               </div>
 
               {activeSinglePlan.idprograma && (
-                <div className="flex items-center gap-2 text-xs">
+                <div className="flex items-center gap-2 text-xs flex-wrap">
                   <span className="px-2.5 py-1 rounded bg-white/10 border border-white/15 font-mono text-[11px]">
                     Vínculo: <strong>{activeSinglePlan.idprograma}</strong>
                   </span>
@@ -760,29 +1126,43 @@ export const PlanoAcaoView: React.FC<PlanoAcaoViewProps> = ({
                 </div>
 
                 <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-                  <span className="text-[10px] font-bold uppercase text-slate-400 block">Subconjunto</span>
+                  <span className="text-[10px] font-bold uppercase text-slate-400 block">Subindicador</span>
                   <span className="font-bold text-slate-800 mt-0.5 block truncate">
-                    {activeSinglePlan.sub1 || activeSinglePlan.sub2
-                      ? `${activeSinglePlan.sub1 || ''}${activeSinglePlan.sub2 ? ` / ${activeSinglePlan.sub2}` : ''}`
-                      : '-'}
+                    {activeSinglePlan.sub1 || '-'}
                   </span>
                 </div>
               </div>
 
-              {/* Descrição do Problema / Oportunidade + Progresso */}
+              {/* Descrição do Problema / Oportunidade + Foto Auxiliar + Progresso */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
-                <div className="lg:col-span-2 p-4 rounded-xl bg-blue-50/40 border border-blue-200/80 flex flex-col justify-between gap-2">
-                  <div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-blue-800 block">
-                      Descrição do Problema / Oportunidade
-                    </span>
-                    <p className="text-sm font-bold text-slate-900 mt-1 leading-relaxed">
-                      {activeSinglePlan.descricao_problema_oportunidade}
-                    </p>
+                <div className="lg:col-span-2 p-4 rounded-xl bg-blue-50/40 border border-blue-200/80 flex flex-col justify-between gap-3">
+                  <div className="flex flex-col sm:flex-row gap-4 items-start">
+                    {activeSinglePlan.foto_acao && (
+                      <div className="shrink-0 w-28 h-28 rounded-xl border border-blue-200 bg-white overflow-hidden shadow-2xs group relative">
+                        <img 
+                          src={activeSinglePlan.foto_acao} 
+                          alt="Foto auxiliar do plano" 
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                        />
+                        <div className="absolute bottom-0 inset-x-0 bg-slate-900/70 text-white text-[9px] font-bold text-center py-0.5">
+                          Foto Auxiliar
+                        </div>
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-blue-800 block">
+                        Descrição do Problema / Oportunidade
+                      </span>
+                      <p className="text-sm font-bold text-slate-900 mt-1 leading-relaxed">
+                        {activeSinglePlan.descricao_problema_oportunidade}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-4 text-[11px] text-slate-500 pt-2 border-t border-blue-100 flex-wrap">
-                    <span>Responsável pela Abertura: <strong className="text-slate-800">{activeSinglePlan.responsavel_abertura}</strong></span>
-                    <span>Data de Abertura: <strong className="font-mono text-slate-800">{formatDateBR(activeSinglePlan.data_abertura)}</strong></span>
+                  <div className="flex items-center justify-between gap-4 text-[11px] text-slate-500 pt-2 border-t border-blue-100 flex-wrap">
+                    <div className="flex items-center gap-4 flex-wrap">
+                      <span>Responsável pelo Plano: <strong className="text-slate-900">{activeSinglePlan.responsavel_abertura}</strong></span>
+                      <span>Data de Abertura: <strong className="font-mono text-slate-800">{formatDateBR(activeSinglePlan.data_abertura)}</strong></span>
+                    </div>
                   </div>
                 </div>
 
@@ -829,212 +1209,25 @@ export const PlanoAcaoView: React.FC<PlanoAcaoViewProps> = ({
             </div>
           </div>
 
-          {/* BLOCO 2: DETALHES DA AÇÃO SELECIONADA */}
-          {activeSingleAction && (
-            <div className="bg-white rounded-2xl border-2 border-[#0b5796]/30 shadow-sm overflow-hidden">
-              <div className="px-5 py-3 bg-blue-50/80 border-b border-blue-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="px-2.5 py-0.5 rounded bg-[#0b5796] text-white font-mono text-xs font-bold">
-                    Ação #{activeSingleAction.id}
-                  </span>
-                  <h3 className="text-sm font-bold text-slate-900">
-                    Detalhes da Ação
-                  </h3>
-                  <span className={`px-2 py-0.5 rounded text-[11px] font-bold border ${
-                    activeSingleAction.status === 'Validado' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
-                    activeSingleAction.status === 'Concluído' ? 'bg-amber-100 text-amber-800 border-amber-300' :
-                    activeSingleAction.status === 'Atrasado' ? 'bg-rose-100 text-rose-800 border-rose-300' :
-                    'bg-blue-100 text-blue-800 border-blue-300'
-                  }`}>
-                    Status: {activeSingleAction.status}
-                  </span>
-                </div>
-
-                {/* Navegação rápida entre as ações deste Plano */}
-                <div className="flex items-center gap-1.5 text-xs">
-                  <span className="text-slate-500 font-semibold mr-1">
-                    Ação {activeSinglePlan.actions.findIndex(a => a.id === activeSingleAction.id) + 1} de {activeSinglePlan.actions.length}
-                  </span>
-                  <button
-                    type="button"
-                    disabled={activeSinglePlan.actions.findIndex(a => a.id === activeSingleAction.id) <= 0}
-                    onClick={() => {
-                      const idx = activeSinglePlan.actions.findIndex(a => a.id === activeSingleAction.id);
-                      if (idx > 0) setSingleScreenActionId(activeSinglePlan.actions[idx - 1].id);
-                    }}
-                    className="btn-secondary h-7 px-2.5 text-xs disabled:opacity-40"
-                  >
-                    ← Anterior
-                  </button>
-                  <button
-                    type="button"
-                    disabled={
-                      activeSinglePlan.actions.findIndex(a => a.id === activeSingleAction.id) >=
-                      activeSinglePlan.actions.length - 1
-                    }
-                    onClick={() => {
-                      const idx = activeSinglePlan.actions.findIndex(a => a.id === activeSingleAction.id);
-                      if (idx >= 0 && idx < activeSinglePlan.actions.length - 1) {
-                        setSingleScreenActionId(activeSinglePlan.actions[idx + 1].id);
-                      }
-                    }}
-                    className="btn-secondary h-7 px-2.5 text-xs disabled:opacity-40"
-                  >
-                    Próxima →
-                  </button>
-                </div>
-              </div>
-
-              <div className="p-5 flex flex-col gap-4 text-xs">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                  <div className="lg:col-span-2 flex flex-col gap-3">
-                    <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
-                      <span className="text-[10px] font-bold uppercase text-slate-400 block">
-                        Contramedida / Descrição da Ação
-                      </span>
-                      <p className="text-sm font-bold text-slate-900 mt-1">
-                        {activeSingleAction.contra_medida}
-                      </p>
-                    </div>
-
-                    <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
-                      <span className="text-[10px] font-bold uppercase text-slate-400 block">
-                        Causa Raiz
-                      </span>
-                      <p className="text-xs font-semibold text-slate-700 mt-1">
-                        {activeSingleAction.causa || 'Não informada'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex flex-col justify-between gap-2.5">
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Tipo de Ação</span>
-                        <span className="font-bold text-slate-900">{activeSingleAction.tipo_acao}</span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Responsável</span>
-                        <span className="font-bold text-slate-900">{normalizeDisplayText(activeSingleAction.responsavel_acao)}</span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Data Acompanhamento</span>
-                        <span className="font-mono font-bold text-slate-900">
-                          {formatDateBR(activeSingleAction.data_acompanhamento)}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Prazo Planejado</span>
-                        <span className={`font-mono font-bold ${activeSingleAction.status === 'Atrasado' ? 'text-rose-600' : 'text-slate-900'}`}>
-                          {formatDateBR(activeSingleAction.data_planejada)}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Yokoten</span>
-                        <span className="font-bold text-slate-800">
-                          {activeSingleAction.yokoten || 'NÃO'}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Poka-Yoke</span>
-                        <span className="font-bold text-slate-800">{activeSingleAction.poka_yoke || 'NÃO'}</span>
-                      </div>
-                    </div>
-
-                    {/* Botões de Execução / Homologação da Ação em Foco */}
-                    <div className="pt-2.5 border-t border-slate-200 flex items-center gap-2">
-                      {(activeSingleAction.status === 'Aberto' || activeSingleAction.status === 'Atrasado') && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setModalConcluirOpen(activeSingleAction);
-                            setFormConclusao({
-                              dataConclusao: new Date().toISOString().split('T')[0],
-                              comentarios: activeSingleAction.comentarios_evidencia || '',
-                              anexoUrl: ''
-                            });
-                          }}
-                          className="btn-primary bg-emerald-600 hover:bg-emerald-700 h-8 px-3 text-xs font-bold text-white w-full justify-center gap-1.5"
-                        >
-                          <CheckCircle2 className="w-4 h-4" />
-                          <span>Registrar Conclusão desta Ação</span>
-                        </button>
-                      )}
-
-                      {activeSingleAction.status === 'Concluído' && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setModalValidarOpen(activeSingleAction);
-                            setFormValidacao({
-                              status: 'Validado',
-                              comentarios: '',
-                              motivoRevisao: ''
-                            });
-                          }}
-                          className="btn-primary bg-[#0b5796] hover:bg-[#09477d] h-8 px-3 text-xs font-bold text-white w-full justify-center gap-1.5"
-                        >
-                          <ShieldCheck className="w-4 h-4" />
-                          <span>Validar &amp; Homologar Ação</span>
-                        </button>
-                      )}
-
-                      {activeSingleAction.status === 'Validado' && (
-                        <div className="w-full py-1.5 px-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold text-center flex items-center justify-center gap-1.5">
-                          <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                          <span>Ação Validada e Homologada</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Evidências de Conclusão e Parecer de Validação da Ação */}
-                {(activeSingleAction.comentarios_evidencia || activeSingleAction.comentarios_validacao || activeSingleAction.status_revisar) && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-slate-100">
-                    {activeSingleAction.comentarios_evidencia && (
-                      <div className="p-3 rounded-xl bg-emerald-50/50 border border-emerald-200">
-                        <span className="text-[10px] font-bold uppercase text-emerald-800 block">
-                          Evidência de Conclusão ({formatDateBR(activeSingleAction.data_conclusao || '')})
-                        </span>
-                        <p className="text-xs text-slate-800 mt-1">{activeSingleAction.comentarios_evidencia}</p>
-                      </div>
-                    )}
-                    {activeSingleAction.comentarios_validacao && (
-                      <div className="p-3 rounded-xl bg-blue-50/50 border border-blue-200">
-                        <span className="text-[10px] font-bold uppercase text-blue-800 block">
-                          Parecer da Validação
-                        </span>
-                        <p className="text-xs text-slate-800 mt-1">{activeSingleAction.comentarios_validacao}</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* BLOCO 3: TODAS AS AÇÕES DEDICADAS A ESTE PLANO */}
+          {/* BLOCO 2: TODAS AS AÇÕES DEDICADAS A ESTE PLANO */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
-            <div className="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+            <div className="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between flex-wrap gap-2">
               <div>
-                <h3 className="text-sm font-bold text-slate-900">
-                  Ações do Plano ({activeSinglePlan.actions.length})
+                <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <span>Ações do Plano ({activeSinglePlan.actions.length})</span>
+                  {activeSingleAction && (
+                    <span className="px-2 py-0.5 rounded-full bg-blue-100 text-[#0b5796] text-[11px] font-semibold font-mono">
+                      Ação #{activeSingleAction.id} expandida
+                    </span>
+                  )}
                 </h3>
                 <p className="text-[11px] text-slate-500">
-                  Selecione qualquer ação abaixo para visualizar seus detalhes ou registrar conclusão/validação
+                  Clique em uma ação na tabela para expandir ou recolher seus detalhes abaixo • Responsável pelo Plano edita, exclui e valida • Responsável pela Execução conclui
                 </p>
               </div>
               <button
                 type="button"
-                onClick={() => {
-                  setFormAcao(prev => ({
-                    ...prev,
-                    id_rel2: activeSinglePlan.id,
-                    id_programa_acoes: activeSinglePlan.idprograma || ''
-                  }));
-                  setModalNovaAcaoOpen(true);
-                }}
+                onClick={() => handleOpenNewActionModal(activeSinglePlan)}
                 className="btn-secondary h-8 px-3 text-xs font-semibold text-[#0b5796] border-blue-200 hover:bg-blue-50 gap-1"
               >
                 <Plus className="w-3.5 h-3.5" />
@@ -1054,7 +1247,7 @@ export const PlanoAcaoView: React.FC<PlanoAcaoViewProps> = ({
                       <th className="py-2.5 px-4">ID</th>
                       <th className="py-2.5 px-4">Tipo</th>
                       <th className="py-2.5 px-4">Contramedida &amp; Causa</th>
-                      <th className="py-2.5 px-4">Responsável</th>
+                      <th className="py-2.5 px-4">Responsável Execução</th>
                       <th className="py-2.5 px-4">Prazo Planejado</th>
                       <th className="py-2.5 px-4">Diretivas</th>
                       <th className="py-2.5 px-4">Status</th>
@@ -1064,12 +1257,16 @@ export const PlanoAcaoView: React.FC<PlanoAcaoViewProps> = ({
                   <tbody className="divide-y divide-slate-100">
                     {activeSinglePlan.actions.map(acao => {
                       const isFocused = activeSingleAction?.id === acao.id;
+                      const allowEditDelete = canEditOrDeleteAction(activeSinglePlan);
+                      const allowConclude = canConcludeAction(activeSinglePlan, acao);
+                      const allowValidate = canValidateAction(activeSinglePlan);
+
                       return (
                         <tr
                           key={acao.id}
-                          onClick={() => setSingleScreenActionId(acao.id)}
+                          onClick={() => setSingleScreenActionId(prev => prev === acao.id ? null : acao.id)}
                           className={`transition-colors cursor-pointer ${
-                            isFocused ? 'bg-blue-50/70 font-medium' : 'hover:bg-slate-50'
+                            isFocused ? 'bg-blue-50/90 ring-1 ring-inset ring-[#0b5796]/40 font-medium' : 'hover:bg-slate-50'
                           }`}
                         >
                           <td className="py-3 px-4 font-mono font-bold text-slate-800">
@@ -1126,37 +1323,87 @@ export const PlanoAcaoView: React.FC<PlanoAcaoViewProps> = ({
                             </span>
                           </td>
                           <td className="py-3 px-4 text-right" onClick={e => e.stopPropagation()}>
-                            <div className="flex items-center justify-end gap-1.5">
+                            <div className="flex items-center justify-end gap-1.5 flex-wrap">
                               <button
                                 type="button"
-                                onClick={() => setSingleScreenActionId(acao.id)}
-                                className={`h-7 px-2 rounded text-[11px] font-semibold border transition ${
+                                onClick={() => setSingleScreenActionId(prev => prev === acao.id ? null : acao.id)}
+                                className={`h-7 px-2.5 rounded text-[11px] font-semibold border transition flex items-center gap-1 ${
                                   isFocused
                                     ? 'bg-[#0b5796] text-white border-[#0b5796]'
                                     : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
                                 }`}
+                                title={isFocused ? 'Recolher detalhes desta ação' : 'Expandir detalhes desta ação'}
                               >
-                                Detalhes
+                                {isFocused ? (
+                                  <>
+                                    <ChevronUp className="w-3 h-3" />
+                                    <span>Recolher</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <ChevronDown className="w-3 h-3" />
+                                    <span>Detalhes</span>
+                                  </>
+                                )}
                               </button>
+
+                              <button
+                                type="button"
+                                disabled={!allowEditDelete}
+                                onClick={() => handleOpenEditActionModal(activeSinglePlan, acao)}
+                                title={
+                                  allowEditDelete
+                                    ? 'Editar ação'
+                                    : `Somente o responsável pelo plano (${activeSinglePlan.responsavel_abertura}) pode editar`
+                                }
+                                className="btn-secondary h-7 px-2 text-[11px] font-semibold text-[#0b5796] border-blue-200 hover:bg-blue-50 gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
+                              >
+                                <Pencil className="w-3 h-3" />
+                                <span>Editar</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                disabled={!allowEditDelete}
+                                onClick={() => setActionToDelete(acao)}
+                                title={
+                                  allowEditDelete
+                                    ? 'Excluir ação'
+                                    : `Somente o responsável pelo plano (${activeSinglePlan.responsavel_abertura}) pode excluir`
+                                }
+                                className="btn-secondary h-7 px-2 text-[11px] font-semibold text-rose-700 border-rose-200 hover:bg-rose-50 gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                                <span>Excluir</span>
+                              </button>
+
                               {(acao.status === 'Aberto' || acao.status === 'Atrasado') && (
                                 <button
                                   type="button"
+                                  disabled={!allowConclude}
                                   onClick={() => {
                                     setModalConcluirOpen(acao);
                                     setFormConclusao({
                                       dataConclusao: new Date().toISOString().split('T')[0],
                                       comentarios: acao.comentarios_evidencia || '',
-                                      anexoUrl: ''
+                                      anexos: []
                                     });
                                   }}
-                                  className="btn-secondary h-7 px-2.5 text-[11px] font-semibold text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+                                  title={
+                                    allowConclude
+                                      ? 'Concluir ação'
+                                      : `Somente o responsável pela execução (${acao.responsavel_acao}) ou o responsável pelo plano (${activeSinglePlan.responsavel_abertura}) pode concluir`
+                                  }
+                                  className="btn-secondary h-7 px-2.5 text-[11px] font-semibold text-emerald-700 border-emerald-200 hover:bg-emerald-50 disabled:opacity-40 disabled:cursor-not-allowed"
                                 >
                                   Concluir
                                 </button>
                               )}
+
                               {acao.status === 'Concluído' && (
                                 <button
                                   type="button"
+                                  disabled={!allowValidate}
                                   onClick={() => {
                                     setModalValidarOpen(acao);
                                     setFormValidacao({
@@ -1165,7 +1412,12 @@ export const PlanoAcaoView: React.FC<PlanoAcaoViewProps> = ({
                                       motivoRevisao: ''
                                     });
                                   }}
-                                  className="btn-primary h-7 px-2.5 text-[11px] font-semibold bg-[#0b5796] text-white"
+                                  title={
+                                    allowValidate
+                                      ? 'Validar ação'
+                                      : `Somente o responsável pelo plano (${activeSinglePlan.responsavel_abertura}) pode validar`
+                                  }
+                                  className="btn-primary h-7 px-2.5 text-[11px] font-semibold bg-[#0b5796] text-white disabled:opacity-40 disabled:cursor-not-allowed"
                                 >
                                   Validar
                                 </button>
@@ -1180,85 +1432,478 @@ export const PlanoAcaoView: React.FC<PlanoAcaoViewProps> = ({
               </div>
             )}
           </div>
+
+          {/* BLOCO 3: DETALHAMENTO DA AÇÃO SELECIONADA */}
+          {activeSingleAction && (
+            <div className="bg-white rounded-2xl border-2 border-[#0b5796]/40 shadow-sm overflow-hidden scroll-mt-6">
+              <div className="px-5 py-3 bg-blue-50/80 border-b border-blue-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="px-2.5 py-0.5 rounded bg-[#0b5796] text-white font-mono text-xs font-bold">
+                    Ação #{activeSingleAction.id}
+                  </span>
+                  <h3 className="text-sm font-bold text-slate-900">
+                    Detalhamento da Ação
+                  </h3>
+                  <span className={`px-2 py-0.5 rounded text-[11px] font-bold border ${
+                    activeSingleAction.status === 'Validado' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
+                    activeSingleAction.status === 'Concluído' ? 'bg-amber-100 text-amber-800 border-amber-300' :
+                    activeSingleAction.status === 'Atrasado' ? 'bg-rose-100 text-rose-800 border-rose-300' :
+                    'bg-blue-100 text-blue-800 border-blue-300'
+                  }`}>
+                    Status: {activeSingleAction.status}
+                  </span>
+                  {isActionResponsible(activeSingleAction) && (
+                    <span className="px-2 py-0.5 rounded bg-indigo-100 text-indigo-800 border border-indigo-300 text-[10px] font-bold">
+                      Você é o Responsável pela Execução
+                    </span>
+                  )}
+                </div>
+
+                {/* Botões de Edição / Exclusão e Recolher */}
+                <div className="flex items-center gap-1.5 text-xs flex-wrap">
+                  <button
+                    type="button"
+                    disabled={!canEditOrDeleteAction(activeSinglePlan)}
+                    onClick={() => handleOpenEditActionModal(activeSinglePlan, activeSingleAction)}
+                    title={
+                      canEditOrDeleteAction(activeSinglePlan)
+                        ? 'Editar esta ação'
+                        : `Apenas o responsável pelo plano (${activeSinglePlan.responsavel_abertura}) tem permissão para editar a ação`
+                    }
+                    className="btn-secondary h-7 px-2.5 text-xs font-bold text-[#0b5796] border-blue-200 hover:bg-blue-100 gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                    <span>Editar Ação</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={!canEditOrDeleteAction(activeSinglePlan)}
+                    onClick={() => setActionToDelete(activeSingleAction)}
+                    title={
+                      canEditOrDeleteAction(activeSinglePlan)
+                        ? 'Excluir esta ação'
+                        : `Apenas o responsável pelo plano (${activeSinglePlan.responsavel_abertura}) tem permissão para excluir a ação`
+                    }
+                    className="btn-secondary h-7 px-2.5 text-xs font-bold text-rose-700 border-rose-200 hover:bg-rose-50 gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Excluir Ação</span>
+                  </button>
+
+                  <div className="h-4 w-px bg-blue-200 mx-1 hidden sm:block" />
+
+                  <button
+                    type="button"
+                    onClick={() => setSingleScreenActionId(null)}
+                    title="Recolher detalhamento da ação"
+                    className="btn-secondary h-7 px-2.5 text-xs font-semibold text-slate-700 border-slate-200 hover:bg-slate-100 gap-1"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    <span>Recolher</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-5 flex flex-col gap-4 text-xs">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                  <div className="lg:col-span-2 flex flex-col gap-3">
+                    <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                      <span className="text-[10px] font-bold uppercase text-slate-400 block">
+                        Causa Raiz
+                      </span>
+                      <p className="text-xs font-semibold text-slate-800 mt-1">
+                        {activeSingleAction.causa || 'Não informada'}
+                      </p>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                      <span className="text-[10px] font-bold uppercase text-slate-400 block">
+                        Contramedida / Ação
+                      </span>
+                      <p className="text-sm font-bold text-slate-900 mt-1 leading-relaxed">
+                        {activeSingleAction.contra_medida}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex flex-col justify-between gap-2.5">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Tipo de Ação</span>
+                        <span className="font-bold text-slate-900">{activeSingleAction.tipo_acao}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Responsável pela Execução</span>
+                        <span className="font-bold text-slate-900">{normalizeDisplayText(activeSingleAction.responsavel_acao)}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Data Acompanhamento</span>
+                        <span className="font-mono font-bold text-slate-900">
+                          {formatDateBR(activeSingleAction.data_acompanhamento)}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Prazo Planejado</span>
+                        <span className={`font-mono font-bold ${activeSingleAction.status === 'Atrasado' ? 'text-rose-600' : 'text-slate-900'}`}>
+                          {formatDateBR(activeSingleAction.data_planejada)}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Yokoten</span>
+                        <span className="font-bold text-slate-800">
+                          {activeSingleAction.yokoten || 'NÃO'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold uppercase text-slate-400 block">Poka-Yoke</span>
+                        <span className="font-bold text-slate-800">{activeSingleAction.poka_yoke || 'NÃO'}</span>
+                      </div>
+                    </div>
+
+                    {/* Botões de Execução / Homologação da Ação em Foco */}
+                    <div className="pt-2.5 border-t border-slate-200 flex flex-col gap-1.5">
+                      {(activeSingleAction.status === 'Aberto' || activeSingleAction.status === 'Atrasado') && (
+                        <>
+                          <button
+                            type="button"
+                            disabled={!canConcludeAction(activeSinglePlan, activeSingleAction)}
+                            onClick={() => {
+                              setModalConcluirOpen(activeSingleAction);
+                              setFormConclusao({
+                                dataConclusao: new Date().toISOString().split('T')[0],
+                                comentarios: activeSingleAction.comentarios_evidencia || '',
+                                anexos: []
+                              });
+                            }}
+                            title={
+                              canConcludeAction(activeSinglePlan, activeSingleAction)
+                                ? 'Registrar conclusão desta ação'
+                                : `Apenas o responsável pela execução (${activeSingleAction.responsavel_acao}) ou o responsável pelo plano (${activeSinglePlan.responsavel_abertura}) pode concluir a ação`
+                            }
+                            className="btn-primary bg-emerald-600 hover:bg-emerald-700 h-8 px-3 text-xs font-bold text-white w-full justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            <CheckCircle2 className="w-4 h-4" />
+                            <span>Registrar Conclusão desta Ação</span>
+                          </button>
+                          {!canConcludeAction(activeSinglePlan, activeSingleAction) && (
+                            <span className="text-[10px] text-amber-700 text-center">
+                              Conclusão permitida para <strong>{normalizeDisplayText(activeSingleAction.responsavel_acao)}</strong> (Execução) ou <strong>{activeSinglePlan.responsavel_abertura}</strong> (Plano).
+                            </span>
+                          )}
+                        </>
+                      )}
+
+                      {activeSingleAction.status === 'Concluído' && (
+                        <>
+                          <button
+                            type="button"
+                            disabled={!canValidateAction(activeSinglePlan)}
+                            onClick={() => {
+                              setModalValidarOpen(activeSingleAction);
+                              setFormValidacao({
+                                status: 'Validado',
+                                comentarios: '',
+                                motivoRevisao: ''
+                              });
+                            }}
+                            title={
+                              canValidateAction(activeSinglePlan)
+                                ? 'Validar e homologar ação'
+                                : `Apenas o responsável pelo plano (${activeSinglePlan.responsavel_abertura}) pode fazer a validação da ação`
+                            }
+                            className="btn-primary bg-[#0b5796] hover:bg-[#09477d] h-8 px-3 text-xs font-bold text-white w-full justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            <ShieldCheck className="w-4 h-4" />
+                            <span>Validar &amp; Homologar Ação</span>
+                          </button>
+                          {!canValidateAction(activeSinglePlan) && (
+                            <span className="text-[10px] text-amber-700 text-center">
+                              Validação exclusiva do Responsável pelo Plano (<strong>{activeSinglePlan.responsavel_abertura}</strong>).
+                            </span>
+                          )}
+                        </>
+                      )}
+
+                      {activeSingleAction.status === 'Validado' && (
+                        <div className="w-full py-1.5 px-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold text-center flex items-center justify-center gap-1.5">
+                          <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                          <span>Ação Validada e Homologada</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Evidências de Conclusão e Parecer de Validação da Ação */}
+                {(activeSingleAction.comentarios_evidencia || (activeSingleAction.anexos_evidencia && activeSingleAction.anexos_evidencia.length > 0) || activeSingleAction.comentarios_validacao || activeSingleAction.status_revisar) && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-slate-100">
+                    {(activeSingleAction.comentarios_evidencia || (activeSingleAction.anexos_evidencia && activeSingleAction.anexos_evidencia.length > 0)) && (
+                      <div className="p-3 rounded-xl bg-emerald-50/50 border border-emerald-200 flex flex-col gap-2">
+                        <span className="text-[10px] font-bold uppercase text-emerald-800 block">
+                          Evidência de Conclusão ({formatDateBR(activeSingleAction.data_conclusao || '')})
+                        </span>
+                        {activeSingleAction.comentarios_evidencia && (
+                          <p className="text-xs text-slate-800">{activeSingleAction.comentarios_evidencia}</p>
+                        )}
+                        {activeSingleAction.anexos_evidencia && activeSingleAction.anexos_evidencia.length > 0 && (
+                          <div className="flex flex-wrap gap-2 pt-1">
+                            {activeSingleAction.anexos_evidencia.map((rawAnexo, idx) => {
+                              const parts = rawAnexo.includes(':::') ? rawAnexo.split(':::') : ['Evidência Anexada', rawAnexo];
+                              const fileName = parts[0];
+                              const fileUrl = parts[1] || rawAnexo;
+                              const isImg = fileUrl.startsWith('data:image/') || /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(fileName);
+                              return isImg ? (
+                                <a
+                                  key={idx}
+                                  href={fileUrl}
+                                  download={fileName}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="group relative w-20 h-20 rounded-lg border border-emerald-300 bg-white overflow-hidden shadow-2xs flex flex-col items-center justify-center"
+                                  title={fileName}
+                                >
+                                  <img src={fileUrl} alt={fileName} className="w-full h-full object-cover group-hover:scale-105 transition" />
+                                </a>
+                              ) : (
+                                <a
+                                  key={idx}
+                                  href={fileUrl}
+                                  download={fileName}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white border border-emerald-300 text-[11px] font-semibold text-emerald-900 hover:bg-emerald-100 transition"
+                                >
+                                  <Paperclip className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                  <span className="truncate max-w-[180px]">{fileName}</span>
+                                </a>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {activeSingleAction.comentarios_validacao && (
+                      <div className="p-3 rounded-xl bg-blue-50/50 border border-blue-200">
+                        <span className="text-[10px] font-bold uppercase text-blue-800 block">
+                          Parecer da Validação
+                        </span>
+                        <p className="text-xs text-slate-800 mt-1">{activeSingleAction.comentarios_validacao}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <>
-          {/* 2. BARRA DE NAVEGAÇÃO DO PLANO DE AÇÃO */}
-          <div className="bg-white p-2.5 rounded-2xl border border-slate-200 shadow-2xs">
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
+          {/* 2. PAINEL UNIFICADO DE CONTROLE E FILTROS */}
+          <div className="bg-white p-3 sm:p-3.5 rounded-2xl border border-slate-200 shadow-2xs flex flex-col gap-2.5">
+            {/* Linha 1: Botões de navegação rápida de etapas + Botão Novo Plano à direita */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-slate-100">
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-thin">
+                <button
+                  type="button"
+                  onClick={() => setActiveEtapaAcoes('todas')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 shrink-0 transition cursor-pointer select-none ${
+                    activeEtapaAcoes === 'todas'
+                      ? 'bg-[#0b5796] text-white shadow-xs'
+                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  }`}
+                >
+                  <Layers className="w-3.5 h-3.5" />
+                  <span>Todos os Planos</span>
+                  <span className={`text-[11px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                    activeEtapaAcoes === 'todas' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
+                  }`}>
+                    {etapaCounts.planos}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveEtapaAcoes('validacao')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 shrink-0 transition cursor-pointer select-none ${
+                    activeEtapaAcoes === 'validacao'
+                      ? 'bg-amber-700 text-white shadow-xs'
+                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  }`}
+                >
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>Aguardando validação</span>
+                  <span className={`text-[11px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                    activeEtapaAcoes === 'validacao' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-800'
+                  }`}>
+                    {etapaCounts.validacao}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveEtapaAcoes('minhas')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 shrink-0 transition cursor-pointer select-none ${
+                    activeEtapaAcoes === 'minhas'
+                      ? 'bg-indigo-700 text-white shadow-xs'
+                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  }`}
+                >
+                  <User className="w-3.5 h-3.5" />
+                  <span>Minhas Ações</span>
+                  <span className={`text-[11px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                    activeEtapaAcoes === 'minhas' ? 'bg-white/20 text-white' : 'bg-indigo-100 text-indigo-800'
+                  }`}>
+                    {etapaCounts.minhas}
+                  </span>
+                </button>
+              </div>
+
+              {/* Botão Novo Plano no canto direito */}
               <button
                 type="button"
-                onClick={() => setActiveEtapaAcoes('todas')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 shrink-0 transition cursor-pointer select-none ${
-                  activeEtapaAcoes === 'todas'
-                    ? 'bg-[#0b5796] text-white shadow-xs'
-                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                }`}
+                onClick={handleOpenNewPlanModal}
+                className="btn-primary h-8 px-3.5 text-xs font-semibold bg-[#0b5796] hover:bg-[#09477d] text-white gap-1.5 shrink-0 shadow-xs"
               >
-                <Layers className="w-3.5 h-3.5" />
-                <span>Todos os Planos &amp; Ações</span>
-                <span className={`text-[11px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
-                  activeEtapaAcoes === 'todas' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
-                }`}>
-                  {etapaCounts.planos} planos • {etapaCounts.todas} ações
-                </span>
+                <Plus className="w-3.5 h-3.5" />
+                <span>Novo Plano</span>
               </button>
+            </div>
 
-              <button
-                type="button"
-                onClick={() => setActiveEtapaAcoes('validacao')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 shrink-0 transition cursor-pointer select-none ${
-                  activeEtapaAcoes === 'validacao'
-                    ? 'bg-amber-700 text-white shadow-xs'
-                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                }`}
-              >
-                <Clock className="w-3.5 h-3.5" />
-                <span>Validação Qualidade</span>
-                <span className={`text-[11px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
-                  activeEtapaAcoes === 'validacao' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-800'
-                }`}>
-                  {etapaCounts.validacao}
-                </span>
-              </button>
+            {/* Linha 2: Filtros integrados com título acima de cada campo */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 xl:grid-cols-12 gap-2.5 items-end">
+              {/* Campo de Busca com padding corrigido contra sobreposição do ícone */}
+              <div className="xl:col-span-4 lg:col-span-3 sm:col-span-2">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Buscar
+                </label>
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    placeholder="Problema, produto, posto, contramedida..."
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    className="form-input w-full text-xs pr-3 h-8 bg-slate-50 border-slate-200 rounded-lg text-slate-800"
+                    style={{ paddingLeft: '34px' }}
+                  />
+                </div>
+              </div>
 
-              <button
-                type="button"
-                onClick={() => setActiveEtapaAcoes('minhas')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 shrink-0 transition cursor-pointer select-none ${
-                  activeEtapaAcoes === 'minhas'
-                    ? 'bg-indigo-700 text-white shadow-xs'
-                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                }`}
-              >
-                <User className="w-3.5 h-3.5" />
-                <span>Minhas Ações</span>
-                <span className={`text-[11px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
-                  activeEtapaAcoes === 'minhas' ? 'bg-white/20 text-white' : 'bg-indigo-100 text-indigo-800'
-                }`}>
-                  {etapaCounts.minhas}
-                </span>
-              </button>
+              {/* Filtro: Programa */}
+              <div className="xl:col-span-2 lg:col-span-2 sm:col-span-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Programa
+                </label>
+                <select
+                  value={filterPrograma}
+                  onChange={e => setFilterPrograma(e.target.value)}
+                  className="form-select w-full text-xs h-8 px-2 bg-slate-50 border-slate-200 rounded-lg text-slate-700 font-medium"
+                >
+                  {PROGRAMAS_LIST.map(prog => (
+                    <option key={prog} value={prog}>{prog}</option>
+                  ))}
+                </select>
+              </div>
 
-              <div className="h-5 w-px bg-slate-200 mx-1 shrink-0" />
+              {/* Filtro: Prioridade */}
+              <div className="xl:col-span-1 lg:col-span-2 sm:col-span-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Prioridade
+                </label>
+                <select
+                  value={filterPrioridade}
+                  onChange={e => setFilterPrioridade(e.target.value)}
+                  className="form-select w-full text-xs h-8 px-2 bg-slate-50 border-slate-200 rounded-lg text-slate-700 font-medium"
+                >
+                  <option value="Todas">Todas</option>
+                  <option value="Alta">Alta</option>
+                  <option value="Média">Média</option>
+                  <option value="Baixa">Baixa</option>
+                </select>
+              </div>
 
-              <button
-                type="button"
-                onClick={() => setActiveEtapaAcoes('planos_mestres')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-2 shrink-0 transition cursor-pointer select-none ${
-                  activeEtapaAcoes === 'planos_mestres'
-                    ? 'bg-slate-900 text-white shadow-xs'
-                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                }`}
-              >
-                <FolderKanban className="w-3.5 h-3.5" />
-                <span>Lista de Planos</span>
-                <span className={`text-[11px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
-                  activeEtapaAcoes === 'planos_mestres' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-800'
-                }`}>
-                  {etapaCounts.planos}
-                </span>
-              </button>
+              {/* Filtro: Tipo de Ação */}
+              <div className="xl:col-span-2 lg:col-span-2 sm:col-span-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Tipo Ação
+                </label>
+                <select
+                  value={filterTipoAcao}
+                  onChange={e => setFilterTipoAcao(e.target.value)}
+                  className="form-select w-full text-xs h-8 px-2 bg-slate-50 border-slate-200 rounded-lg text-slate-700 font-medium"
+                >
+                  <option value="Todos">Todos</option>
+                  <option value="CONTENÇÃO">Contenção</option>
+                  <option value="CORRETIVA">Corretiva</option>
+                  <option value="PREVENTIVA">Preventiva</option>
+                  <option value="MELHORIA">Melhoria</option>
+                </select>
+              </div>
+
+              {/* Filtro: Responsável pelo Plano (NOVO!) */}
+              <div className="xl:col-span-2 lg:col-span-2 sm:col-span-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1 truncate" title="Responsável pelo Plano">
+                  Resp. Plano
+                </label>
+                <select
+                  value={filterResponsavelPlano}
+                  onChange={e => setFilterResponsavelPlano(e.target.value)}
+                  className="form-select w-full text-xs h-8 px-2 bg-slate-50 border-slate-200 rounded-lg text-slate-700 font-medium"
+                >
+                  <option value="Todos">Todos Responsáveis</option>
+                  {listaResponsaveisPlanos.map(resp => (
+                    <option key={resp} value={resp}>
+                      {normalizeDisplayText(resp)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Alternador Meus Planos & Limpar */}
+              <div className="xl:col-span-1 lg:col-span-1 sm:col-span-1 flex items-center gap-1.5">
+                <div className="w-full">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1 opacity-0 pointer-events-none select-none">
+                    Filtro
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setFilterSomenteMinhas(!filterSomenteMinhas)}
+                    title={filterSomenteMinhas ? 'Exibindo apenas seus planos' : 'Filtrar planos com ações suas'}
+                    className={`h-8 px-2.5 text-xs font-semibold rounded-lg border transition-colors flex items-center justify-center gap-1 w-full ${
+                      filterSomenteMinhas
+                        ? 'bg-blue-50 text-[#0b5796] border-blue-300 shadow-2xs'
+                        : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    <User className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">Meus</span>
+                  </button>
+                </div>
+
+                {(searchQuery || filterPrograma !== 'Todos' || filterPrioridade !== 'Todas' || filterTipoAcao !== 'Todos' || filterResponsavelPlano !== 'Todos' || filterSomenteMinhas) && (
+                  <div className="shrink-0">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1 opacity-0 pointer-events-none select-none">
+                      Limpar
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearchQuery('');
+                        setFilterPrograma('Todos');
+                        setFilterPrioridade('Todas');
+                        setFilterTipoAcao('Todos');
+                        setFilterResponsavelPlano('Todos');
+                        setFilterSomenteMinhas(false);
+                      }}
+                      title="Limpar todos os filtros"
+                      className="h-8 px-2 text-xs font-bold rounded-lg border border-slate-200 bg-slate-50 hover:bg-rose-50 text-slate-500 hover:text-rose-600 transition flex items-center justify-center cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -1305,328 +1950,8 @@ export const PlanoAcaoView: React.FC<PlanoAcaoViewProps> = ({
             </div>
           </div>
 
-          {/* 4. BARRA DE FILTROS & BUSCA */}
-          <div className="card-saas p-3 sm:p-4 border-slate-200 bg-white shadow-2xs flex flex-col gap-3">
-            <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-              {/* Campo de Busca */}
-              <div className="relative flex-1">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                <input
-                  type="text"
-                  placeholder="Buscar plano por problema, produto, posto, código ou contramedida..."
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  className="form-input w-full text-xs pl-9 pr-3 py-2 bg-slate-50 border-slate-200 rounded-lg"
-                />
-              </div>
-
-              {/* Filtros em linha */}
-              <div className="flex items-center gap-2 flex-wrap">
-                {/* Programa / Indicador */}
-                <div className="flex items-center gap-1.5 text-xs text-slate-600">
-                  <span className="font-semibold hidden lg:inline">Programa:</span>
-                  <select
-                    value={filterPrograma}
-                    onChange={e => setFilterPrograma(e.target.value)}
-                    className="form-select text-xs py-1.5 px-2 bg-slate-50 border-slate-200 rounded-lg"
-                  >
-                    {PROGRAMAS_LIST.map(prog => (
-                      <option key={prog} value={prog}>{prog}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Prioridade */}
-                <div className="flex items-center gap-1.5 text-xs text-slate-600">
-                  <span className="font-semibold hidden lg:inline">Prioridade:</span>
-                  <select
-                    value={filterPrioridade}
-                    onChange={e => setFilterPrioridade(e.target.value)}
-                    className="form-select text-xs py-1.5 px-2 bg-slate-50 border-slate-200 rounded-lg"
-                  >
-                    <option value="Todas">Todas</option>
-                    <option value="Alta">Alta</option>
-                    <option value="Média">Média</option>
-                    <option value="Baixa">Baixa</option>
-                  </select>
-                </div>
-
-                {/* Tipo de Ação */}
-                <div className="flex items-center gap-1.5 text-xs text-slate-600">
-                  <span className="font-semibold hidden lg:inline">Tipo Ação:</span>
-                  <select
-                    value={filterTipoAcao}
-                    onChange={e => setFilterTipoAcao(e.target.value)}
-                    className="form-select text-xs py-1.5 px-2 bg-slate-50 border-slate-200 rounded-lg"
-                  >
-                    <option value="Todos">Todos</option>
-                    <option value="CONTENÇÃO">Contenção</option>
-                    <option value="CORRETIVA">Corretiva</option>
-                    <option value="PREVENTIVA">Preventiva</option>
-                    <option value="MELHORIA">Melhoria</option>
-                  </select>
-                </div>
-
-                {/* Alternador Minhas Ações */}
-                <button
-                  type="button"
-                  onClick={() => setFilterSomenteMinhas(!filterSomenteMinhas)}
-                  className={`h-8 px-2.5 text-xs font-semibold rounded-lg border transition-colors flex items-center gap-1.5 ${
-                    filterSomenteMinhas
-                      ? 'bg-blue-50 text-[#0b5796] border-blue-300'
-                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  <User className="w-3.5 h-3.5" />
-                  <span>Meus Planos</span>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* 5. VISUALIZAÇÃO: LISTA DE PLANOS vs KANBAN DE PLANOS vs TABELA DE AÇÕES */}
-          {activeEtapaAcoes === 'planos_mestres' ? (
-            /* ======================== VISÃO LISTA DE PLANOS ======================== */
-            <div className="flex flex-col gap-4">
-              <div className="flex items-center justify-between bg-white p-3.5 rounded-xl border border-slate-200">
-                <div>
-                  <h2 className="text-sm font-bold text-slate-900">Planos de Ação</h2>
-                  <p className="text-xs text-slate-500">Relação de planos de ação e acompanhamento das contramedidas</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setModalNovoPlanoOpen(true)}
-                  className="btn-primary h-8 px-3 text-xs font-semibold gap-1.5 bg-[#0b5796] text-white shrink-0"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Novo Plano</span>
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 gap-3.5">
-                {enrichedPlans.length === 0 ? (
-                  <div className="p-12 text-center bg-white rounded-2xl border border-dashed border-slate-300">
-                    <FolderKanban className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-                    <p className="text-sm font-bold text-slate-700">Nenhum plano de ação cadastrado</p>
-                    <button
-                      type="button"
-                      onClick={() => setModalNovoPlanoOpen(true)}
-                      className="mt-3 btn-primary h-8 px-4 text-xs font-semibold bg-[#0b5796] text-white inline-flex items-center gap-1.5"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Cadastrar Primeiro Plano</span>
-                    </button>
-                  </div>
-                ) : (
-                  enrichedPlans.map(plano => {
-                    const acoesDoPlano = plano.actions;
-                    const concluidasOuValidadas = plano.concluidasCount + plano.validadasCount;
-                    const progresso = plano.progresso;
-                    const isExpanded = expandedPlanId === plano.id;
-
-                    return (
-                      <div key={plano.id} className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden transition-all hover:border-blue-200">
-                        <div className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50/50 border-b border-slate-100">
-                          <div className="flex items-start gap-3 flex-1 min-w-0">
-                            <div className="w-9 h-9 rounded-xl bg-blue-100 text-[#0b5796] font-mono font-bold text-xs flex items-center justify-center shrink-0 border border-blue-200">
-                              #{plano.id}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
-                                  plano.computedStatus === 'Validado' ? 'bg-emerald-50 text-emerald-800 border-emerald-300' :
-                                  plano.computedStatus === 'Concluído' ? 'bg-amber-50 text-amber-800 border-amber-300' :
-                                  plano.computedStatus === 'Atrasado' ? 'bg-rose-50 text-rose-800 border-rose-300' :
-                                  'bg-blue-50 text-blue-800 border-blue-200'
-                                }`}>
-                                  Status: {plano.computedStatus}
-                                </span>
-                                <span className="text-xs font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-800 border border-slate-200">
-                                  {plano.indicador_programa_estrategico}
-                                </span>
-                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
-                                  plano.prioridade === 'Alta' ? 'bg-rose-50 text-rose-700 border-rose-200' :
-                                  plano.prioridade === 'Média' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                                  'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                }`}>
-                                  Prioridade {plano.prioridade}
-                                </span>
-                                {plano.idprograma && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleNavigateTo8D(plano.idprograma)}
-                                    className="font-mono text-xs font-bold text-blue-700 hover:underline flex items-center gap-1 bg-white px-2 py-0.5 rounded border border-blue-200 cursor-pointer"
-                                  >
-                                    <span>Vínculo: {formatOccurrenceId(plano.idprograma)}</span>
-                                    <ExternalLink className="w-3 h-3" />
-                                  </button>
-                                )}
-                                {plano.setor_ && (
-                                  <span className="text-xs text-slate-500">Setor: {plano.setor_}</span>
-                                )}
-                              </div>
-                              <h3 className="text-sm font-semibold text-slate-900 mt-1 line-clamp-2">
-                                {plano.descricao_problema_oportunidade}
-                              </h3>
-                              {(plano.produto_ || plano.posto_ || plano.sub1) && (
-                                <div className="flex items-center gap-3 text-xs text-slate-500 mt-1 flex-wrap">
-                                  {plano.produto_ && <span>Produto: <strong className="text-slate-700">{plano.produto_}</strong></span>}
-                                  {plano.posto_ && <span>Posto: <strong className="text-slate-700">{plano.posto_}</strong></span>}
-                                  {plano.sub1 && <span>Subconjunto: <strong className="text-slate-700">{plano.sub1}</strong></span>}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Progresso e Controles */}
-                          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 shrink-0">
-                            <div className="w-40 flex flex-col gap-1">
-                              <div className="flex justify-between text-[11px] font-semibold text-slate-600">
-                                <span>Progresso</span>
-                                <span className="font-mono font-bold text-slate-800">{progresso}% ({concluidasOuValidadas}/{acoesDoPlano.length})</span>
-                              </div>
-                              <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
-                                <div 
-                                  className={`h-2 rounded-full transition-all ${
-                                    plano.computedStatus === 'Atrasado' ? 'bg-rose-500' :
-                                    progresso === 100 ? 'bg-emerald-500' : progresso > 0 ? 'bg-blue-600' : 'bg-slate-300'
-                                  }`} 
-                                  style={{ width: `${progresso}%` }}
-                                />
-                              </div>
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={() => handleOpenSingleScreen(plano.id)}
-                                className="btn-primary h-8 px-3 text-xs font-semibold gap-1.5 bg-[#0b5796] text-white"
-                              >
-                                <FolderKanban className="w-3.5 h-3.5" />
-                                <span>Abrir Plano</span>
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => setExpandedPlanId(isExpanded ? null : plano.id)}
-                                className="btn-secondary h-8 px-3 text-xs font-semibold gap-1 text-slate-700"
-                              >
-                                <span>{acoesDoPlano.length} {acoesDoPlano.length === 1 ? 'Ação' : 'Ações'}</span>
-                                <ChevronRight className={`w-3.5 h-3.5 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Gaveta de Ações do Plano */}
-                        {isExpanded && (
-                          <div className="p-4 bg-slate-50/70 border-t border-slate-200 flex flex-col gap-2.5">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-bold text-slate-700">Ações deste Plano ({acoesDoPlano.length})</span>
-                            </div>
-
-                            {acoesDoPlano.length === 0 ? (
-                              <div className="p-6 text-center text-xs text-slate-500 bg-white rounded-xl border border-dashed border-slate-200">
-                                Nenhuma ação registrada para este plano ainda.
-                              </div>
-                            ) : (
-                              <div className="overflow-x-auto bg-white rounded-xl border border-slate-200">
-                                <table className="w-full text-left border-collapse text-xs">
-                                  <thead>
-                                    <tr className="bg-slate-100/80 text-slate-600 font-semibold border-b border-slate-200">
-                                      <th className="py-2 px-3">Tipo</th>
-                                      <th className="py-2 px-3">Contramedida</th>
-                                      <th className="py-2 px-3">Responsável</th>
-                                      <th className="py-2 px-3">Prazo</th>
-                                      <th className="py-2 px-3">Diretivas</th>
-                                      <th className="py-2 px-3">Status</th>
-                                      <th className="py-2 px-3 text-right">Ações</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody className="divide-y divide-slate-100">
-                                    {acoesDoPlano.map(acao => (
-                                      <tr key={acao.id} className="hover:bg-slate-50">
-                                        <td className="py-2.5 px-3">
-                                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
-                                            acao.tipo_acao === 'CONTENÇÃO' ? 'bg-amber-50 text-amber-800 border-amber-200' :
-                                            acao.tipo_acao === 'CORRETIVA' ? 'bg-blue-50 text-blue-800 border-blue-200' :
-                                            acao.tipo_acao === 'PREVENTIVA' ? 'bg-teal-50 text-teal-800 border-teal-200' :
-                                            'bg-purple-50 text-purple-800 border-purple-200'
-                                          }`}>
-                                            {acao.tipo_acao}
-                                          </span>
-                                        </td>
-                                        <td className="py-2.5 px-3">
-                                          <p className="font-semibold text-slate-800 max-w-sm line-clamp-2">{acao.contra_medida}</p>
-                                          {acao.causa && <span className="text-[10px] text-slate-500 block">Causa: {acao.causa}</span>}
-                                        </td>
-                                        <td className="py-2.5 px-3 font-medium text-slate-700">{acao.responsavel_acao}</td>
-                                        <td className="py-2.5 px-3 font-mono text-slate-600">{formatDateBR(acao.data_planejada)}</td>
-                                        <td className="py-2.5 px-3">
-                                          <div className="flex items-center gap-1">
-                                            {acao.yokoten === 'SIM' && (
-                                              <span className="px-1.5 py-0.2 bg-purple-50 text-purple-700 border border-purple-200 rounded text-[9px] font-bold">YOKOTEN</span>
-                                            )}
-                                            {acao.poka_yoke === 'SIM' && (
-                                              <span className="px-1.5 py-0.2 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded text-[9px] font-bold">POKA-YOKE</span>
-                                            )}
-                                          </div>
-                                        </td>
-                                        <td className="py-2.5 px-3">
-                                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
-                                            acao.status === 'Validado' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
-                                            acao.status === 'Concluído' ? 'bg-amber-50 text-amber-800 border-amber-200' :
-                                            acao.status === 'Atrasado' ? 'bg-rose-50 text-rose-800 border-rose-200' :
-                                            'bg-blue-50 text-blue-800 border-blue-200'
-                                          }`}>
-                                            {acao.status}
-                                          </span>
-                                        </td>
-                                        <td className="py-2.5 px-3 text-right">
-                                          <div className="flex items-center justify-end gap-1.5">
-                                            <button
-                                              type="button"
-                                              onClick={() => handleOpenSingleScreen(plano.id, acao)}
-                                              className="btn-secondary h-7 px-2 text-[11px] font-semibold text-[#0b5796] border-blue-200 hover:bg-blue-50"
-                                            >
-                                              Detalhes
-                                            </button>
-                                            {acao.status === 'Aberto' || acao.status === 'Atrasado' ? (
-                                              <button
-                                                type="button"
-                                                onClick={() => setModalConcluirOpen(acao)}
-                                                className="btn-secondary h-7 px-2.5 text-[11px] font-semibold text-emerald-700 border-emerald-200 hover:bg-emerald-50"
-                                              >
-                                                Concluir
-                                              </button>
-                                            ) : acao.status === 'Concluído' ? (
-                                              <button
-                                                type="button"
-                                                onClick={() => setModalValidarOpen(acao)}
-                                                className="btn-secondary h-7 px-2.5 text-[11px] font-semibold text-amber-700 border-amber-200 hover:bg-amber-50"
-                                              >
-                                                Validar
-                                              </button>
-                                            ) : (
-                                              <span className="text-emerald-700 text-xs font-semibold">Homologado</span>
-                                            )}
-                                          </div>
-                                        </td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-          ) : viewMode === 'kanban' ? (
+          {/* 5. VISUALIZAÇÃO: KANBAN vs LISTA DE PLANOS */}
+          {viewMode === 'kanban' ? (
             /* ======================== QUADRO KANBAN DE PLANOS ======================== */
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 items-start">
               {kanbanPlanColumns.map(col => (
@@ -1786,14 +2111,24 @@ export const PlanoAcaoView: React.FC<PlanoAcaoViewProps> = ({
 
                             {/* 5. Botão para Abrir Tela Única do Plano + Lista Expansível das Ações */}
                             <div className="flex flex-col gap-1.5 pt-1">
-                              <button
-                                type="button"
-                                onClick={() => handleOpenSingleScreen(plano.id)}
-                                className="w-full h-8 px-3 rounded-lg bg-[#0b5796] hover:bg-[#09477d] text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs transition cursor-pointer"
-                              >
-                                <FolderKanban className="w-3.5 h-3.5" />
-                                <span>Abrir Plano &amp; Ações em Tela Única</span>
-                              </button>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenSingleScreen(plano.id)}
+                                  className="flex-1 h-8 px-3 rounded-lg bg-[#0b5796] hover:bg-[#09477d] text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs transition cursor-pointer"
+                                >
+                                  <FolderKanban className="w-3.5 h-3.5" />
+                                  <span>Abrir Plano</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenEditPlanModal(plano)}
+                                  title="Editar Plano"
+                                  className="h-8 px-2.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-bold flex items-center justify-center gap-1 transition cursor-pointer"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
 
                               <div className="flex items-center justify-between pt-1">
                                 <button
@@ -1807,14 +2142,7 @@ export const PlanoAcaoView: React.FC<PlanoAcaoViewProps> = ({
 
                                 <button
                                   type="button"
-                                  onClick={() => {
-                                    setFormAcao(prev => ({
-                                      ...prev,
-                                      id_rel2: plano.id,
-                                      id_programa_acoes: plano.idprograma || ''
-                                    }));
-                                    setModalNovaAcaoOpen(true);
-                                  }}
+                                  onClick={() => handleOpenNewActionModal(plano)}
                                   className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-50 text-[#0b5796] border border-blue-200 hover:bg-blue-100 flex items-center gap-0.5 cursor-pointer"
                                 >
                                   <Plus className="w-3 h-3" />
@@ -1824,85 +2152,113 @@ export const PlanoAcaoView: React.FC<PlanoAcaoViewProps> = ({
 
                               {isPlanExpanded && (
                                 <div className="flex flex-col gap-1.5 mt-1 pt-2 border-t border-slate-100 max-h-64 overflow-y-auto pr-0.5">
-                                  {plano.actions.map(acao => (
-                                    <div
-                                      key={acao.id}
-                                      className={`p-2 rounded-lg border text-[11px] flex flex-col gap-1 ${
-                                        acao.status === 'Atrasado'
-                                          ? 'bg-rose-50/60 border-rose-200'
-                                          : acao.status === 'Validado'
-                                          ? 'bg-emerald-50/50 border-emerald-200'
-                                          : acao.status === 'Concluído'
-                                          ? 'bg-amber-50/50 border-amber-200'
-                                          : 'bg-slate-50 border-slate-200'
-                                      }`}
-                                    >
-                                      <div className="flex items-center justify-between gap-1">
-                                        <span className="font-bold text-[9px] px-1.5 py-0.2 rounded bg-white border border-slate-200 text-slate-700">
-                                          {acao.tipo_acao}
-                                        </span>
-                                        <span className={`font-bold text-[9px] px-1.5 py-0.2 rounded ${
+                                  {plano.actions.map(acao => {
+                                    const allowEditDelete = canEditOrDeleteAction(plano);
+                                    const allowConclude = canConcludeAction(plano, acao);
+                                    const allowValidate = canValidateAction(plano);
+
+                                    return (
+                                      <div
+                                        key={acao.id}
+                                        className={`p-2 rounded-lg border text-[11px] flex flex-col gap-1 ${
                                           acao.status === 'Atrasado'
-                                            ? 'bg-rose-600 text-white'
+                                            ? 'bg-rose-50/60 border-rose-200'
                                             : acao.status === 'Validado'
-                                            ? 'bg-emerald-600 text-white'
+                                            ? 'bg-emerald-50/50 border-emerald-200'
                                             : acao.status === 'Concluído'
-                                            ? 'bg-amber-500 text-white'
-                                            : 'bg-blue-600 text-white'
-                                        }`}>
-                                          {acao.status}
-                                        </span>
-                                      </div>
-                                      <p className="font-semibold text-slate-800 leading-tight">
-                                        {acao.contra_medida}
-                                      </p>
-                                      <div className="flex items-center justify-between text-[10px] text-slate-500 pt-0.5">
-                                        <span className="truncate max-w-[110px]">{normalizeDisplayText(acao.responsavel_acao)}</span>
-                                        <span className="font-mono">{formatDateBR(acao.data_planejada)}</span>
-                                      </div>
-                                      <div className="flex items-center gap-1 mt-1">
-                                        <button
-                                          type="button"
-                                          onClick={() => handleOpenSingleScreen(plano.id, acao)}
-                                          className="btn-secondary h-6 px-2 text-[10px] font-bold text-[#0b5796] border-blue-200 hover:bg-blue-50 flex-1 justify-center"
-                                        >
-                                          Tela da Ação
-                                        </button>
-                                        {(acao.status === 'Aberto' || acao.status === 'Atrasado') && (
+                                            ? 'bg-amber-50/50 border-amber-200'
+                                            : 'bg-slate-50 border-slate-200'
+                                        }`}
+                                      >
+                                        <div className="flex items-center justify-between gap-1">
+                                          <span className="font-bold text-[9px] px-1.5 py-0.2 rounded bg-white border border-slate-200 text-slate-700">
+                                            {acao.tipo_acao}
+                                          </span>
+                                          <span className={`font-bold text-[9px] px-1.5 py-0.2 rounded ${
+                                            acao.status === 'Atrasado'
+                                              ? 'bg-rose-600 text-white'
+                                              : acao.status === 'Validado'
+                                              ? 'bg-emerald-600 text-white'
+                                              : acao.status === 'Concluído'
+                                              ? 'bg-amber-500 text-white'
+                                              : 'bg-blue-600 text-white'
+                                          }`}>
+                                            {acao.status}
+                                          </span>
+                                        </div>
+                                        <p className="font-semibold text-slate-800 leading-tight">
+                                          {acao.contra_medida}
+                                        </p>
+                                        <div className="flex items-center justify-between text-[10px] text-slate-500 pt-0.5">
+                                          <span className="truncate max-w-[110px]">{normalizeDisplayText(acao.responsavel_acao)}</span>
+                                          <span className="font-mono">{formatDateBR(acao.data_planejada)}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1 mt-1 flex-wrap">
                                           <button
                                             type="button"
-                                            onClick={() => {
-                                              setModalConcluirOpen(acao);
-                                              setFormConclusao({
-                                                dataConclusao: new Date().toISOString().split('T')[0],
-                                                comentarios: acao.comentarios_evidencia || '',
-                                                anexoUrl: ''
-                                              });
-                                            }}
-                                            className="btn-secondary h-6 px-2 text-[10px] font-bold text-emerald-700 border-emerald-200 hover:bg-emerald-50 flex-1 justify-center"
+                                            onClick={() => handleOpenSingleScreen(plano.id, acao)}
+                                            className="btn-secondary h-6 px-2 text-[10px] font-bold text-[#0b5796] border-blue-200 hover:bg-blue-50 flex-1 justify-center"
                                           >
-                                            Concluir
+                                            Detalhes
                                           </button>
-                                        )}
-                                        {acao.status === 'Concluído' && isQualidade && (
                                           <button
                                             type="button"
-                                            onClick={() => {
-                                              setModalValidarOpen(acao);
-                                              setFormValidacao({
-                                                status: 'Validado',
-                                                comentarios: '',
-                                                motivoRevisao: ''
-                                              });
-                                            }}
-                                            className="btn-primary h-6 px-2 text-[10px] font-bold bg-[#0b5796] text-white flex-1 justify-center"
+                                            disabled={!allowEditDelete}
+                                            onClick={() => handleOpenEditActionModal(plano, acao)}
+                                            title={allowEditDelete ? 'Editar ação' : `Somente o responsável pelo plano (${plano.responsavel_abertura}) pode editar`}
+                                            className="btn-secondary h-6 px-1.5 text-[10px] font-bold text-slate-700 border-slate-200 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
                                           >
-                                            Validar
+                                            <Pencil className="w-3 h-3" />
                                           </button>
-                                        )}
+                                          <button
+                                            type="button"
+                                            disabled={!allowEditDelete}
+                                            onClick={() => setActionToDelete(acao)}
+                                            title={allowEditDelete ? 'Excluir ação' : `Somente o responsável pelo plano (${plano.responsavel_abertura}) pode excluir`}
+                                            className="btn-secondary h-6 px-1.5 text-[10px] font-bold text-rose-700 border-rose-200 hover:bg-rose-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                                          >
+                                            <Trash2 className="w-3 h-3" />
+                                          </button>
+                                          {(acao.status === 'Aberto' || acao.status === 'Atrasado') && (
+                                            <button
+                                              type="button"
+                                              disabled={!allowConclude}
+                                              onClick={() => {
+                                                setModalConcluirOpen(acao);
+                                                setFormConclusao({
+                                                  dataConclusao: new Date().toISOString().split('T')[0],
+                                                  comentarios: acao.comentarios_evidencia || '',
+                                                  anexos: []
+                                                });
+                                              }}
+                                              title={allowConclude ? 'Concluir ação' : `Somente o responsável pela execução (${acao.responsavel_acao}) ou do plano (${plano.responsavel_abertura}) pode concluir`}
+                                              className="btn-secondary h-6 px-2 text-[10px] font-bold text-emerald-700 border-emerald-200 hover:bg-emerald-50 flex-1 justify-center disabled:opacity-40 disabled:cursor-not-allowed"
+                                            >
+                                              Concluir
+                                            </button>
+                                          )}
+                                          {acao.status === 'Concluído' && (
+                                            <button
+                                              type="button"
+                                              disabled={!allowValidate}
+                                              onClick={() => {
+                                                setModalValidarOpen(acao);
+                                                setFormValidacao({
+                                                  status: 'Validado',
+                                                  comentarios: '',
+                                                  motivoRevisao: ''
+                                                });
+                                              }}
+                                              title={allowValidate ? 'Validar ação' : `Somente o responsável pelo plano (${plano.responsavel_abertura}) pode validar`}
+                                              className="btn-primary h-6 px-2 text-[10px] font-bold bg-[#0b5796] text-white flex-1 justify-center disabled:opacity-40 disabled:cursor-not-allowed"
+                                            >
+                                              Validar
+                                            </button>
+                                          )}
+                                        </div>
                                       </div>
-                                    </div>
-                                  ))}
+                                    );
+                                  })}
                                 </div>
                               )}
                             </div>
@@ -1915,316 +2271,526 @@ export const PlanoAcaoView: React.FC<PlanoAcaoViewProps> = ({
               ))}
             </div>
           ) : (
-            /* ======================== LISTA DETALHADA TABULAR ======================== */
-            <div className="card-saas border-slate-200 overflow-hidden shadow-2xs bg-white">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50 text-slate-700 font-semibold border-b border-slate-200 select-none">
-                      <th className="py-3 px-4">Plano / Vínculo</th>
-                      <th className="py-3 px-4">Contramedida &amp; Causa</th>
-                      <th className="py-3 px-4">Tipo</th>
-                      <th className="py-3 px-4">Responsável</th>
-                      <th className="py-3 px-4">Prazo Final</th>
-                      <th className="py-3 px-4">Status</th>
-                      <th className="py-3 px-4 text-right">Operações</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {filteredActions.length === 0 ? (
-                      <tr>
-                        <td colSpan={7} className="py-12 text-center text-slate-400">
-                          Nenhuma ação encontrada com os filtros selecionados.
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredActions.map(acao => (
-                        <tr key={acao.id} className="hover:bg-slate-50/80 transition-colors">
-                          <td className="py-3 px-4 font-mono font-bold text-slate-900">
-                            <div className="flex flex-col gap-0.5 items-start">
-                              <button
-                                type="button"
-                                onClick={() => handleOpenSingleScreen(acao.id_rel2, acao)}
-                                className="text-[11px] font-bold text-slate-800 hover:text-[#0b5796] hover:underline cursor-pointer"
-                              >
-                                Plano #{acao.id_rel2}
-                              </button>
-                              {acao.id_programa_acoes && (
+            /* ======================== VISÃO LISTA DE PLANOS ======================== */
+            <div className="flex flex-col gap-3.5">
+              {filteredPlans.length === 0 ? (
+                <div className="p-12 text-center bg-white rounded-2xl border border-dashed border-slate-300">
+                  <FolderKanban className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+                  <p className="text-sm font-bold text-slate-700">Nenhum plano de ação encontrado</p>
+                  <button
+                    type="button"
+                    onClick={handleOpenNewPlanModal}
+                    className="mt-3 btn-primary h-8 px-4 text-xs font-semibold bg-[#0b5796] text-white inline-flex items-center gap-1.5"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Novo Plano</span>
+                  </button>
+                </div>
+              ) : (
+                filteredPlans.map(plano => {
+                  const acoesDoPlano = plano.actions;
+                  const concluidasOuValidadas = plano.concluidasCount + plano.validadasCount;
+                  const progresso = plano.progresso;
+                  const isExpanded = expandedPlanId === plano.id;
+
+                  return (
+                    <div key={plano.id} className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden transition-all hover:border-blue-200">
+                      <div className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50/50 border-b border-slate-100">
+                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                          <div className="w-9 h-9 rounded-xl bg-blue-100 text-[#0b5796] font-mono font-bold text-xs flex items-center justify-center shrink-0 border border-blue-200">
+                            #{plano.id}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                                plano.computedStatus === 'Validado' ? 'bg-emerald-50 text-emerald-800 border-emerald-300' :
+                                plano.computedStatus === 'Concluído' ? 'bg-amber-50 text-amber-800 border-amber-300' :
+                                plano.computedStatus === 'Atrasado' ? 'bg-rose-50 text-rose-800 border-rose-300' :
+                                'bg-blue-50 text-blue-800 border-blue-200'
+                              }`}>
+                                Status: {plano.computedStatus}
+                              </span>
+                              <span className="text-xs font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-800 border border-slate-200">
+                                {plano.indicador_programa_estrategico}
+                              </span>
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                                plano.prioridade === 'Alta' ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                                plano.prioridade === 'Média' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                                'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              }`}>
+                                Prioridade {plano.prioridade}
+                              </span>
+                              {plano.idprograma && (
                                 <button
                                   type="button"
-                                  onClick={() => handleNavigateTo8D(acao.id_programa_acoes)}
-                                  className="text-blue-700 hover:underline flex items-center gap-1 cursor-pointer text-[11px]"
+                                  onClick={() => handleNavigateTo8D(plano.idprograma)}
+                                  className="font-mono text-xs font-bold text-blue-700 hover:underline flex items-center gap-1 bg-white px-2 py-0.5 rounded border border-blue-200 cursor-pointer"
                                 >
-                                  <span>{formatOccurrenceId(acao.id_programa_acoes)}</span>
+                                  <span>Vínculo: {formatOccurrenceId(plano.idprograma)}</span>
                                   <ExternalLink className="w-3 h-3" />
                                 </button>
                               )}
+                              {plano.setor_ && (
+                                <span className="text-xs text-slate-500">Setor: {plano.setor_}</span>
+                              )}
+                              <span className="text-xs text-slate-500">
+                                Responsável do Plano: <strong className="text-slate-700">{plano.responsavel_abertura}</strong>
+                              </span>
                             </div>
-                          </td>
-                          <td className="py-3 px-4 max-w-[320px]">
-                            <div className="font-bold text-slate-900 truncate" title={acao.contra_medida}>
-                              {acao.contra_medida}
-                            </div>
-                            {acao.causa && (
-                              <div className="text-[11px] text-slate-500 truncate" title={acao.causa}>
-                                Causa: {acao.causa}
+                            <h3 className="text-sm font-semibold text-slate-900 mt-1 line-clamp-2">
+                              {plano.descricao_problema_oportunidade}
+                            </h3>
+                            {(plano.produto_ || plano.posto_ || plano.sub1) && (
+                              <div className="flex items-center gap-3 text-xs text-slate-500 mt-1 flex-wrap">
+                                {plano.produto_ && <span>Produto: <strong className="text-slate-700">{plano.produto_}</strong></span>}
+                                {plano.posto_ && <span>Posto: <strong className="text-slate-700">{plano.posto_}</strong></span>}
+                                {plano.sub1 && <span>Subindicador: <strong className="text-slate-700">{plano.sub1}</strong></span>}
                               </div>
                             )}
-                          </td>
-                          <td className="py-3 px-4">
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
-                              {acao.tipo_acao}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 text-slate-700 font-medium">
-                            {normalizeDisplayText(acao.responsavel_acao)}
-                          </td>
-                          <td className="py-3 px-4 font-mono tabular-nums">
-                            <span className={acao.status === 'Atrasado' ? 'text-rose-600 font-bold' : 'text-slate-700'}>
-                              {formatDateBR(acao.data_planejada)}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4">
-                            <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold border ${
-                              acao.status === 'Concluído' ? 'bg-amber-50 text-amber-800 border-amber-200' :
-                              acao.status === 'Validado' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
-                              acao.status === 'Atrasado' ? 'bg-rose-50 text-rose-800 border-rose-200' :
-                              'bg-blue-50 text-blue-800 border-blue-200'
-                            }`}>
-                              {acao.status}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 text-right">
-                            <div className="flex items-center justify-end gap-1.5">
-                              <button
-                                type="button"
-                                onClick={() => handleOpenSingleScreen(acao.id_rel2, acao)}
-                                className="btn-secondary h-7 px-2.5 text-xs font-semibold text-[#0b5796] border-blue-200 hover:bg-blue-50"
-                              >
-                                Tela da Ação / Plano
-                              </button>
+                          </div>
+                        </div>
 
-                              {acao.status === 'Aberto' || acao.status === 'Atrasado' ? (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setModalConcluirOpen(acao);
-                                    setFormConclusao({
-                                      dataConclusao: new Date().toISOString().split('T')[0],
-                                      comentarios: acao.comentarios_evidencia || '',
-                                      anexoUrl: ''
-                                    });
-                                  }}
-                                  className="btn-secondary h-7 px-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 border-emerald-200"
-                                >
-                                  Concluir
-                                </button>
-                              ) : acao.status === 'Concluído' ? (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setModalValidarOpen(acao);
-                                    setFormValidacao({
-                                      status: 'Validado',
-                                      comentarios: '',
-                                      motivoRevisao: ''
-                                    });
-                                  }}
-                                  className="btn-primary h-7 px-2 text-xs font-semibold bg-[#0b5796]"
-                                >
-                                  Validar
-                                </button>
-                              ) : (
-                                <span className="text-emerald-700 text-xs font-semibold px-1">OK</span>
-                              )}
+                        {/* Progresso e Controles */}
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 shrink-0">
+                          <div className="w-40 flex flex-col gap-1">
+                            <div className="flex justify-between text-[11px] font-semibold text-slate-600">
+                              <span>Progresso</span>
+                              <span className="font-mono font-bold text-slate-800">{progresso}% ({concluidasOuValidadas}/{acoesDoPlano.length})</span>
                             </div>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                            <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                              <div 
+                                className={`h-2 rounded-full transition-all ${
+                                  plano.computedStatus === 'Atrasado' ? 'bg-rose-500' :
+                                  progresso === 100 ? 'bg-emerald-500' : progresso > 0 ? 'bg-blue-600' : 'bg-slate-300'
+                                }`} 
+                                style={{ width: `${progresso}%` }}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenSingleScreen(plano.id)}
+                              className="btn-primary h-8 px-3 text-xs font-semibold gap-1.5 bg-[#0b5796] text-white"
+                            >
+                              <FolderKanban className="w-3.5 h-3.5" />
+                              <span>Abrir Plano</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditPlanModal(plano)}
+                              className="btn-secondary h-8 px-2.5 text-xs font-semibold gap-1 text-[#0b5796] border-blue-200 hover:bg-blue-50"
+                              title="Editar Plano"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                              <span>Editar</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setExpandedPlanId(isExpanded ? null : plano.id)}
+                              className="btn-secondary h-8 px-3 text-xs font-semibold gap-1 text-slate-700"
+                            >
+                              <span>{acoesDoPlano.length} {acoesDoPlano.length === 1 ? 'Ação' : 'Ações'}</span>
+                              <ChevronRight className={`w-3.5 h-3.5 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Gaveta de Ações do Plano */}
+                      {isExpanded && (
+                        <div className="p-4 bg-slate-50/70 border-t border-slate-200 flex flex-col gap-2.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-700">Ações deste Plano ({acoesDoPlano.length})</span>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenNewActionModal(plano)}
+                              className="btn-secondary h-7 px-2.5 text-xs font-semibold text-[#0b5796] border-blue-200 hover:bg-blue-50 flex items-center gap-1"
+                            >
+                              <Plus className="w-3 h-3" />
+                              <span>Nova Ação</span>
+                            </button>
+                          </div>
+
+                          {acoesDoPlano.length === 0 ? (
+                            <div className="p-6 text-center text-xs text-slate-500 bg-white rounded-xl border border-dashed border-slate-200">
+                              Nenhuma ação registrada para este plano ainda.
+                            </div>
+                          ) : (
+                            <div className="overflow-x-auto bg-white rounded-xl border border-slate-200">
+                              <table className="w-full text-left border-collapse text-xs">
+                                <thead>
+                                  <tr className="bg-slate-100/80 text-slate-600 font-semibold border-b border-slate-200">
+                                    <th className="py-2 px-3">Tipo</th>
+                                    <th className="py-2 px-3">Contramedida</th>
+                                    <th className="py-2 px-3">Responsável</th>
+                                    <th className="py-2 px-3">Prazo</th>
+                                    <th className="py-2 px-3">Diretivas</th>
+                                    <th className="py-2 px-3">Status</th>
+                                    <th className="py-2 px-3 text-right">Ações</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                  {acoesDoPlano.map(acao => {
+                                    const allowEditDelete = canEditOrDeleteAction(plano);
+                                    const allowConclude = canConcludeAction(plano, acao);
+                                    const allowValidate = canValidateAction(plano);
+
+                                    return (
+                                      <tr key={acao.id} className="hover:bg-slate-50">
+                                        <td className="py-2.5 px-3">
+                                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                                            acao.tipo_acao === 'CONTENÇÃO' ? 'bg-amber-50 text-amber-800 border-amber-200' :
+                                            acao.tipo_acao === 'CORRETIVA' ? 'bg-blue-50 text-blue-800 border-blue-200' :
+                                            acao.tipo_acao === 'PREVENTIVA' ? 'bg-teal-50 text-teal-800 border-teal-200' :
+                                            'bg-purple-50 text-purple-800 border-purple-200'
+                                          }`}>
+                                            {acao.tipo_acao}
+                                          </span>
+                                        </td>
+                                        <td className="py-2.5 px-3">
+                                          <p className="font-semibold text-slate-800 max-w-sm line-clamp-2">{acao.contra_medida}</p>
+                                          {acao.causa && <span className="text-[10px] text-slate-500 block">Causa: {acao.causa}</span>}
+                                        </td>
+                                        <td className="py-2.5 px-3 font-medium text-slate-700">{normalizeDisplayText(acao.responsavel_acao)}</td>
+                                        <td className="py-2.5 px-3 font-mono text-slate-600">{formatDateBR(acao.data_planejada)}</td>
+                                        <td className="py-2.5 px-3">
+                                          <div className="flex items-center gap-1">
+                                            {acao.yokoten === 'SIM' && (
+                                              <span className="px-1.5 py-0.2 bg-purple-50 text-purple-700 border border-purple-200 rounded text-[9px] font-bold">YOKOTEN</span>
+                                            )}
+                                            {acao.poka_yoke === 'SIM' && (
+                                              <span className="px-1.5 py-0.2 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded text-[9px] font-bold">POKA-YOKE</span>
+                                            )}
+                                          </div>
+                                        </td>
+                                        <td className="py-2.5 px-3">
+                                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                                            acao.status === 'Validado' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
+                                            acao.status === 'Concluído' ? 'bg-amber-50 text-amber-800 border-amber-200' :
+                                            acao.status === 'Atrasado' ? 'bg-rose-50 text-rose-800 border-rose-200' :
+                                            'bg-blue-50 text-blue-800 border-blue-200'
+                                          }`}>
+                                            {acao.status}
+                                          </span>
+                                        </td>
+                                        <td className="py-2.5 px-3 text-right">
+                                          <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                                            <button
+                                              type="button"
+                                              onClick={() => handleOpenSingleScreen(plano.id, acao)}
+                                              className="btn-secondary h-7 px-2 text-[11px] font-semibold text-[#0b5796] border-blue-200 hover:bg-blue-50"
+                                            >
+                                              Detalhes
+                                            </button>
+                                            <button
+                                              type="button"
+                                              disabled={!allowEditDelete}
+                                              onClick={() => handleOpenEditActionModal(plano, acao)}
+                                              title={allowEditDelete ? 'Editar ação' : `Somente o responsável pelo plano (${plano.responsavel_abertura}) pode editar`}
+                                              className="btn-secondary h-7 px-2 text-[11px] font-semibold text-slate-700 border-slate-200 hover:bg-slate-100 gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
+                                            >
+                                              <Pencil className="w-3 h-3" />
+                                              <span>Editar</span>
+                                            </button>
+                                            <button
+                                              type="button"
+                                              disabled={!allowEditDelete}
+                                              onClick={() => setActionToDelete(acao)}
+                                              title={allowEditDelete ? 'Excluir ação' : `Somente o responsável pelo plano (${plano.responsavel_abertura}) pode excluir`}
+                                              className="btn-secondary h-7 px-2 text-[11px] font-semibold text-rose-700 border-rose-200 hover:bg-rose-50 gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
+                                            >
+                                              <Trash2 className="w-3 h-3" />
+                                              <span>Excluir</span>
+                                            </button>
+                                            {acao.status === 'Aberto' || acao.status === 'Atrasado' ? (
+                                              <button
+                                                type="button"
+                                                disabled={!allowConclude}
+                                                onClick={() => setModalConcluirOpen(acao)}
+                                                title={allowConclude ? 'Concluir ação' : `Somente o responsável pela execução (${acao.responsavel_acao}) ou do plano (${plano.responsavel_abertura}) pode concluir`}
+                                                className="btn-secondary h-7 px-2.5 text-[11px] font-semibold text-emerald-700 border-emerald-200 hover:bg-emerald-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                                              >
+                                                Concluir
+                                              </button>
+                                            ) : acao.status === 'Concluído' ? (
+                                              <button
+                                                type="button"
+                                                disabled={!allowValidate}
+                                                onClick={() => setModalValidarOpen(acao)}
+                                                title={allowValidate ? 'Validar ação' : `Somente o responsável pelo plano (${plano.responsavel_abertura}) pode validar`}
+                                                className="btn-secondary h-7 px-2.5 text-[11px] font-semibold text-amber-700 border-amber-200 hover:bg-amber-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                                              >
+                                                Validar
+                                              </button>
+                                            ) : (
+                                              <span className="text-emerald-700 text-xs font-semibold">Homologado</span>
+                                            )}
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
             </div>
           )}
         </>
       )}
 
       {/* =========================================================================
-          MODAL: NOVO PLANO DE AÇÃO
+          MODAL: NOVO / EDITAR PLANO DE AÇÃO (FORMULÁRIO CONFORME POWER APPS)
           ========================================================================= */}
       {modalNovoPlanoOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-900/60 backdrop-blur-xs">
-          <div className="w-full max-w-xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
-            <div className="px-5 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <CheckSquare className="w-4 h-4 text-[#0b5796]" />
-                <h3 className="font-display font-bold text-sm text-slate-900">Novo Plano de Ação</h3>
+          <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
+            <div className="px-5 py-3.5 bg-slate-900 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center border border-white/15">
+                  <CheckSquare className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-display font-bold text-sm text-white">
+                    {editingPlanId ? `Editar Plano de Ação #${editingPlanId}` : 'Criar Novo Plano de Ação'}
+                  </h3>
+                  <p className="text-[11px] text-slate-300">
+                    Preencha os dados e anexe a foto auxiliar de acordo com o padrão fabril
+                  </p>
+                </div>
               </div>
               <button
                 type="button"
-                onClick={() => setModalNovoPlanoOpen(false)}
-                className="text-slate-400 hover:text-slate-700 p-1 rounded-lg"
+                onClick={() => {
+                  setModalNovoPlanoOpen(false);
+                  setEditingPlanId(null);
+                }}
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleCreatePlano} className="p-5 flex flex-col gap-4 text-xs">
-              {/* Vínculo com Registro: adapta os dados para os campos do Plano */}
-              <div className="p-3 rounded-xl bg-blue-50/60 border border-blue-200 flex flex-col gap-1.5">
-                <label className="block font-bold text-blue-900">
-                  Vincular Registro / Ocorrência (Opcional)
+            <form onSubmit={handleCreatePlano} className="p-5 overflow-y-auto flex flex-col gap-4 text-xs">
+              {/* Vínculo Automático com Ocorrência (Somente leitura se já veio vinculado de outro módulo) */}
+              {formPlano.idprograma && (
+                <div className="flex items-center gap-2.5 px-3.5 py-2.5 bg-blue-50/80 border border-blue-200 rounded-xl text-xs text-blue-900">
+                  <ShieldCheck className="w-4 h-4 text-[#0b5796] shrink-0" />
+                  <div className="flex-1 flex items-center justify-between flex-wrap gap-1">
+                    <span className="font-medium text-slate-700">
+                      Plano vinculado automaticamente à ocorrência:
+                    </span>
+                    <span className="font-mono font-bold text-[#0b5796] bg-white px-2 py-0.5 rounded border border-blue-200">
+                      {formatOccurrenceId(formPlano.idprograma)}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Linha 1: Responsável pela Abertura (Linha Inteira) */}
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Responsável pela Abertura *
                 </label>
-                <select
-                  value={formPlano.idprograma || ''}
-                  onChange={e => {
-                    const selectedCode = e.target.value;
-                    if (!selectedCode) {
-                      setFormPlano({ ...formPlano, idprograma: '' });
-                      return;
-                    }
-                    const digits = selectedCode.replace(/[^0-9]/g, '');
-                    const rnc = digits ? spStore.getRNCById(Number(digits)) : undefined;
-                    if (rnc) {
-                      setFormPlano({
-                        ...formPlano,
-                        idprograma: selectedCode,
-                        descricao_problema_oportunidade: rnc.descricaoProblema || rnc.modoFalha || formPlano.descricao_problema_oportunidade || '',
-                        produto_: rnc.produto || formPlano.produto_ || '',
-                        posto_: rnc.posto || rnc.fmds || formPlano.posto_ || '',
-                        setor_: rnc.classificacaoSetor || rnc.setorDeteccao || formPlano.setor_ || 'Qualidade',
-                        sub1: rnc.componente || formPlano.sub1 || '',
-                        sub2: rnc.subcomponente || formPlano.sub2 || ''
-                      });
-                    } else {
-                      setFormPlano({ ...formPlano, idprograma: selectedCode });
-                    }
-                  }}
-                  className="form-select w-full text-xs py-2 px-3 border-blue-200 rounded-lg bg-white"
-                >
-                  <option value="">-- Plano Independente ou Selecionar Registro --</option>
-                  {allRncs.map(r => {
-                    const prefix = r.tipoRnc === 'Formal' || r.tipoRnc === 'Informal' ? 'C' : 'I';
-                    const code = `${prefix} - ${r.id}`;
-                    return (
-                      <option key={r.id} value={code}>
-                        {code} • {r.descricaoProblema || r.title} ({r.produto || r.cliente || r.classificacaoSetor || 'Geral'})
-                      </option>
-                    );
-                  })}
-                </select>
+                <SearchableSelect
+                  options={optionsResponsaveis}
+                  value={formPlano.responsavel_abertura || currentUser.nome}
+                  onChange={val => setFormPlano({ ...formPlano, responsavel_abertura: val })}
+                  placeholder="Selecione o responsável..."
+                  searchPlaceholder="Pesquisar por nome ou cargo..."
+                  compact={true}
+                  allowClear={false}
+                  allowCustom={true}
+                />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {/* Linha 2: Indicador / Programa Estratégico & Subindicador (2 por linha) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Indicador / Programa *</label>
-                  <select
-                    value={formPlano.indicador_programa_estrategico}
-                    onChange={e => setFormPlano({ ...formPlano, indicador_programa_estrategico: e.target.value })}
-                    className="form-select w-full text-xs py-2 px-3 border-slate-200 rounded-lg bg-slate-50"
-                    required
-                  >
-                    {PROGRAMAS_LIST.filter(p => p !== 'Todos').map(p => (
-                      <option key={p} value={p}>{p}</option>
-                    ))}
-                  </select>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Indicador / Programa Estratégico *
+                  </label>
+                  <SearchableSelect
+                    options={optionsIndicadores}
+                    value={formPlano.indicador_programa_estrategico || ''}
+                    onChange={val => setFormPlano({ ...formPlano, indicador_programa_estrategico: val })}
+                    placeholder="Selecione o indicador..."
+                    searchPlaceholder="Pesquisar ou adicionar..."
+                    compact={true}
+                    allowClear={false}
+                    allowCustom={true}
+                  />
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Setor *</label>
-                  <input
-                    type="text"
-                    value={formPlano.setor_}
-                    onChange={e => setFormPlano({ ...formPlano, setor_: e.target.value })}
-                    placeholder="Ex: SOLDA 3, Qualidade"
-                    className="form-input w-full text-xs py-2 px-3 border-slate-200 rounded-lg bg-slate-50"
-                    required
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Subindicador
+                  </label>
+                  <SearchableSelect
+                    options={optionsSubindicador}
+                    value={formPlano.sub1 || ''}
+                    onChange={val => setFormPlano({ ...formPlano, sub1: val })}
+                    placeholder="Selecione ou digite um subindicador..."
+                    searchPlaceholder="Pesquisar ou cadastrar subindicador..."
+                    compact={true}
+                    allowClear={true}
+                    allowCustom={true}
+                  />
+                </div>
+              </div>
+
+              {/* Linha 3: Área (Setor) & Posto (2 por linha) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Área (Setor) *</label>
+                  <SearchableSelect
+                    options={optionsAreas}
+                    value={formPlano.setor_ || ''}
+                    onChange={val => setFormPlano({ ...formPlano, setor_: val })}
+                    placeholder="Selecione a área..."
+                    searchPlaceholder="Pesquisar área..."
+                    compact={true}
+                    allowClear={false}
+                    allowCustom={true}
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Posto</label>
+                  <SearchableSelect
+                    options={optionsPostos}
+                    value={formPlano.posto_ || ''}
+                    onChange={val => setFormPlano({ ...formPlano, posto_: val })}
+                    placeholder="Selecione o posto..."
+                    searchPlaceholder="Pesquisar posto..."
+                    compact={true}
+                    allowClear={true}
+                    allowCustom={true}
+                  />
+                </div>
+              </div>
+
+              {/* Linha 4: Produto & Prioridade (2 por linha) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Produto</label>
+                  <SearchableSelect
+                    options={optionsProdutos}
+                    value={formPlano.produto_ || ''}
+                    onChange={val => setFormPlano({ ...formPlano, produto_: val })}
+                    placeholder="Selecione o produto..."
+                    searchPlaceholder="Pesquisar produto..."
+                    compact={true}
+                    allowClear={true}
+                    allowCustom={true}
                   />
                 </div>
 
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">Prioridade *</label>
-                  <select
-                    value={formPlano.prioridade}
-                    onChange={e => setFormPlano({ ...formPlano, prioridade: e.target.value as ActionPlanPriority })}
-                    className="form-select w-full text-xs py-2 px-3 border-slate-200 rounded-lg bg-slate-50"
-                  >
-                    <option value="Alta">Alta</option>
-                    <option value="Média">Média</option>
-                    <option value="Baixa">Baixa</option>
-                  </select>
+                  <SearchableSelect
+                    options={optionsPrioridades}
+                    value={formPlano.prioridade || 'Alta'}
+                    onChange={val => setFormPlano({ ...formPlano, prioridade: (val as ActionPlanPriority) || 'Alta' })}
+                    placeholder="Prioridade..."
+                    compact={true}
+                    allowClear={false}
+                  />
                 </div>
               </div>
 
+              {/* Linha 4: Descrição do Problema / Oportunidade */}
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Descrição do Problema / Oportunidade *</label>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Descrição do Problema / Oportunidade *
+                </label>
                 <textarea
                   rows={3}
-                  value={formPlano.descricao_problema_oportunidade}
+                  value={formPlano.descricao_problema_oportunidade || ''}
                   onChange={e => setFormPlano({ ...formPlano, descricao_problema_oportunidade: e.target.value })}
-                  placeholder="Descreva o desvio identificado ou a melhoria necessária..."
-                  className="form-input w-full text-xs p-3 border-slate-200 rounded-lg bg-slate-50 resize-none"
+                  placeholder="Descreva detalhadamente o desvio identificado ou a melhoria a implementar..."
+                  className="form-input w-full text-xs p-3 border-slate-200 rounded-lg bg-slate-50 resize-none font-medium"
                   required
                 />
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Produto</label>
-                  <input
-                    type="text"
-                    value={formPlano.produto_}
-                    onChange={e => setFormPlano({ ...formPlano, produto_: e.target.value })}
-                    placeholder="Ex: HR-V, HB20"
-                    className="form-input w-full text-xs py-2 px-3 border-slate-200 rounded-lg bg-slate-50"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Posto</label>
-                  <input
-                    type="text"
-                    value={formPlano.posto_}
-                    onChange={e => setFormPlano({ ...formPlano, posto_: e.target.value })}
-                    placeholder="Ex: B643033"
-                    className="form-input w-full text-xs py-2 px-3 border-slate-200 rounded-lg bg-slate-50"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Subconjunto</label>
-                  <input
-                    type="text"
-                    value={formPlano.sub1}
-                    onChange={e => setFormPlano({ ...formPlano, sub1: e.target.value })}
-                    placeholder="Componente"
-                    className="form-input w-full text-xs py-2 px-3 border-slate-200 rounded-lg bg-slate-50"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Código de Vínculo</label>
-                  <input
-                    type="text"
-                    value={formPlano.idprograma}
-                    onChange={e => setFormPlano({ ...formPlano, idprograma: e.target.value })}
-                    placeholder="Ex: I - 6119"
-                    className="form-input w-full text-xs py-2 px-3 border-slate-200 rounded-lg bg-slate-50"
-                  />
-                </div>
+              {/* Linha 5: Foto Auxiliar (Upload, Preview e Remoção) */}
+              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 flex flex-col gap-2">
+                <label className="block font-semibold text-slate-700">
+                  Foto Auxiliar da Peça / Posto / Problema
+                </label>
+                
+                {formPlano.foto_acao ? (
+                  <div className="flex items-center gap-3">
+                    <div className="w-20 h-20 rounded-lg border border-slate-200 overflow-hidden bg-white shrink-0 relative">
+                      <img 
+                        src={formPlano.foto_acao} 
+                        alt="Preview Foto Auxiliar" 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-[11px] font-bold text-emerald-700 flex items-center gap-1">
+                        <Check className="w-3.5 h-3.5" />
+                        Foto Auxiliar anexada
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setFormPlano(prev => ({ ...prev, foto_acao: '' }))}
+                        className="btn-secondary h-7 px-2.5 text-[11px] font-semibold text-rose-700 border-rose-200 hover:bg-rose-50 w-fit gap-1"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        <span>Remover Foto</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-slate-300 rounded-xl hover:border-[#0b5796] hover:bg-blue-50/40 transition cursor-pointer">
+                    <Upload className="w-5 h-5 text-slate-400 mb-1" />
+                    <span className="font-semibold text-slate-700 text-xs">
+                      Clique para carregar Foto Auxiliar
+                    </span>
+                    <span className="text-[10px] text-slate-400 mt-0.5">
+                      JPG, PNG ou WEBP do posto ou peça
+                    </span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFotoAuxiliarChange}
+                      className="hidden"
+                    />
+                  </label>
+                )}
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+              {/* Botões do Rodapé */}
+              <div className="flex items-center justify-between pt-3 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => setModalNovoPlanoOpen(false)}
-                  className="btn-secondary h-8 px-4 text-xs"
+                  onClick={() => {
+                    setModalNovoPlanoOpen(false);
+                    setEditingPlanId(null);
+                  }}
+                  className="btn-secondary h-8 px-4 text-xs cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="btn-primary h-8 px-4 text-xs font-semibold bg-[#0b5796] text-white"
+                  className="btn-primary h-8 px-5 text-xs font-semibold bg-[#0b5796] text-white hover:bg-[#09477d] cursor-pointer"
                 >
-                  Criar Plano</button>
+                  {editingPlanId ? 'Salvar Alterações do Plano' : 'Criar Plano de Ação'}
+                </button>
               </div>
             </form>
           </div>
@@ -2232,7 +2798,7 @@ export const PlanoAcaoView: React.FC<PlanoAcaoViewProps> = ({
       )}
 
       {/* =========================================================================
-          MODAL: NOVA AÇÃO
+          MODAL: NOVA / EDITAR AÇÃO
           ========================================================================= */}
       {modalNovaAcaoOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-900/60 backdrop-blur-xs">
@@ -2240,11 +2806,16 @@ export const PlanoAcaoView: React.FC<PlanoAcaoViewProps> = ({
             <div className="px-5 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <CheckSquare className="w-4 h-4 text-[#0b5796]" />
-                <h3 className="font-display font-bold text-sm text-slate-900">Nova Contramedida / Ação</h3>
+                <h3 className="font-display font-bold text-sm text-slate-900">
+                  {editingActionId ? `Editar Ação #${editingActionId}` : 'Nova Contramedida / Ação'}
+                </h3>
               </div>
               <button
                 type="button"
-                onClick={() => setModalNovaAcaoOpen(false)}
+                onClick={() => {
+                  setModalNovaAcaoOpen(false);
+                  setEditingActionId(null);
+                }}
                 className="text-slate-400 hover:text-slate-700 p-1 rounded-lg"
               >
                 <X className="w-4 h-4" />
@@ -2255,10 +2826,11 @@ export const PlanoAcaoView: React.FC<PlanoAcaoViewProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">Vincular ao Plano *</label>
-                  <select
-                    value={formAcao.id_rel2}
-                    onChange={e => {
-                      const pId = Number(e.target.value);
+                  <SearchableSelect
+                    options={optionsPlanosVinculo}
+                    value={String(formAcao.id_rel2 || '')}
+                    onChange={val => {
+                      const pId = Number(val);
                       const targetPlan = planos.find(p => p.id === pId);
                       setFormAcao({ 
                         ...formAcao, 
@@ -2266,28 +2838,22 @@ export const PlanoAcaoView: React.FC<PlanoAcaoViewProps> = ({
                         id_programa_acoes: targetPlan?.idprograma || ''
                       });
                     }}
-                    className="form-select w-full text-xs py-2 px-3 border-slate-200 rounded-lg bg-slate-50"
-                  >
-                    {planos.map(p => (
-                      <option key={p.id} value={p.id}>
-                        #{p.id} - {p.indicador_programa_estrategico} ({p.descricao_problema_oportunidade.substring(0, 35)}...)
-                      </option>
-                    ))}
-                  </select>
+                    placeholder="Selecione o plano..."
+                    searchPlaceholder="Pesquisar por plano ou indicador..."
+                    compact={true}
+                    allowClear={false}
+                  />
                 </div>
 
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">Tipo de Ação *</label>
-                  <select
-                    value={formAcao.tipo_acao}
-                    onChange={e => setFormAcao({ ...formAcao, tipo_acao: e.target.value as ActionItemType })}
-                    className="form-select w-full text-xs py-2 px-3 border-slate-200 rounded-lg bg-slate-50"
-                  >
-                    <option value="CONTENÇÃO">Contenção</option>
-                    <option value="CORRETIVA">Corretiva</option>
-                    <option value="PREVENTIVA">Preventiva</option>
-                    <option value="MELHORIA">Melhoria</option>
-                  </select>
+                  <SearchableSelect
+                    options={optionsTiposAcao}
+                    value={formAcao.tipo_acao || 'CORRETIVA'}
+                    onChange={val => setFormAcao({ ...formAcao, tipo_acao: val as ActionItemType })}
+                    compact={true}
+                    allowClear={false}
+                  />
                 </div>
               </div>
 
@@ -2316,11 +2882,11 @@ export const PlanoAcaoView: React.FC<PlanoAcaoViewProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Responsável *</label>
-                  <select
-                    value={formAcao.responsavel_acao}
-                    onChange={e => {
-                      const nome = e.target.value;
+                  <label className="block font-semibold text-slate-700 mb-1">Responsável pela Execução *</label>
+                  <SearchableSelect
+                    options={optionsResponsaveis}
+                    value={formAcao.responsavel_acao || ''}
+                    onChange={nome => {
                       const ativo = baseAtivos.find(a => a.nome === nome);
                       setFormAcao({
                         ...formAcao,
@@ -2328,12 +2894,12 @@ export const PlanoAcaoView: React.FC<PlanoAcaoViewProps> = ({
                         email: ativo ? `${ativo.numPessoal}@empresa.com.br` : ''
                       });
                     }}
-                    className="form-select w-full text-xs py-2 px-3 border-slate-200 rounded-lg bg-slate-50"
-                  >
-                    {baseAtivos.map(a => (
-                      <option key={a.numPessoal} value={a.nome}>{a.nome} ({a.posicao})</option>
-                    ))}
-                  </select>
+                    placeholder="Selecione o responsável..."
+                    searchPlaceholder="Pesquisar por nome ou cargo..."
+                    compact={true}
+                    allowClear={false}
+                    allowCustom={true}
+                  />
                 </div>
 
                 <div>
@@ -2389,7 +2955,10 @@ export const PlanoAcaoView: React.FC<PlanoAcaoViewProps> = ({
               <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => setModalNovaAcaoOpen(false)}
+                  onClick={() => {
+                    setModalNovaAcaoOpen(false);
+                    setEditingActionId(null);
+                  }}
                   className="btn-secondary h-8 px-4 text-xs"
                 >
                   Cancelar
@@ -2398,10 +2967,116 @@ export const PlanoAcaoView: React.FC<PlanoAcaoViewProps> = ({
                   type="submit"
                   className="btn-primary h-8 px-4 text-xs font-semibold bg-[#0b5796] text-white"
                 >
-                  Salvar Ação
+                  {editingActionId ? 'Salvar Alterações da Ação' : 'Salvar Ação'}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          MODAL: CONFIRMAR EXCLUSÃO DE AÇÃO
+          ========================================================================= */}
+      {actionToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-900/60 backdrop-blur-xs">
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
+            <div className="px-5 py-4 bg-rose-50 border-b border-rose-200 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Trash2 className="w-4 h-4 text-rose-600" />
+                <h3 className="font-display font-bold text-sm text-rose-900">
+                  Excluir Ação #{actionToDelete.id}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActionToDelete(null)}
+                className="text-rose-400 hover:text-rose-700 p-1 rounded-lg"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-5 flex flex-col gap-4 text-xs">
+              <p className="text-slate-700 leading-relaxed">
+                Tem certeza que deseja excluir esta ação do Plano #{actionToDelete.id_rel2}?
+              </p>
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                <span className="text-[10px] font-bold uppercase text-slate-400 block">Contramedida:</span>
+                <p className="font-bold text-slate-900 mt-0.5">{actionToDelete.contra_medida}</p>
+              </div>
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setActionToDelete(null)}
+                  className="btn-secondary h-8 px-4 text-xs"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDeleteAction}
+                  className="btn-primary h-8 px-4 text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white"
+                >
+                  Confirmar Exclusão
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          MODAL: CONFIRMAR EXCLUSÃO DE PLANO DE AÇÃO
+          ========================================================================= */}
+      {planToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-900/60 backdrop-blur-xs">
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
+            <div className="px-5 py-4 bg-rose-50 border-b border-rose-200 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Trash2 className="w-4 h-4 text-rose-600" />
+                <h3 className="font-display font-bold text-sm text-rose-900">
+                  Excluir Plano #{planToDelete.id}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPlanToDelete(null)}
+                className="text-rose-400 hover:text-rose-700 p-1 rounded-lg"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-5 flex flex-col gap-4 text-xs">
+              <p className="text-slate-700 leading-relaxed">
+                Tem certeza que deseja excluir permanentemente o <strong>Plano #{planToDelete.id}</strong> e todas as suas ações vinculadas?
+              </p>
+              <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                <span className="text-[10px] font-bold uppercase text-slate-400 block">Descrição do Plano:</span>
+                <p className="font-bold text-slate-900 mt-0.5">{planToDelete.descricao_problema_oportunidade}</p>
+              </div>
+              <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setPlanToDelete(null)}
+                  className="btn-secondary h-8 px-4 text-xs"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    spStore.deleteActionPlan(planToDelete.id);
+                    setPlanToDelete(null);
+                    setSingleScreenPlanId(null);
+                    setSingleScreenActionId(null);
+                    setRefreshTrigger(prev => prev + 1);
+                  }}
+                  className="btn-primary h-8 px-4 text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white"
+                >
+                  Confirmar Exclusão
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -2456,14 +3131,69 @@ export const PlanoAcaoView: React.FC<PlanoAcaoViewProps> = ({
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">URL da Evidência / Anexo (Opcional)</label>
-                <input
-                  type="text"
-                  value={formConclusao.anexoUrl}
-                  onChange={e => setFormConclusao({ ...formConclusao, anexoUrl: e.target.value })}
-                  placeholder="https://... ou caminho do arquivo"
-                  className="form-input w-full text-xs py-2 px-3 border-slate-200 rounded-lg bg-slate-50"
-                />
+                <label className="block font-semibold text-slate-700 mb-1.5">
+                  Anexo de Evidência (Arquivo ou Imagem)
+                </label>
+                <label className="flex flex-col items-center justify-center gap-2 p-4 border-2 border-dashed border-slate-300 hover:border-[#0b5796] rounded-xl bg-slate-50/70 hover:bg-blue-50/30 transition cursor-pointer text-center">
+                  <div className="w-9 h-9 rounded-full bg-blue-100 text-[#0b5796] flex items-center justify-center">
+                    <Upload className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-[#0b5796] block">
+                      Clique para selecionar imagem ou arquivo
+                    </span>
+                    <span className="text-[11px] text-slate-500">
+                      Suporta fotos (PNG, JPG, WEBP) e documentos (PDF, Excel, Word)
+                    </span>
+                  </div>
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv"
+                    onChange={handleEvidenciaFilesChange}
+                    className="hidden"
+                  />
+                </label>
+
+                {formConclusao.anexos.length > 0 && (
+                  <div className="mt-2.5 flex flex-col gap-2 max-h-40 overflow-y-auto pr-1">
+                    {formConclusao.anexos.map((item, idx) => {
+                      const isImage = item.type.startsWith('image/') || item.url.startsWith('data:image/');
+                      return (
+                        <div
+                          key={idx}
+                          className="p-2 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-between gap-2.5"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            {isImage ? (
+                              <img
+                                src={item.url}
+                                alt={item.name}
+                                className="w-10 h-10 rounded-md object-cover border border-slate-200 shrink-0 bg-white"
+                              />
+                            ) : (
+                              <div className="w-10 h-10 rounded-md bg-blue-50 border border-blue-200 text-[#0b5796] flex items-center justify-center shrink-0">
+                                <Paperclip className="w-4 h-4" />
+                              </div>
+                            )}
+                            <div className="min-w-0">
+                              <p className="text-xs font-semibold text-slate-800 truncate">{item.name}</p>
+                              <span className="text-[10px] text-emerald-700 font-semibold">Arquivo pronto para envio</span>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveAnexoConclusao(idx)}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition shrink-0"
+                            title="Remover anexo"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
@@ -2507,13 +3237,48 @@ export const PlanoAcaoView: React.FC<PlanoAcaoViewProps> = ({
             </div>
 
             <form onSubmit={handleConfirmValidacao} className="p-5 flex flex-col gap-4 text-xs">
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex flex-col gap-1">
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex flex-col gap-1.5">
                 <span className="text-[11px] font-bold text-slate-500 uppercase">Ação Implementada:</span>
                 <p className="font-semibold text-slate-900">{modalValidarOpen.contra_medida}</p>
                 {modalValidarOpen.comentarios_evidencia && (
                   <p className="text-slate-600 mt-1 text-[11px] bg-white p-2 rounded border border-slate-200">
                     <strong>Evidência Apresentada:</strong> {modalValidarOpen.comentarios_evidencia}
                   </p>
+                )}
+                {modalValidarOpen.anexos_evidencia && modalValidarOpen.anexos_evidencia.length > 0 && (
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {modalValidarOpen.anexos_evidencia.map((rawAnexo, idx) => {
+                      const parts = rawAnexo.includes(':::') ? rawAnexo.split(':::') : ['Evidência Anexada', rawAnexo];
+                      const fileName = parts[0];
+                      const fileUrl = parts[1] || rawAnexo;
+                      const isImg = fileUrl.startsWith('data:image/') || /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(fileName);
+                      return isImg ? (
+                        <a
+                          key={idx}
+                          href={fileUrl}
+                          download={fileName}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="w-16 h-16 rounded-lg border border-slate-300 bg-white overflow-hidden shadow-2xs block"
+                          title={fileName}
+                        >
+                          <img src={fileUrl} alt={fileName} className="w-full h-full object-cover" />
+                        </a>
+                      ) : (
+                        <a
+                          key={idx}
+                          href={fileUrl}
+                          download={fileName}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-slate-300 text-[11px] font-semibold text-[#0b5796] hover:bg-blue-50"
+                        >
+                          <Paperclip className="w-3.5 h-3.5" />
+                          <span className="truncate max-w-[160px]">{fileName}</span>
+                        </a>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
 

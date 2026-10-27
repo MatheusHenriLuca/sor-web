@@ -777,6 +777,29 @@ ON CONFLICT (slug) DO NOTHING;`;
 
                           <button
                             type="button"
+                            onClick={() => {
+                              const baseUrl =
+                                typeof window !== 'undefined'
+                                  ? window.location.origin
+                                  : 'https://app.mhqualidade.com';
+                              const loginUrl = `${baseUrl}/${tenant.slug}/login`;
+                              const adminEmail = adminUser?.email || `admin@${tenant.slug}.com.br`;
+                              const adminPass = adminUser?.senha || '123';
+                              const text = `Acesso Corporativo MH Qualidade — ${tenant.nome}\nURL Exclusiva: ${loginUrl}\nAdministrador: ${adminUser?.nome || 'Gestor'}\nE-mail de Login: ${adminEmail}\nMatrícula (RE): ${adminUser?.reAcesso || 10001}\nSenha Inicial: ${adminPass}`;
+                              navigator.clipboard.writeText(text);
+                              showToast(
+                                'success',
+                                `Credenciais de acesso da empresa "${tenant.nome}" copiadas para a área de transferência!`
+                              );
+                            }}
+                            className="p-1.5 rounded-lg border border-slate-200 hover:bg-blue-50 text-slate-600 hover:text-[#0b5796] transition-colors cursor-pointer"
+                            title="Copiar Link de Login + E-mail Admin + Senha para enviar ao cliente"
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                          </button>
+
+                          <button
+                            type="button"
                             onClick={() => handleOpenEdit(tenant)}
                             className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
                             title="Editar limites e configurações da empresa"

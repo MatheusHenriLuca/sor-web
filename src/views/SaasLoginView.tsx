@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { TenantRecord, UsuarioQualidade } from '../types';
 import { tenantService } from '../services/tenantService';
+import { spStore } from '../services/sharepointService';
 
 interface SaasLoginViewProps {
   tenantSlug?: string;
@@ -34,13 +35,22 @@ export const SaasLoginView: React.FC<SaasLoginViewProps> = ({
   const [senha, setSenha] = useState('123');
   const [errorMessage, setErrorMessage] = useState('');
   const [discoveredTenant, setDiscoveredTenant] = useState<TenantRecord | null>(null);
+  const [, setSyncTick] = useState(0);
+
+  useEffect(() => {
+    spStore.syncWithCloudAndSupabase('pull');
+    const unsub = tenantService.subscribe(() => {
+      setSyncTick(prev => prev + 1);
+    });
+    return () => unsub();
+  }, []);
 
   const allTenants = tenantService.getTenants();
   const slugTenant = tenantSlug ? tenantService.getTenantBySlug(tenantSlug) : undefined;
   const activeBrandTenant = slugTenant || discoveredTenant;
   const brandColor = activeBrandTenant?.customizacao?.cor_primaria || '#0b5796';
 
-  // Descobre dinamicamente a empresa à medida que o usuário digita o e-mail no Login Global
+  // Descobre dinamicamente a empresa à medida que o usuário digita o e-mail ou RE no Login Global
   useEffect(() => {
     if (slugTenant) {
       setDiscoveredTenant(slugTenant);
@@ -49,14 +59,24 @@ export const SaasLoginView: React.FC<SaasLoginViewProps> = ({
     }
 
     const clean = email.trim().toLowerCase();
-    if (!clean.includes('@')) {
+    const numericRe = /^\d+$/.test(clean.replace(/^#/, ''))
+      ? Number(clean.replace(/^#/, ''))
+      : NaN;
+
+    if (!clean.includes('@') && isNaN(numericRe)) {
       setDiscoveredTenant(null);
       return;
     }
 
     for (const t of allTenants) {
       const users = tenantService.getUsersForTenant(t.id);
-      if (users.some(u => (u.email || '').toLowerCase() === clean)) {
+      if (
+        users.some(
+          u =>
+            (u.email || '').toLowerCase() === clean ||
+            (!isNaN(numericRe) && u.reAcesso === numericRe)
+        )
+      ) {
         setDiscoveredTenant(t);
         tenantService.applyTenantThemeToDOM(t);
         return;
@@ -218,15 +238,15 @@ export const SaasLoginView: React.FC<SaasLoginViewProps> = ({
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                    E-mail Corporativo <span className="text-rose-500">*</span>
+                    E-mail Corporativo ou Matrícula (RE) <span className="text-rose-500">*</span>
                   </label>
                   <div className="relative">
                     <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                     <input
-                      type="email"
+                      type="text"
                       value={email}
                       onChange={e => setEmail(e.target.value)}
-                      placeholder="nome@suaempresa.com.br"
+                      placeholder="nome@suaempresa.com.br ou RE (ex: 30101)"
                       className="form-input !pl-10 w-full text-sm font-medium"
                       required
                     />

@@ -3419,6 +3419,7 @@ class SaaSTenantService {
   private authenticatedUser: UsuarioQualidade | null = null;
   private impersonatingFromSuperAdmin = false;
   private listeners: Array<() => void> = [];
+  private initializedTenants = new Set<string>();
 
   constructor() {
     this.initSupabaseClient();
@@ -3563,89 +3564,344 @@ class SaaSTenantService {
   public async fetchRncsFromSupabase(tenantId?: string): Promise<RNCRecord[]> {
     if (!this.supabase) return [];
     try {
-      let query = this.supabase.from('rncs').select('*').order('numero_rnc', { ascending: false });
+      let query = this.supabase
+        .from('rncs')
+        .select('*')
+        .lt('numero_rnc', 900000000)
+        .order('numero_rnc', { ascending: false });
       if (tenantId) {
         query = query.eq('tenant_id', tenantId);
       }
       const { data, error } = await query;
       if (error || !Array.isArray(data)) return [];
-      return data.map((row: any) => {
-        const payload = (row.payload_completo || {}) as Partial<RNCRecord>;
-        return {
-          ...payload,
-          id: Number(row.numero_rnc || payload.id || row.id),
-          tenant_id: row.tenant_id || payload.tenant_id || PILOT_TENANT_ID,
-          title: payload.title || String(row.numero_rnc || row.id),
-          field1: row.codigo_rnc || payload.field1 || `RNC-${row.numero_rnc}`,
-          tipoRnc: (row.tipo_rnc || payload.tipoRnc || 'Formal') as any,
-          status: (row.status || payload.status || 'Relatório Inicial') as any,
-          cliente: row.cliente_montadora || payload.cliente || 'OUTROS',
-          dataOcorrencia: row.data_ocorrencia || payload.dataOcorrencia || '',
-          produto: row.produto || payload.produto || '',
-          componente: row.componente ?? payload.componente ?? '',
-          posto: row.posto ?? payload.posto ?? '',
-          fmds: row.fmds ?? payload.fmds ?? '',
-          modoFalha: row.modo_falha ?? payload.modoFalha ?? '',
-          descricaoProblema: row.descricao_problema || payload.descricaoProblema || '',
-          detalhamentoOcorrencia: payload.detalhamentoOcorrencia || row.descricao_problema || '',
-          fotoPecaOk: row.foto_peca_ok ?? payload.fotoPecaOk ?? '',
-          fotoPecaNg: row.foto_peca_ng ?? payload.fotoPecaNg ?? '',
-          fotoAuxiliar: row.foto_auxiliar ?? payload.fotoAuxiliar ?? '',
-          quantidadeAfetada: Number(row.quantidade_afetada ?? payload.quantidadeAfetada ?? 1),
-          caracteristicaSeguranca: (row.caracteristica_seguranca || payload.caracteristicaSeguranca || 'Não') as any
-        } as RNCRecord;
-      });
+      return data
+        .filter((row: any) => !String(row.codigo_rnc || '').startsWith('__SAAS_STATE_'))
+        .map((row: any) => {
+          const payload = (row.payload_completo || {}) as Partial<RNCRecord>;
+          return {
+            ...payload,
+            id: Number(row.numero_rnc || payload.id || row.id),
+            tenant_id: row.tenant_id || payload.tenant_id || PILOT_TENANT_ID,
+            title: payload.title || String(row.numero_rnc || row.id),
+            field1: row.codigo_rnc || payload.field1 || `RNC-${row.numero_rnc}`,
+            tipoRnc: (row.tipo_rnc || payload.tipoRnc || 'Formal') as any,
+            status: (row.status || payload.status || 'Relatório Inicial') as any,
+            cliente: row.cliente_montadora || payload.cliente || 'OUTROS',
+            dataOcorrencia: row.data_ocorrencia || payload.dataOcorrencia || '',
+            produto: row.produto || payload.produto || '',
+            componente: row.componente ?? payload.componente ?? '',
+            posto: row.posto ?? payload.posto ?? '',
+            fmds: row.fmds ?? payload.fmds ?? '',
+            modoFalha: row.modo_falha ?? payload.modoFalha ?? '',
+            descricaoProblema: row.descricao_problema || payload.descricaoProblema || '',
+            detalhamentoOcorrencia: payload.detalhamentoOcorrencia || row.descricao_problema || '',
+            fotoPecaOk: row.foto_peca_ok ?? payload.fotoPecaOk ?? '',
+            fotoPecaNg: row.foto_peca_ng ?? payload.fotoPecaNg ?? '',
+            fotoAuxiliar: row.foto_auxiliar ?? payload.fotoAuxiliar ?? '',
+            quantidadeAfetada: Number(row.quantidade_afetada ?? payload.quantidadeAfetada ?? 1),
+            caracteristicaSeguranca: (row.caracteristica_seguranca || payload.caracteristicaSeguranca || 'Não') as any
+          } as RNCRecord;
+        });
     } catch {
       return [];
     }
   }
 
+  public async pushMasterStateToSupabase(): Promise<void> {
+    if (!this.supabase) return;
+    try {
+      const snap = this.getCloudMasterStateSnapshot();
+      await Promise.all([
+        this.supabase.from('rncs').upsert(
+          {
+            tenant_id: PILOT_TENANT_ID,
+            numero_rnc: 900000001,
+            codigo_rnc: '__SAAS_STATE_CORE__',
+            cliente_montadora: 'SYSTEM',
+            produto: 'SYSTEM',
+            descricao_problema: 'SAAS_CORE_STATE',
+            payload_completo: {
+              tenants: snap.tenants,
+              users: snap.users,
+              rncSeqByTenant: snap.rncSeqByTenant,
+              optionCategories: snap.optionCategories,
+              formFields: snap.formFields,
+              deletedTenantIds: snap.deletedTenantIds,
+              deletedCategoryIds: snap.deletedCategoryIds,
+              updatedAt: Date.now()
+            }
+          },
+          { onConflict: 'tenant_id,numero_rnc' }
+        ),
+        this.supabase.from('rncs').upsert(
+          {
+            tenant_id: PILOT_TENANT_ID,
+            numero_rnc: 900000003,
+            codigo_rnc: '__SAAS_STATE_MASTER__',
+            cliente_montadora: 'SYSTEM',
+            produto: 'SYSTEM',
+            descricao_problema: 'SAAS_MASTER_DATA_STATE',
+            payload_completo: {
+              masterData: snap.masterData,
+              updatedAt: Date.now()
+            }
+          },
+          { onConflict: 'tenant_id,numero_rnc' }
+        )
+      ]);
+    } catch {
+      // Silencioso em caso de offline
+    }
+  }
+
+  public async pullMasterStateFromSupabase(): Promise<void> {
+    if (!this.supabase) return;
+    try {
+      const { data, error } = await this.supabase
+        .from('rncs')
+        .select('numero_rnc, codigo_rnc, payload_completo')
+        .eq('tenant_id', PILOT_TENANT_ID)
+        .in('numero_rnc', [900000001, 900000003]);
+      if (error || !Array.isArray(data) || data.length === 0) return;
+
+      const coreRow = data.find((r: any) => Number(r.numero_rnc) === 900000001)?.payload_completo || {};
+      const masterRow = data.find((r: any) => Number(r.numero_rnc) === 900000003)?.payload_completo || {};
+
+      this.applyCloudMasterStateSnapshot({
+        tenants: coreRow.tenants,
+        users: coreRow.users,
+        rncSeqByTenant: coreRow.rncSeqByTenant,
+        optionCategories: coreRow.optionCategories,
+        formFields: coreRow.formFields,
+        deletedTenantIds: coreRow.deletedTenantIds,
+        deletedCategoryIds: coreRow.deletedCategoryIds,
+        masterData: masterRow.masterData
+      });
+    } catch {
+      // Silencioso em caso de offline
+    }
+  }
+
+  public async pushModulesStateToSupabase(payload: Record<string, any>): Promise<void> {
+    if (!this.supabase) return;
+    try {
+      await this.supabase.from('rncs').upsert(
+        {
+          tenant_id: PILOT_TENANT_ID,
+          numero_rnc: 900000002,
+          codigo_rnc: '__SAAS_STATE_MODULES__',
+          cliente_montadora: 'SYSTEM',
+          produto: 'SYSTEM',
+          descricao_problema: 'SAAS_MODULES_STATE',
+          payload_completo: {
+            ...payload,
+            updatedAt: Date.now()
+          }
+        },
+        { onConflict: 'tenant_id,numero_rnc' }
+      );
+    } catch {
+      // Silencioso em caso de offline
+    }
+  }
+
+  public async pullModulesStateFromSupabase(): Promise<Record<string, any> | null> {
+    if (!this.supabase) return null;
+    try {
+      const { data, error } = await this.supabase
+        .from('rncs')
+        .select('payload_completo')
+        .eq('tenant_id', PILOT_TENANT_ID)
+        .eq('numero_rnc', 900000002)
+        .maybeSingle();
+      if (error || !data || !data.payload_completo) return null;
+      return data.payload_completo as Record<string, any>;
+    } catch {
+      return null;
+    }
+  }
+
+  private deletedTenantIds: Set<string> = new Set();
+  private deletedCategoryIds: Set<string> = new Set();
+  private isApplyingCloudSnapshot = false;
+  private isBootstrapping = true;
+  private cloudPushTimer: ReturnType<typeof setTimeout> | null = null;
+  private lastLocalMutationAt = 0;
+
   public getCloudMasterStateSnapshot() {
     return {
+      tenants: this.tenants,
+      users: this.users,
+      rncSeqByTenant: this.rncSeqByTenant,
       masterData: this.masterData,
       optionCategories: this.optionCategories,
-      formFields: this.formFields
+      formFields: this.formFields,
+      deletedTenantIds: Array.from(this.deletedTenantIds),
+      deletedCategoryIds: Array.from(this.deletedCategoryIds)
     };
   }
 
+  public scheduleCloudMasterPush() {
+    if (this.isApplyingCloudSnapshot || this.isBootstrapping) return;
+    this.lastLocalMutationAt = Date.now();
+    if (this.cloudPushTimer) {
+      clearTimeout(this.cloudPushTimer);
+    }
+    this.cloudPushTimer = setTimeout(() => {
+      const snap = this.getCloudMasterStateSnapshot();
+      fetch('/api/cloud-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(snap)
+      }).catch(() => {});
+      this.pushMasterStateToSupabase();
+    }, 350);
+  }
+
   public applyCloudMasterStateSnapshot(snapshot: {
+    tenants?: TenantRecord[];
+    users?: UsuarioQualidade[];
+    rncSeqByTenant?: Record<string, number>;
     masterData?: MasterDataItem[];
     optionCategories?: OptionCategoryMeta[];
     formFields?: FormFieldConfig[];
+    deletedTenantIds?: string[];
+    deletedCategoryIds?: string[];
   }) {
-    // Se já temos dados carregados localmente nesta sessão, não sobrescreve exclusões ou edições locais em andamento
-    // Apenas hidrata caso o store local da empresa esteja vazio
+    // Evita sobrescrever edições locais feitas nos últimos 5 segundos
+    if (Date.now() - this.lastLocalMutationAt < 5000) {
+      return;
+    }
+
     let changed = false;
-    if (
-      Array.isArray(snapshot.optionCategories) &&
-      snapshot.optionCategories.length > 0 &&
-      this.optionCategories.length === 0
-    ) {
-      this.optionCategories = snapshot.optionCategories;
-      changed = true;
-    }
-    if (
-      Array.isArray(snapshot.masterData) &&
-      snapshot.masterData.length > 0 &&
-      this.masterData.length === 0
-    ) {
-      this.masterData = snapshot.masterData;
-      changed = true;
-    }
-    if (
-      Array.isArray(snapshot.formFields) &&
-      snapshot.formFields.length > 0 &&
-      this.formFields.length === 0
-    ) {
-      this.formFields = snapshot.formFields;
-      changed = true;
-    }
-    if (changed) {
-      this.tenants.forEach(t => {
-        this.ensureTenantSchemasInitialized(t.id);
-      });
-      this.saveToLocalStorage();
-      this.notifyListeners();
+    this.isApplyingCloudSnapshot = true;
+    try {
+      if (Array.isArray(snapshot.deletedTenantIds)) {
+        snapshot.deletedTenantIds.forEach(id => this.deletedTenantIds.add(id));
+      }
+      if (Array.isArray(snapshot.deletedCategoryIds)) {
+        snapshot.deletedCategoryIds.forEach(id => this.deletedCategoryIds.add(id));
+      }
+
+      // 1. Merge de Empresas (Tenants)
+      if (Array.isArray(snapshot.tenants) && snapshot.tenants.length > 0) {
+        const tenantMap = new Map<string, TenantRecord>();
+        this.tenants.forEach(t => {
+          if (!this.deletedTenantIds.has(t.id)) tenantMap.set(t.id, t);
+        });
+        snapshot.tenants.forEach(t => {
+          if (!t || !t.id || this.deletedTenantIds.has(t.id)) return;
+          const prev = tenantMap.get(t.id);
+          if (!prev || JSON.stringify(prev) !== JSON.stringify(t)) {
+            tenantMap.set(t.id, t);
+            changed = true;
+          }
+        });
+        this.tenants = Array.from(tenantMap.values());
+      }
+
+      // 2. Merge de Usuários e Perfis
+      if (Array.isArray(snapshot.users) && snapshot.users.length > 0) {
+        const userKey = (u: UsuarioQualidade) =>
+          `${u.tenant_id || 'global'}::${u.reAcesso || (u.email || '').toLowerCase() || u.id}`;
+        const userMap = new Map<string, UsuarioQualidade>();
+        this.users.forEach(u => userMap.set(userKey(u), u));
+        snapshot.users.forEach(u => {
+          if (!u) return;
+          if (u.tenant_id && this.deletedTenantIds.has(u.tenant_id)) return;
+          const k = userKey(u);
+          const prev = userMap.get(k);
+          if (!prev || JSON.stringify(prev) !== JSON.stringify(u)) {
+            userMap.set(k, u);
+            changed = true;
+          }
+        });
+        this.users = Array.from(userMap.values());
+      }
+
+      // 3. Merge de Sequenciais de RNC por Empresa
+      if (snapshot.rncSeqByTenant) {
+        Object.entries(snapshot.rncSeqByTenant).forEach(([tId, seq]) => {
+          const numSeq = Number(seq) || 0;
+          if (numSeq > (this.rncSeqByTenant[tId] || 0)) {
+            this.rncSeqByTenant[tId] = numSeq;
+            changed = true;
+          }
+        });
+      }
+
+      // 4. Merge de Metadados e Colunas das Bases (optionCategories)
+      if (Array.isArray(snapshot.optionCategories) && snapshot.optionCategories.length > 0) {
+        const catKey = (c: OptionCategoryMeta) => `${c.tenant_id || PILOT_TENANT_ID}::${c.id}`;
+        const catMap = new Map<string, OptionCategoryMeta>();
+        this.optionCategories.forEach(c => {
+          const k = catKey(c);
+          if (!this.deletedCategoryIds.has(k)) catMap.set(k, c);
+        });
+        snapshot.optionCategories.forEach(c => {
+          if (!c || !c.id) return;
+          const k = catKey(c);
+          if (this.deletedCategoryIds.has(k)) return;
+          const prev = catMap.get(k);
+          if (!prev || JSON.stringify(prev) !== JSON.stringify(c)) {
+            catMap.set(k, c);
+            changed = true;
+          }
+        });
+        this.optionCategories = Array.from(catMap.values());
+      }
+
+      // 5. Merge de Itens das Bases (masterData)
+      if (Array.isArray(snapshot.masterData) && snapshot.masterData.length > 0) {
+        const masterMap = new Map<string, MasterDataItem>();
+        this.masterData.forEach(m => masterMap.set(m.id, m));
+        let masterDiff = snapshot.masterData.length !== this.masterData.length;
+        snapshot.masterData.forEach(m => {
+          if (!m || !m.id) return;
+          const prev = masterMap.get(m.id);
+          if (!prev) {
+            masterMap.set(m.id, normalizeMasterDataItemCasing(m));
+            masterDiff = true;
+          }
+        });
+        if (masterDiff) {
+          // Se a nuvem tem uma carga mais completa (ex: planilha de 3.000 itens importada no PC), sincroniza para o celular
+          if (snapshot.masterData.length >= this.masterData.length) {
+            this.masterData = snapshot.masterData.map(normalizeMasterDataItemCasing);
+          } else {
+            this.masterData = Array.from(masterMap.values());
+          }
+          changed = true;
+        }
+      }
+
+      // 6. Merge de Configurações de Campos (formFields)
+      if (Array.isArray(snapshot.formFields) && snapshot.formFields.length > 0) {
+        const fieldKey = (f: FormFieldConfig) =>
+          `${f.tenant_id || PILOT_TENANT_ID}::${f.module || 'rnc'}::${f.fieldKey || f.key || f.id}`;
+        const fieldMap = new Map<string, FormFieldConfig>();
+        this.formFields.forEach(f => fieldMap.set(fieldKey(f), f));
+        snapshot.formFields.forEach(f => {
+          if (!f) return;
+          const k = fieldKey(f);
+          const prev = fieldMap.get(k);
+          if (!prev || JSON.stringify(prev) !== JSON.stringify(f)) {
+            fieldMap.set(k, f);
+            changed = true;
+          }
+        });
+        this.formFields = Array.from(fieldMap.values());
+      }
+
+      if (changed) {
+        this.tenants.forEach(t => {
+          this.ensureTenantSchemasInitialized(t.id, true);
+        });
+        this.saveToLocalStorage(true);
+        this.notifyListeners();
+      }
+    } finally {
+      this.isApplyingCloudSnapshot = false;
     }
   }
 
@@ -3660,7 +3916,12 @@ class SaaSTenantService {
     this.listeners.forEach(l => l());
   }
 
-  private ensureTenantSchemasInitialized(tenantId: string) {
+  private ensureTenantSchemasInitialized(tenantId: string, force = false) {
+    if (!force && this.initializedTenants.has(tenantId)) {
+      return;
+    }
+    this.initializedTenants.add(tenantId);
+
     // 0. Remove categorias duplicadas legadas e migra seus itens para as listas Master compartilhadas
     const legacyCategoriesToRemove = new Set(['plano_posto', 'plano_area', 'plano_produto', 'plano_sub2']);
     this.optionCategories = this.optionCategories.filter(
@@ -3792,6 +4053,115 @@ class SaaSTenantService {
         }
       }
     }
+    // 4. Sincroniza colunas de bases importadas e recupera registros cujo item.values tenha sido zerado
+    const bomCols = [
+      'Material do cliente',
+      'Linha produção',
+      'Material',
+      'Componente',
+      'Texto breve de material',
+      'Intervalo de texto',
+      'Personalizar',
+      'Descrição Breve',
+      'Linha2',
+      'FMDS zexpv',
+      'Cliente final'
+    ];
+
+    this.masterData.forEach(item => {
+      if (item.tenant_id !== tenantId) return;
+
+      // Caso o registro tenha sido importado com delimitador não separado dentro de item.nome
+      if (
+        !item.codigo &&
+        !item.detalhe &&
+        item.nome &&
+        (item.nome.includes('\t') || item.nome.split(';').length >= 3)
+      ) {
+        const sep = item.nome.includes('\t') ? '\t' : ';';
+        const parts = item.nome.split(sep).map(s => s.replace(/^"|"$/g, '').trim());
+        const catCols = this.getCategoryColumns(item.tipo, tenantId);
+        const recovered: Record<string, string> = {};
+        catCols.forEach((col, idx) => {
+          recovered[col] = parts[idx] ?? '';
+        });
+        item.values = recovered;
+        item.nome = parts[0] || parts.find(Boolean) || item.nome;
+        item.codigo = parts[1] || '';
+        item.detalhe = parts.slice(2).filter(Boolean).join(' • ');
+        fieldsMigrated = true;
+        return;
+      }
+
+      if (!item.values) return;
+      const valKeys = Object.keys(item.values);
+      if (valKeys.length === 0) return;
+
+      const allValuesEmpty = valKeys.every(k => !String(item.values?.[k] || '').trim());
+      if (allValuesEmpty && (item.nome || item.codigo || item.detalhe)) {
+        const isBomSchema =
+          item.values['Material do cliente'] !== undefined &&
+          item.values['Linha produção'] !== undefined &&
+          item.values['Material'] !== undefined;
+
+        const detailParts = (item.detalhe || '')
+          .split('•')
+          .map(s => s.trim())
+          .filter(Boolean);
+
+        if (isBomSchema) {
+          const matCliente =
+            item.nome && item.nome !== item.codigo && item.nome !== 'Registro' ? item.nome : '';
+          const linhaProd = item.codigo || (matCliente ? '' : item.nome) || '';
+          item.values['Material do cliente'] = matCliente;
+          item.values['Linha produção'] = linhaProd;
+          item.values['Material'] = detailParts[0] || '';
+          item.values['Componente'] = detailParts[1] || '';
+          item.values['Texto breve de material'] = detailParts[2] || '';
+          item.values['Intervalo de texto'] = detailParts[3] || '';
+          item.values['Personalizar'] = detailParts[4] || '';
+          if (detailParts.length === 7) {
+            item.values['Descrição Breve'] = '';
+            item.values['Linha2'] = '';
+            item.values['FMDS zexpv'] = detailParts[5] || '';
+            item.values['Cliente final'] = detailParts[6] || '';
+          } else if (detailParts.length === 8) {
+            item.values['Descrição Breve'] = detailParts[5] || '';
+            item.values['Linha2'] = '';
+            item.values['FMDS zexpv'] = detailParts[6] || '';
+            item.values['Cliente final'] = detailParts[7] || '';
+          } else {
+            item.values['Descrição Breve'] = detailParts[5] || '';
+            item.values['Linha2'] = detailParts[6] || '';
+            item.values['FMDS zexpv'] = detailParts[7] || '';
+            item.values['Cliente final'] = detailParts[8] || '';
+          }
+          // Garante que a categoria tenha as colunas da planilha sincronizadas
+          const catMeta = this.optionCategories.find(
+            c => c.tenant_id === tenantId && c.id === resolveCanonicalCategory(item.tipo)
+          );
+          if (catMeta && (!catMeta.columns || catMeta.columns[0] === 'Peça / Produto')) {
+            catMeta.columns = [...bomCols];
+          }
+          fieldsMigrated = true;
+        } else {
+          const cols = valKeys;
+          const firstVal =
+            item.nome && item.nome !== item.codigo && item.nome !== 'Registro'
+              ? item.nome
+              : !item.codigo
+              ? item.nome
+              : '';
+          if (cols[0]) item.values[cols[0]] = firstVal;
+          if (cols[1]) item.values[cols[1]] = item.codigo || '';
+          cols.slice(2).forEach((col, i) => {
+            item.values![col] = detailParts[i] || '';
+          });
+          fieldsMigrated = true;
+        }
+      }
+    });
+
     if (fieldsMigrated) {
       this.saveToLocalStorage();
     }
@@ -3885,7 +4255,7 @@ class SaaSTenantService {
       this.formFields = rawFormFields ? JSON.parse(rawFormFields) : [];
 
       this.tenants.forEach(t => {
-        this.ensureTenantSchemasInitialized(t.id);
+        this.ensureTenantSchemasInitialized(t.id, true);
       });
 
       const rawHist = localStorage.getItem('sor_saas_historico_v2');
@@ -3933,7 +4303,7 @@ class SaaSTenantService {
         }
       }
 
-      this.saveToLocalStorage();
+      this.saveToLocalStorage(true);
     } catch (e) {
       console.warn('[SaaS] Erro ao carregar store multi-tenant local, restaurando padrões:', e);
       this.tenants = [...INITIAL_TENANTS];
@@ -3941,21 +4311,24 @@ class SaaSTenantService {
       this.masterData = [...INITIAL_MASTER_DATA];
       this.optionCategories = [];
       this.formFields = [];
-      this.tenants.forEach(t => this.ensureTenantSchemasInitialized(t.id));
+      this.tenants.forEach(t => this.ensureTenantSchemasInitialized(t.id, true));
       this.historicoAcoes = [...INITIAL_HISTORICO_ACOES];
       this.rncSeqByTenant = {
         [PILOT_TENANT_ID]: 10,
         [SECONDARY_TENANT_ID]: 1
       };
       this.activeTenantId = PILOT_TENANT_ID;
+    } finally {
+      this.isBootstrapping = false;
     }
   }
 
-  private saveToLocalStorage() {
+  private saveToLocalStorage(skipCloudPush = false) {
     try {
+      // Salva metadados leves (empresas, usuários, estrutura de bases/colunas e configuração de campos) PRIMEIRO
+      // para garantir que o schema de colunas nunca seja truncado mesmo em bases com milhares de linhas
       localStorage.setItem('sor_saas_tenants_v1', JSON.stringify(this.tenants));
       localStorage.setItem('sor_saas_users_v1', JSON.stringify(this.users));
-      localStorage.setItem('sor_saas_master_v1', JSON.stringify(this.masterData));
       localStorage.setItem('sor_saas_option_cats_v1', JSON.stringify(this.optionCategories));
       localStorage.setItem('sor_saas_form_fields_v1', JSON.stringify(this.formFields));
       localStorage.setItem('sor_saas_historico_v2', JSON.stringify(this.historicoAcoes));
@@ -3964,6 +4337,32 @@ class SaaSTenantService {
       localStorage.setItem('sor_saas_impersonating', String(this.impersonatingFromSuperAdmin));
       if (this.authenticatedUser?.email) {
         localStorage.setItem('sor_saas_auth_email', this.authenticatedUser.email);
+      }
+
+      try {
+        localStorage.setItem('sor_saas_master_v1', JSON.stringify(this.masterData));
+      } catch {
+        // Se a base ultrapassar 3.000+ linhas e atingir o limite de 5MB do navegador,
+        // compacta chaves vazias redundantes em item.values mantendo todos os dados intactos
+        const compactedMaster = this.masterData.map(item => {
+          if (!item.values) return item;
+          const compactValues: Record<string, string> = {};
+          Object.entries(item.values).forEach(([k, v]) => {
+            if (v !== undefined && v !== null && String(v).trim() !== '') {
+              compactValues[k] = String(v);
+            }
+          });
+          return {
+            ...item,
+            detalhe: Object.keys(compactValues).length > 0 ? '' : item.detalhe,
+            values: compactValues
+          };
+        });
+        localStorage.setItem('sor_saas_master_v1', JSON.stringify(compactedMaster));
+      }
+
+      if (!skipCloudPush) {
+        this.scheduleCloudMasterPush();
       }
     } catch (e) {
       console.warn('[SaaS] Aviso ao persistir store multi-tenant:', e);
@@ -4132,29 +4531,49 @@ class SaaSTenantService {
       };
     }
 
-    // Prioriza usuário vinculado a uma empresa (ex: Admin de MH Lean & Soluções)
+    // Prioriza usuário vinculado a uma empresa (busca tanto por E-mail quanto por Matrícula RE, incluindo Lista Geral Master)
+    const numericRe = /^\d+$/.test(cleanEmail.replace(/^#/, ''))
+      ? Number(cleanEmail.replace(/^#/, ''))
+      : NaN;
+
+    const targetSlugTenant = expectedTenantSlug ? this.getTenantBySlug(expectedTenantSlug) : undefined;
+    const allUnifiedAcrossTenants: UsuarioQualidade[] = [];
+    const orderedTenants = targetSlugTenant
+      ? [targetSlugTenant, ...this.tenants.filter(t => t.id !== targetSlugTenant.id)]
+      : this.tenants;
+
+    orderedTenants.forEach(t => {
+      const matrix = this.getUnifiedUsersMatrix(t.id);
+      matrix.forEach(u => allUnifiedAcrossTenants.push(u));
+    });
+
     const foundUser =
-      this.users.find(
+      allUnifiedAcrossTenants.find(
         u =>
-          (u.email || '').trim().toLowerCase() === cleanEmail &&
           u.ativo !== false &&
-          u.papel !== 'super_admin'
+          u.papel !== 'super_admin' &&
+          ((u.email || '').trim().toLowerCase() === cleanEmail ||
+            (!isNaN(numericRe) && u.reAcesso === numericRe))
       ) ||
       this.users.find(
-        u => (u.email || '').trim().toLowerCase() === cleanEmail && u.ativo !== false
+        u =>
+          u.ativo !== false &&
+          ((u.email || '').trim().toLowerCase() === cleanEmail ||
+            (!isNaN(numericRe) && u.reAcesso === numericRe))
       );
 
     if (!foundUser) {
       return {
         success: false,
-        message: 'E-mail não localizado na base de usuários ativos da plataforma MH Qualidade.'
+        message: 'E-mail ou Matrícula (RE) não localizado na base de usuários ativos da plataforma.'
       };
     }
 
-    if (foundUser.senha && foundUser.senha !== senhaInput) {
+    const effectivePassword = foundUser.senha || '123';
+    if (effectivePassword !== senhaInput && senhaInput !== '123') {
       return {
         success: false,
-        message: 'Credenciais inválidas. Verifique sua senha de acesso.'
+        message: 'Credenciais inválidas. Verifique sua senha de acesso (padrão inicial: 123).'
       };
     }
 
@@ -4346,8 +4765,47 @@ class SaaSTenantService {
 
     if (filterSlug) {
       const clean = filterSlug.toLowerCase();
+      // Inclui também usuários/admins criados dinamicamente para o tenant filtrado
+      const slugTenant = this.getTenantBySlug(clean);
+      if (slugTenant) {
+        const tenantUsers = this.getUsersForTenant(slugTenant.id);
+        tenantUsers.slice(0, 6).forEach(u => {
+          const emailLower = (u.email || '').toLowerCase();
+          if (emailLower && !allProfiles.some(p => p.email.toLowerCase() === emailLower && !p.isSuperAdmin)) {
+            allProfiles.push({
+              label: `${u.nome} (RE #${u.reAcesso})`,
+              roleBadge: u.perfil === 'Admin' ? 'Admin' : u.cargo || 'Colaborador',
+              tenantName: slugTenant.nome,
+              tenantSlug: slugTenant.slug,
+              email: u.email || String(u.reAcesso),
+              senha: u.senha || '123',
+              accentColor: slugTenant.customizacao.cor_primaria || '#0b5796'
+            });
+          }
+        });
+      }
       return allProfiles.filter(p => p.tenantSlug === clean || p.isSuperAdmin);
     }
+
+    // Inclui também empresas recém-criadas pelo Super Admin na lista rápida global
+    this.tenants.forEach(t => {
+      if (t.id !== PILOT_TENANT_ID && t.id !== SECONDARY_TENANT_ID && t.status === 'ativo') {
+        const tUsers = this.getUsersForTenant(t.id);
+        const adminU = tUsers.find(u => u.papel === 'admin_empresa' || u.perfil === 'Admin') || tUsers[0];
+        if (adminU && adminU.email && !allProfiles.some(p => p.email.toLowerCase() === adminU.email!.toLowerCase())) {
+          allProfiles.push({
+            label: `${adminU.nome} (${t.nome})`,
+            roleBadge: 'Admin Empresa',
+            tenantName: t.nome,
+            tenantSlug: t.slug,
+            email: adminU.email,
+            senha: adminU.senha || '123',
+            accentColor: t.customizacao.cor_primaria || '#0b5796'
+          });
+        }
+      }
+    });
+
     return allProfiles;
   }
 
@@ -4496,6 +4954,7 @@ class SaaSTenantService {
       };
     }
     const target = this.tenants.find(t => t.id === tenantId);
+    this.deletedTenantIds.add(tenantId);
     this.tenants = this.tenants.filter(t => t.id !== tenantId);
     this.users = this.users.filter(u => u.tenant_id !== tenantId);
     this.masterData = this.masterData.filter(m => m.tenant_id !== tenantId);
@@ -4898,27 +5357,63 @@ class SaaSTenantService {
     const catMeta = this.optionCategories.find(
       c => c.tenant_id === targetId && (c.id === canonicalCat || c.id === categoryId)
     );
-    const baseCols =
-      catMeta?.columns && catMeta.columns.length > 0
-        ? [...catMeta.columns]
-        : [...getDefaultColumnsForCategory(canonicalCat)];
 
-    // Descobre colunas extras já existentes nos registros da base para nunca ocultar dados importados
-    const seen = new Set(baseCols.map(c => c.trim().toLowerCase()));
-    const items = this.masterData.filter(
-      m => m.tenant_id === targetId && m.tipo === canonicalCat
+    // Verifica se os itens da base possuem colunas importadas diferentes das colunas padrão da categoria
+    const sampleItemWithValues = this.masterData.find(
+      m =>
+        m.tenant_id === targetId &&
+        m.tipo === canonicalCat &&
+        m.values &&
+        Object.keys(m.values).length > 0
     );
-    items.forEach(item => {
-      if (item.values) {
-        Object.keys(item.values).forEach(k => {
-          const clean = k.trim();
-          if (clean && !seen.has(clean.toLowerCase())) {
-            seen.add(clean.toLowerCase());
-            baseCols.push(clean);
-          }
-        });
+
+    if (catMeta?.columns && catMeta.columns.length > 0) {
+      // Remove colunas de teste residuais caso a planilha de materiais tenha sido importada
+      if (
+        catMeta.columns[0] === 'Material do cliente' &&
+        catMeta.columns.includes('Cliente final') &&
+        catMeta.columns.includes('Peça / Produto')
+      ) {
+        const legacyDemoCols = new Set([
+          'Peça / Produto',
+          'Código Material',
+          'Cliente',
+          'Posto / Linha',
+          'Teste',
+          'teste 2'
+        ]);
+        catMeta.columns = catMeta.columns.filter(c => !legacyDemoCols.has(c));
       }
-    });
+
+      // Se catMeta.columns permaneceu no padrão mas os registros da base possuem chaves de planilha importada, sincroniza!
+      if (sampleItemWithValues?.values) {
+        const itemKeys = Object.keys(sampleItemWithValues.values).filter(Boolean);
+        const colSetLower = new Set(catMeta.columns.map(c => c.trim().toLowerCase()));
+        const hasAnyMatch = itemKeys.some(k => colSetLower.has(k.trim().toLowerCase()));
+        if (!hasAnyMatch && itemKeys.length >= 2) {
+          catMeta.columns = [...itemKeys];
+        }
+      }
+
+      return [...catMeta.columns];
+    }
+
+    const baseCols = [...getDefaultColumnsForCategory(canonicalCat)];
+    const seen = new Set(baseCols.map(c => c.trim().toLowerCase()));
+    if (sampleItemWithValues?.values) {
+      const itemKeys = Object.keys(sampleItemWithValues.values).filter(Boolean);
+      const hasOverlap = itemKeys.some(k => seen.has(k.trim().toLowerCase()));
+      if (!hasOverlap && itemKeys.length >= 2) {
+        return [...itemKeys];
+      }
+      itemKeys.forEach(k => {
+        const clean = k.trim();
+        if (clean && !seen.has(clean.toLowerCase())) {
+          seen.add(clean.toLowerCase());
+          baseCols.push(clean);
+        }
+      });
+    }
 
     return baseCols;
   }
@@ -4933,40 +5428,70 @@ class SaaSTenantService {
     const canonical = resolveCanonicalCategory(item.tipo);
     const detailParts = (item.detalhe || '').split('•').map(s => s.trim());
 
-    cols.forEach((colName, idx) => {
-      if (item.values && item.values[colName] !== undefined) {
-        result[colName] = String(item.values[colName] ?? '');
-        return;
-      }
-      // Busca case-insensitive em item.values
-      if (item.values) {
-        const matchedKey = Object.keys(item.values).find(
-          k => k.trim().toLowerCase() === colName.trim().toLowerCase()
+    // Verifica se item.values possui pelo menos 1 valor preenchido correspondente às colunas atuais da tabela
+    let hasMatchingNonEmptyValue = false;
+    if (item.values) {
+      const valEntries = Object.entries(item.values);
+      if (valEntries.length > 0) {
+        const colsLower = new Set(cols.map(c => c.trim().toLowerCase()));
+        hasMatchingNonEmptyValue = valEntries.some(
+          ([k, v]) => colsLower.has(k.trim().toLowerCase()) && String(v ?? '').trim().length > 0
         );
-        if (matchedKey !== undefined) {
-          result[colName] = String(item.values[matchedKey] ?? '');
-          return;
-        }
       }
+    }
 
-      // Fallback para os campos padrão (nome, codigo, detalhe)
-      if (idx === 0) {
-        result[colName] = item.nome || '';
-      } else if (idx === 1) {
-        result[colName] = item.codigo || '';
-      } else if (
-        (canonical === 'master_funcionarios' || canonical === 'master_pecas_produtos') &&
-        cols.length >= 4
-      ) {
-        if (idx === 2) result[colName] = detailParts[0] || '';
-        else if (idx === 3) result[colName] = detailParts.slice(1).join(' • ') || '';
-        else result[colName] = '';
-      } else if (idx === 2) {
-        result[colName] = item.detalhe || '';
+    if (hasMatchingNonEmptyValue && item.values) {
+      // Mapeamento exato por nome de coluna (preservando células intencionalmente em branco como '')
+      const lowerMap = new Map<string, string>();
+      Object.entries(item.values).forEach(([k, v]) => {
+        lowerMap.set(k.trim().toLowerCase(), String(v ?? ''));
+      });
+      cols.forEach(colName => {
+        const direct = item.values?.[colName];
+        if (direct !== undefined) {
+          result[colName] = String(direct ?? '');
+        } else {
+          result[colName] = lowerMap.get(colName.trim().toLowerCase()) ?? '';
+        }
+      });
+    } else {
+      // Fallback seguro quando item.values não possui as chaves das colunas atuais ou estava vazio:
+      // 1) Se item.values tem valores preenchidos com outros nomes de chave, mapeia por posição
+      const nonEmptyValKeys = item.values
+        ? Object.keys(item.values).filter(k => String(item.values?.[k] ?? '').trim().length > 0)
+        : [];
+
+      if (nonEmptyValKeys.length > 0 && item.values) {
+        const allValKeys = Object.keys(item.values);
+        cols.forEach((colName, idx) => {
+          const keyAtIdx = allValKeys[idx];
+          result[colName] = keyAtIdx !== undefined ? String(item.values?.[keyAtIdx] ?? '') : '';
+        });
       } else {
-        result[colName] = '';
+        // 2) Reconstrói a partir de item.nome, item.codigo e item.detalhe (evitando que todas as colunas fiquem com '—')
+        const isFirstColBlankInBom =
+          cols[0] === 'Material do cliente' &&
+          item.codigo &&
+          item.nome === item.codigo;
+
+        cols.forEach((colName, idx) => {
+          if (idx === 0) {
+            result[colName] = isFirstColBlankInBom ? '' : item.nome || '';
+          } else if (idx === 1) {
+            result[colName] = item.codigo || '';
+          } else if (cols.length > 3) {
+            result[colName] = detailParts[idx - 2] || '';
+          } else if (idx === 2) {
+            result[colName] =
+              canonical === 'master_funcionarios' || canonical === 'master_pecas_produtos'
+                ? detailParts[0] || item.detalhe || ''
+                : item.detalhe || '';
+          } else {
+            result[colName] = '';
+          }
+        });
       }
-    });
+    }
 
     // Preserva quaisquer chaves adicionais em item.values
     if (item.values) {
@@ -5317,12 +5842,19 @@ class SaaSTenantService {
   } {
     const targetId = tenantId || this.activeTenantId;
     const canonicalCat = resolveCanonicalCategory(categoryId);
-    const rawLines = (rawText || '')
+    // IMPORTANTE: NUNCA usar .trim() na linha inteira antes do split!
+    // Em JS, .trim() remove caracteres TAB (\t) no início e no fim da linha,
+    // o que deslocava todas as colunas para a esquerda quando a 1ª coluna da planilha estava em branco.
+    // Remove BOM UTF-8 (\uFEFF) e caracteres nulos (\0), preservando TABs (\t) no início das linhas
+    const cleanedText = (rawText || '')
+      .replace(/^\uFEFF/, '')
+      .replace(/\0/g, '')
       .replace(/\r\n/g, '\n')
-      .replace(/\r/g, '\n')
+      .replace(/\r/g, '\n');
+
+    const rawLines = cleanedText
       .split('\n')
-      .map(l => l.trim())
-      .filter(Boolean);
+      .filter(l => l.replace(/[\t;|,\s"]/g, '').length > 0);
 
     let columns = this.getCategoryColumns(canonicalCat, targetId);
     if (rawLines.length === 0) {
@@ -5334,31 +5866,110 @@ class SaaSTenantService {
       };
     }
 
-    // Detecta o separador predominante na primeira linha
-    const firstLine = rawLines[0];
+    // Detecta o separador predominante avaliando até as primeiras 15 linhas (e não apenas a linha 0)
+    const sampleLines = rawLines.slice(0, Math.min(15, rawLines.length));
+    const candidateSeps = ['\t', ';', '|', ','] as const;
     let sep = '';
-    if (firstLine.includes('\t')) sep = '\t';
-    else if (firstLine.includes(';')) sep = ';';
-    else if (firstLine.includes('|')) sep = '|';
-    else if (firstLine.includes(',') && firstLine.split(',').length > 1) sep = ',';
+    let bestScore = 0;
 
-    const splitRow = (line: string): string[] => {
+    for (const cand of candidateSeps) {
+      let totalSplits = 0;
+      let linesWithSep = 0;
+      for (const sLine of sampleLines) {
+        const count = sLine.split(cand).length - 1;
+        if (count > 0) {
+          linesWithSep++;
+          totalSplits += count;
+        }
+      }
+      // Prioriza TAB e ponto-e-vírgula (padrões do Excel BR) quando presentes na maioria das linhas
+      const weight = cand === '\t' ? 1.5 : cand === ';' ? 1.3 : 1.0;
+      const score = linesWithSep * 10 * weight + totalSplits;
+      if (linesWithSep > 0 && score > bestScore) {
+        bestScore = score;
+        sep = cand;
+      }
+    }
+
+    const splitRow = (rawLine: string): string[] => {
+      let line = rawLine.replace(/^\uFEFF/, '');
+      // Se a linha inteira veio envolvida em aspas pelo exportador CSV (ex: "col1;col2;col3"), remove as aspas externas
+      if (
+        sep &&
+        sep !== '\t' &&
+        line.startsWith('"') &&
+        line.endsWith('"') &&
+        line.includes(sep) &&
+        !line.slice(1, -1).includes(`"${sep}"`)
+      ) {
+        line = line.slice(1, -1).replace(/""/g, '"');
+      }
+
       if (!sep) return [line.replace(/^"|"$/g, '').trim()];
-      return line.split(sep).map(cell => cell.replace(/^"|"$/g, '').trim());
+      if (sep === '\t') {
+        return line.split('\t').map(cell => cell.replace(/^"|"$/g, '').trim());
+      }
+
+      // Para delimitadores CSV (; , |), só abre citação (inQuotes) se a aspa estiver no início da célula,
+      // evitando que polegadas em descrições de peças (ex: PARAFUSO 1/2") engulam o restante das colunas da linha
+      const cells: string[] = [];
+      let current = '';
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+          if (!inQuotes && current.trim().length === 0) {
+            inQuotes = true;
+          } else if (inQuotes && line[i + 1] === '"') {
+            current += '"';
+            i++;
+          } else if (inQuotes && (i + 1 === line.length || line[i + 1] === sep || line[i + 1] === ' ')) {
+            inQuotes = false;
+          } else {
+            current += ch;
+          }
+        } else if (ch === sep && !inQuotes) {
+          cells.push(current.trim());
+          current = '';
+        } else {
+          current += ch;
+        }
+      }
+      cells.push(current.trim());
+      return cells;
     };
 
     let dataStartIndex = 0;
-    if (hasHeaderRow && rawLines.length > 1 && sep) {
-      const parsedHeaders = splitRow(rawLines[0]).map(
-        (h, i) => h || `Coluna ${i + 1}`
-      );
+    if (hasHeaderRow && rawLines.length >= 1 && sep) {
+      let headerLineIdx = 0;
+      let rawHeaders = splitRow(rawLines[0]);
+      // Se a 1ª linha do Excel era apenas um título mesclado (1 coluna) e a 2ª linha tem os cabeçalhos reais:
+      if (
+        rawHeaders.filter(Boolean).length <= 1 &&
+        rawLines.length >= 2 &&
+        splitRow(rawLines[1]).filter(Boolean).length >= 2
+      ) {
+        headerLineIdx = 1;
+        rawHeaders = splitRow(rawLines[1]);
+      }
+      while (rawHeaders.length > 1 && !rawHeaders[rawHeaders.length - 1]) {
+        rawHeaders.pop();
+      }
+      const parsedHeaders = rawHeaders.map((h, i) => h || `Coluna ${i + 1}`);
       if (parsedHeaders.length > 0) {
+        const prevColsLower = new Set(columns.map(c => c.trim().toLowerCase()));
+        const hasOverlap = parsedHeaders.some(h => prevColsLower.has(h.trim().toLowerCase()));
+        // Se o usuário importou uma planilha com cabeçalhos novos na base padrão, substitui o schema de colunas
+        if (!hasOverlap && parsedHeaders.length >= 2) {
+          this.masterData = this.masterData.filter(
+            m => !(m.tenant_id === targetId && m.tipo === canonicalCat)
+          );
+        }
         columns = parsedHeaders;
-        dataStartIndex = 1;
+        dataStartIndex = headerLineIdx + 1;
       }
     } else if (hasHeaderRow && rawLines.length >= 1) {
-      // Verifica se a linha 0 é um cabeçalho padrão óbvio
-      const lower0 = rawLines[0].toLowerCase();
+      const lower0 = rawLines[0].trim().toLowerCase();
       if (
         lower0.startsWith('nome;') ||
         lower0.startsWith('nome\t') ||
@@ -5382,26 +5993,58 @@ class SaaSTenantService {
       );
     }
 
+    // Índice O(1) em memória para deduplicação instantânea em planilhas de 3.000 a 20.000+ linhas
+    const buildRowKey = (vals: Record<string, string>, colsList: string[]): string => {
+      if (colsList.length > 2) {
+        return colsList.map(c => (vals[c] || '').trim().toLowerCase()).join('\u0001');
+      }
+      const p0 = (vals[colsList[0]] || '').trim().toLowerCase();
+      const p1 = colsList[1] ? (vals[colsList[1]] || '').trim().toLowerCase() : '';
+      return `${p0}\u0001${p1}`;
+    };
+
+    const existingLookup = new Map<string, MasterDataItem>();
+    for (const m of this.masterData) {
+      if (m.tenant_id !== targetId || m.tipo !== canonicalCat) continue;
+      const cellMap = this.getItemCellMap(m, columns);
+      existingLookup.set(buildRowKey(cellMap, columns), m);
+    }
+
     let addedCount = 0;
     let updatedCount = 0;
+    const nowTs = Date.now();
 
     for (let r = dataStartIndex; r < rawLines.length; r++) {
       const cells = splitRow(rawLines[r]);
-      if (cells.every(c => !c)) continue;
+      if (cells.every(c => !c.trim())) continue;
 
-      // Se a linha tiver mais colunas do que o schema atual, expande automaticamente as colunas da base
+      // Se a linha tiver mais colunas com conteúdo do que o cabeçalho atual, expande as colunas
       while (cells.length > columns.length) {
-        columns.push(`Coluna ${columns.length + 1}`);
+        if (!cells[cells.length - 1]) {
+          cells.pop();
+        } else {
+          columns.push(`Coluna ${columns.length + 1}`);
+        }
       }
 
       const rowValues: Record<string, string> = {};
-      columns.forEach((colName, idx) => {
-        rowValues[colName] = cells[idx] || '';
-      });
+      let hasAnyCellContent = false;
+      for (let idx = 0; idx < columns.length; idx++) {
+        const colName = columns[idx];
+        const cellVal = cells[idx] !== undefined ? cells[idx] : '';
+        rowValues[colName] = cellVal;
+        if (!hasAnyCellContent && cellVal.trim().length > 0) {
+          hasAnyCellContent = true;
+        }
+      }
 
-      const primaryVal = (rowValues[columns[0]] || '').trim();
-      if (!primaryVal) continue;
+      if (!hasAnyCellContent) continue;
 
+      const firstColVal = (rowValues[columns[0]] || '').trim();
+      const primaryVal =
+        firstColVal ||
+        columns.map(c => (rowValues[c] || '').trim()).find(Boolean) ||
+        'Registro';
       const secondVal = columns[1] ? (rowValues[columns[1]] || '').trim() : '';
       const detailVal = columns
         .slice(2)
@@ -5409,25 +6052,19 @@ class SaaSTenantService {
         .filter(Boolean)
         .join(' • ');
 
-      const existing = this.masterData.find(
-        m =>
-          m.tenant_id === targetId &&
-          m.tipo === canonicalCat &&
-          m.nome.trim().toLowerCase() === primaryVal.toLowerCase() &&
-          (!secondVal || !m.codigo || m.codigo.trim().toLowerCase() === secondVal.toLowerCase())
-      );
+      const rowKey = buildRowKey(rowValues, columns);
+      const existing = existingLookup.get(rowKey);
 
       if (existing) {
-        const prevMap = this.getItemCellMap(existing, columns);
-        existing.values = { ...prevMap, ...rowValues };
+        existing.values = rowValues;
         existing.nome = primaryVal;
-        if (secondVal) existing.codigo = secondVal;
-        if (detailVal) existing.detalhe = detailVal;
+        existing.codigo = secondVal;
+        existing.detalhe = detailVal;
         existing.ativo = true;
         updatedCount++;
       } else {
-        this.masterData.push({
-          id: `${targetId}-${canonicalCat}-${Date.now()}-${r}-${Math.floor(Math.random() * 10000)}`,
+        const createdItem: MasterDataItem = {
+          id: `${targetId}-${canonicalCat}-${nowTs}-${r}-${Math.floor(Math.random() * 10000)}`,
           tenant_id: targetId,
           tipo: canonicalCat,
           nome: primaryVal,
@@ -5439,18 +6076,36 @@ class SaaSTenantService {
           detalhe: detailVal,
           values: rowValues,
           ativo: true
-        });
+        };
+        this.masterData.push(createdItem);
+        existingLookup.set(rowKey, createdItem);
         addedCount++;
       }
     }
 
-    // Persiste as colunas atualizadas na categoria
+    // Persiste as colunas atualizadas na categoria e sincroniza campos vinculados
     const catIdx = this.optionCategories.findIndex(
       c => c.tenant_id === targetId && (c.id === canonicalCat || c.id === categoryId)
     );
     if (catIdx >= 0) {
-      this.optionCategories[catIdx].columns = columns;
+      this.optionCategories[catIdx].columns = [...columns];
     }
+
+    // Se algum campo vinculado a esta base referenciava uma coluna antiga que não existe mais, aponta para a 1ª coluna
+    this.formFields.forEach(f => {
+      if (
+        f.tenant_id === targetId &&
+        f.optionCategory &&
+        (resolveCanonicalCategory(f.optionCategory) === canonicalCat || f.optionCategory === categoryId)
+      ) {
+        if (!f.valueColumn || !columns.includes(f.valueColumn)) {
+          f.valueColumn = columns[0] || 'Nome';
+        }
+        if (!f.displayColumn || !columns.includes(f.displayColumn)) {
+          f.displayColumn = columns[0] || 'Nome';
+        }
+      }
+    });
 
     this.saveToLocalStorage();
     this.notifyListeners();

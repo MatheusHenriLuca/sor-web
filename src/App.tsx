@@ -107,6 +107,20 @@ export function App() {
     tenantService.applyTenantThemeToDOM(activeTenant);
   }, [activeTenant]);
 
+  useEffect(() => {
+    const onFocusSync = () => {
+      if (document.visibilityState === 'visible') {
+        spStore.syncWithCloudAndSupabase('pull');
+      }
+    };
+    window.addEventListener('focus', onFocusSync);
+    document.addEventListener('visibilitychange', onFocusSync);
+    return () => {
+      window.removeEventListener('focus', onFocusSync);
+      document.removeEventListener('visibilitychange', onFocusSync);
+    };
+  }, []);
+
   const syncUrlWithScreen = (screen: ActiveScreen, slugOverride?: string) => {
     if (typeof window === 'undefined') return;
     const slug = slugOverride || tenantService.getActiveTenant().slug;
@@ -342,8 +356,8 @@ export function App() {
         />
 
         {/* Canvas de Conteúdo da Página */}
-        <main className="flex-1 overflow-y-auto overflow-x-hidden min-w-0 bg-[#f8fafc] p-3 sm:p-5 lg:p-6 pb-24">
-          <div className={`w-full flex flex-col gap-5 min-w-0 ${currentScreen === 'plano-acao' ? 'max-w-none' : 'max-w-[1680px] mx-auto'}`}>
+        <main className="flex-1 overflow-y-auto overflow-x-hidden min-w-0 bg-[#f8fafc] p-3 sm:p-4 lg:p-6 pb-24">
+          <div className="w-full max-w-none flex flex-col gap-5 min-w-0">
             {currentScreen === 'menu-2' && (
               <Menu2View 
                 currentUser={currentUser}
@@ -377,7 +391,7 @@ export function App() {
 
             {currentScreen === 'detalhes-8d' && (
               <Detalhes8DView 
-                rncId={Number(screenParams?.rncId || screenParams?.id || 6119)}
+                rncId={Number(screenParams?.rncId || screenParams?.id || spStore.getRNCs()[0]?.id || 1)}
                 onNavigate={handleNavigate}
                 currentUser={currentUser}
                 initialViewMode={screenParams?.initialViewMode}
@@ -388,7 +402,7 @@ export function App() {
 
             {currentScreen === 'impressao-8d' && (
               <DetalhesImpressaoView 
-                rncId={Number(screenParams?.rncId || screenParams?.id || 6119)}
+                rncId={Number(screenParams?.rncId || screenParams?.id || spStore.getRNCs()[0]?.id || 1)}
                 onNavigate={handleNavigate}
                 fromScreen={screenParams?.fromScreen}
               />

@@ -1876,16 +1876,93 @@ class SharePointDataStore {
     if (this.isSyncingCloud) return;
     this.isSyncingCloud = true;
     try {
-      // 1. Busca registros salvos na tabela 'rncs' do Supabase (se RLS permitir)
+      let updated = false;
+
+      // 1. Se mode === 'push', envia estado atualizado diretamente ao Supabase PostgreSQL
+      if (mode === 'push') {
+        await Promise.all([
+          tenantService.pushMasterStateToSupabase(),
+          tenantService.pushModulesStateToSupabase({
+            rncs: this.rncs,
+            actionPlans: this.actionPlans,
+            actionItems: this.actionItems,
+            eightDMetadataList: this.eightDMetadataList,
+            ishikawaCauses: this.ishikawaCauses,
+            henkatenList: this.henkatenList,
+            entrevistaList: this.entrevistaList,
+            lotesSAP: this.lotesSAP,
+            treinamentos: this.treinamentos,
+            deletedRncKeys: Array.from(this.deletedRncKeys)
+          })
+        ]);
+      } else {
+        // Pull direto do Supabase PostgreSQL (Empresas, Usuários, Bases, Campos e Módulos)
+        await tenantService.pullMasterStateFromSupabase();
+        const supaModules = await tenantService.pullModulesStateFromSupabase();
+        if (supaModules) {
+          if (Array.isArray(supaModules.deletedRncKeys)) {
+            supaModules.deletedRncKeys.forEach((k: string) => this.deletedRncKeys.add(k));
+          }
+          if (Array.isArray(supaModules.rncs) && supaModules.rncs.length > 0) {
+            const prevIds = this.rncs.map(r => `${r.tenant_id || PILOT_TENANT_ID}:${r.id}:${r.status}`).join('|');
+            const map = new Map<string, RNCRecord>();
+            this.rncs.forEach(r => {
+              const k = this.getRncCompositeKey(r.tenant_id || PILOT_TENANT_ID, r.id);
+              if (!this.deletedRncKeys.has(k)) map.set(k, r);
+            });
+            supaModules.rncs.forEach((r: RNCRecord) => {
+              const k = this.getRncCompositeKey(r.tenant_id || PILOT_TENANT_ID, r.id);
+              if (!this.deletedRncKeys.has(k)) map.set(k, r);
+            });
+            this.rncs = Array.from(map.values()).sort((a, b) => b.id - a.id);
+            const nextIds = this.rncs.map(r => `${r.tenant_id || PILOT_TENANT_ID}:${r.id}:${r.status}`).join('|');
+            if (prevIds !== nextIds) updated = true;
+          }
+          if (Array.isArray(supaModules.actionPlans) && supaModules.actionPlans.length > 0) {
+            if (supaModules.actionPlans.length !== this.actionPlans.length) updated = true;
+            this.actionPlans = supaModules.actionPlans;
+          }
+          if (Array.isArray(supaModules.actionItems) && supaModules.actionItems.length > 0) {
+            if (supaModules.actionItems.length !== this.actionItems.length) updated = true;
+            this.actionItems = supaModules.actionItems;
+          }
+          if (Array.isArray(supaModules.eightDMetadataList) && supaModules.eightDMetadataList.length > 0) {
+            this.eightDMetadataList = supaModules.eightDMetadataList;
+          }
+          if (Array.isArray(supaModules.ishikawaCauses) && supaModules.ishikawaCauses.length > 0) {
+            this.ishikawaCauses = supaModules.ishikawaCauses;
+          }
+          if (Array.isArray(supaModules.henkatenList) && supaModules.henkatenList.length > 0) {
+            this.henkatenList = supaModules.henkatenList;
+          }
+          if (Array.isArray(supaModules.entrevistaList) && supaModules.entrevistaList.length > 0) {
+            this.entrevistaList = supaModules.entrevistaList;
+          }
+          if (Array.isArray(supaModules.lotesSAP) && supaModules.lotesSAP.length > 0) {
+            this.lotesSAP = supaModules.lotesSAP;
+          }
+          if (Array.isArray(supaModules.treinamentos) && supaModules.treinamentos.length > 0) {
+            this.treinamentos = supaModules.treinamentos;
+          }
+        }
+      }
+
+      // 2. Busca registros individuais salvos na tabela 'rncs' do Supabase
       const supaRncs = await tenantService.fetchRncsFromSupabase();
       if (supaRncs.length > 0) {
         const map = new Map<string, RNCRecord>();
-        this.rncs.forEach(r => map.set(this.getRncCompositeKey(r.tenant_id || PILOT_TENANT_ID, r.id), r));
-        supaRncs.forEach(r => map.set(this.getRncCompositeKey(r.tenant_id || PILOT_TENANT_ID, r.id), r));
+        this.rncs.forEach(r => {
+          const k = this.getRncCompositeKey(r.tenant_id || PILOT_TENANT_ID, r.id);
+          if (!this.deletedRncKeys.has(k)) map.set(k, r);
+        });
+        supaRncs.forEach(r => {
+          const k = this.getRncCompositeKey(r.tenant_id || PILOT_TENANT_ID, r.id);
+          if (!this.deletedRncKeys.has(k)) map.set(k, r);
+        });
         this.rncs = Array.from(map.values()).sort((a, b) => b.id - a.id);
       }
 
-      // 2. Sincroniza com o Cloud Store do Servidor (/api/cloud-sync)
+      // 3. Sincroniza também com o Cloud Store do Servidor (/api/cloud-sync)
       const masterSnap = tenantService.getCloudMasterStateSnapshot();
       const res =
         mode === 'push'
@@ -1893,6 +1970,9 @@ class SharePointDataStore {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
+                tenants: masterSnap.tenants,
+                users: masterSnap.users,
+                rncSeqByTenant: masterSnap.rncSeqByTenant,
                 rncs: this.rncs,
                 actionPlans: this.actionPlans,
                 actionItems: this.actionItems,
@@ -1905,14 +1985,15 @@ class SharePointDataStore {
                 masterData: masterSnap.masterData,
                 optionCategories: masterSnap.optionCategories,
                 formFields: masterSnap.formFields,
-                deletedRncKeys: Array.from(this.deletedRncKeys)
+                deletedRncKeys: Array.from(this.deletedRncKeys),
+                deletedTenantIds: masterSnap.deletedTenantIds,
+                deletedCategoryIds: masterSnap.deletedCategoryIds
               })
-            })
-          : await fetch('/api/cloud-sync', { method: 'GET' });
+            }).catch(() => null)
+          : await fetch('/api/cloud-sync', { method: 'GET' }).catch(() => null);
 
-      if (res.ok) {
+      if (res && res.ok) {
         const merged = await res.json();
-        let updated = false;
         if (Array.isArray(merged.rncs) && merged.rncs.length > 0) {
           const prevIds = this.rncs.map(r => `${r.tenant_id || PILOT_TENANT_ID}:${r.id}:${r.status}`).join('|');
           const map = new Map<string, RNCRecord>();
@@ -1960,17 +2041,22 @@ class SharePointDataStore {
           this.treinamentos = merged.treinamentos;
         }
         tenantService.applyCloudMasterStateSnapshot({
+          tenants: merged.tenants,
+          users: merged.users,
+          rncSeqByTenant: merged.rncSeqByTenant,
           masterData: merged.masterData,
           optionCategories: merged.optionCategories,
-          formFields: merged.formFields
+          formFields: merged.formFields,
+          deletedTenantIds: merged.deletedTenantIds,
+          deletedCategoryIds: merged.deletedCategoryIds
         });
+      }
 
-        this.indexRNCs();
-        this.persistLocalOnly();
-        if (updated) {
-          tenantService.recalculateTenantStorage(this.rncs);
-          tenantService.notifyListeners();
-        }
+      this.indexRNCs();
+      this.persistLocalOnly();
+      if (updated) {
+        tenantService.recalculateTenantStorage(this.rncs);
+        tenantService.notifyListeners();
       }
     } catch {
       // Operação offline silenciosa se sem rede
@@ -2296,7 +2382,8 @@ class SharePointDataStore {
   }
 
   public getColPecasGeraisAA3(): PecaCatalogo[] {
-    const masterProds = tenantService.getActiveOptions('master_pecas_produtos');
+    const activeTenantId = tenantService.getActiveTenantId();
+    const masterProds = tenantService.getActiveOptions('master_pecas_produtos', activeTenantId);
     const existingNames = new Set(
       this.pecas.map(p => p.descricao.trim().toLowerCase())
     );
@@ -2306,20 +2393,72 @@ class SharePointDataStore {
 
     const extraPecas: PecaCatalogo[] = [];
     masterProds.forEach((m, idx) => {
-      const cleanName = m.nome.trim();
+      const v = m.values || {};
+      const hasBomCols =
+        v['Material'] !== undefined ||
+        v['Componente'] !== undefined ||
+        v['Texto breve de material'] !== undefined ||
+        v['Material do cliente'] !== undefined;
+
+      if (hasBomCols) {
+        const matCliente = (v['Material do cliente'] || '').trim();
+        const linhaProd = (v['Linha produção'] || '').trim();
+        const mat = (v['Material'] || m.codigo || '').trim();
+        const comp = (v['Componente'] || '').trim();
+        const textoBreve = (v['Texto breve de material'] || v['Descrição Breve'] || m.nome || '').trim();
+        const intervalo = (v['Intervalo de texto'] || '').trim().toUpperCase();
+        const personalizar = (v['Personalizar'] || '').trim().toLowerCase();
+        const fmdsVal = (v['FMDS zexpv'] || v['Linha2'] || '').trim();
+        const cliFinal = (v['Cliente final'] || '').trim();
+
+        const isFinishedGood =
+          intervalo === '0' ||
+          intervalo === 'A' ||
+          personalizar === 'acabado' ||
+          Boolean(matCliente) ||
+          (mat && comp && mat === comp);
+
+        const codCli = matCliente || mat || comp || `PROD-${idx + 1}`;
+        const compLabel =
+          comp && textoBreve && !comp.toLowerCase().includes(textoBreve.toLowerCase())
+            ? `${comp} - ${textoBreve}`
+            : comp || textoBreve || codCli;
+
+        extraPecas.push({
+          identificacao: 9000 + idx,
+          material: mat || comp || `MAT-${9000 + idx}`,
+          descricao: textoBreve || comp || mat || m.nome,
+          cliente: cliFinal || DEFAULT_CLIENTE,
+          cliente1: cliFinal || DEFAULT_CLIENTE,
+          posto: linhaProd || 'POSTO 01 - ALIMENTAÇÃO',
+          fmds: fmdsVal || 'SOLDA GERAL',
+          nestingLevel: isFinishedGood ? 0 : 1,
+          codCliText: codCli,
+          componente: compLabel,
+          carryOver: 'Não',
+          coProduto: 'Não',
+          caracteristicaSeguranca: 'Não'
+        });
+        return;
+      }
+
+      const cleanName = (v['Peça / Produto'] || m.nome || '').trim();
       const lower = cleanName.toLowerCase();
       if (!existingNames.has(lower) && !existingCodCli.has(lower)) {
         const dashParts = cleanName.split(' - ');
-        const codCli = dashParts.length > 1 ? dashParts[0].trim() : m.codigo || `PROD-${idx + 1}`;
+        const codMat = (v['Código Material'] || m.codigo || '').trim();
+        const codCli = dashParts.length > 1 ? dashParts[0].trim() : codMat || `PROD-${idx + 1}`;
         const desc = dashParts.length > 1 ? dashParts.slice(1).join(' - ').trim() : cleanName;
         const detParts = (m.detalhe || '').split('•').map(s => s.trim());
+        const cliVal = (v['Cliente'] || detParts[0] || DEFAULT_CLIENTE).trim();
+        const postoVal = (v['Posto / Linha'] || detParts[1] || 'POSTO 01 - ALIMENTAÇÃO').trim();
         extraPecas.push({
           identificacao: 9000 + idx,
-          material: m.codigo || `MAT-${9000 + idx}`,
+          material: codMat || `MAT-${9000 + idx}`,
           descricao: desc,
-          cliente: detParts[0] || DEFAULT_CLIENTE,
-          cliente1: detParts[0] || DEFAULT_CLIENTE,
-          posto: detParts[1] || 'POSTO 01 - ALIMENTAÇÃO',
+          cliente: cliVal,
+          cliente1: cliVal,
+          posto: postoVal,
           fmds: detParts[2] || 'SOLDA 2 - CEL. TOYOTA',
           nestingLevel: 0,
           codCliText: codCli,
@@ -2334,6 +2473,12 @@ class SharePointDataStore {
       }
     });
 
+    if (activeTenantId !== PILOT_TENANT_ID && extraPecas.length > 0) {
+      return extraPecas;
+    }
+    if (extraPecas.length > 20) {
+      return [...extraPecas, ...this.pecas];
+    }
     return [...this.pecas, ...extraPecas];
   }
 
@@ -2352,7 +2497,6 @@ class SharePointDataStore {
       p =>
         (p.cliente.toUpperCase() === key ||
           (p.cliente1 && p.cliente1.toUpperCase() === key) ||
-          p.identificacao >= 9000 ||
           (key.includes('TDB') &&
             (p.cliente.toUpperCase().includes('TOYOTA') || p.cliente.toUpperCase().includes('TDB'))) ||
           (key.includes('TOYOTA') &&
@@ -2365,7 +2509,8 @@ class SharePointDataStore {
   // Retorna os componentes (nestingLevel > 0) vinculados ao produto final selecionado (ou todos se não filtrado)
   public getComponentesPorProduto(codCliText: string): PecaCatalogo[] {
     const key = (codCliText || '').trim().toUpperCase();
-    const allComponents = this.pecas.filter(p => p.nestingLevel > 0);
+    const allCatalog = this.getColPecasGeraisAA3();
+    const allComponents = allCatalog.filter(p => p.nestingLevel > 0 || p.identificacao >= 9000);
     if (!key) {
       return allComponents;
     }
@@ -2506,44 +2651,36 @@ class SharePointDataStore {
 
     // 2. Tenta achar no tenant ativo por id, title, field1 ou codOcorrenciaCliente
     const inTenant = this.rncs.find(
-      r => (r.tenant_id || PILOT_TENANT_ID) === activeTenantId && 
-           (r.id === numId || String(r.id) === String(id) || r.title === String(id) || r.field1 === String(id))
+      r =>
+        (r.tenant_id || PILOT_TENANT_ID) === activeTenantId &&
+        (r.id === numId ||
+          String(r.id) === String(id) ||
+          r.title === String(id) ||
+          r.field1 === String(id) ||
+          r.field1 === `RNC-${id}`)
     );
     if (inTenant) {
       return inTenant;
     }
 
-    // 3. Fallback Global: procura em qualquer tenant por ID numérico ou string
-    const globalMatch = this.rncs.find(
-      r => r.id === numId || String(r.id) === String(id) || r.title === String(id) || r.field1 === String(id) || r.field1 === `RNC-${id}`
-    );
-    if (globalMatch) {
-      return globalMatch;
-    }
-
-    // 4. Fallback para itens em INITIAL_RNCS quando o ID exato existir na semente
-    const seedMatch = INITIAL_RNCS.find(r => r.id === numId);
-    if (seedMatch) {
-      const existingSeed = this.rncs.find(
-        r => (r.tenant_id || PILOT_TENANT_ID) === activeTenantId && r.id === seedMatch.id
-      );
-      if (existingSeed) return existingSeed;
-
-      const cloned: RNCRecord = { ...seedMatch, tenant_id: activeTenantId };
-      this.rncs.push(cloned);
-      this.indexRNCs();
-      this.saveToStorage();
-      return cloned;
-    }
-
-    // 5. Fallback por similaridade de código de ocorrência
+    // 3. Fallback por similaridade de código de ocorrência estritamente dentro do tenant ativo
     const strId = String(id).trim();
     if (strId) {
-      const partialMatch = this.rncs.find(r => 
-        (r.field1 && r.field1.includes(strId)) || 
-        (r.codOcorrenciaCliente && r.codOcorrenciaCliente.includes(strId))
+      const partialMatch = this.rncs.find(
+        r =>
+          (r.tenant_id || PILOT_TENANT_ID) === activeTenantId &&
+          ((r.field1 && r.field1.includes(strId)) ||
+            (r.codOcorrenciaCliente && r.codOcorrenciaCliente.includes(strId)))
       );
       if (partialMatch) return partialMatch;
+    }
+
+    // 4. Apenas para o tenant piloto padrão, permite recuperar semente de INITIAL_RNCS se aplicável
+    if (activeTenantId === PILOT_TENANT_ID) {
+      const seedMatch = INITIAL_RNCS.find(r => r.id === numId && (r.tenant_id || PILOT_TENANT_ID) === PILOT_TENANT_ID);
+      if (seedMatch) {
+        return seedMatch;
+      }
     }
 
     return undefined;

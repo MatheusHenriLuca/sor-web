@@ -8,6 +8,9 @@ import path from 'node:path';
 const CLOUD_SYNC_FILE = path.resolve(process.cwd(), '.aistudio', 'cloud_sync_store.json');
 
 interface CloudSyncPayload {
+  tenants?: any[];
+  users?: any[];
+  rncSeqByTenant?: Record<string, number>;
   rncs?: any[];
   actionPlans?: any[];
   actionItems?: any[];
@@ -21,6 +24,9 @@ interface CloudSyncPayload {
   optionCategories?: any[];
   formFields?: any[];
   deletedRncKeys?: string[];
+  deletedTenantIds?: string[];
+  deletedCategoryIds?: string[];
+  deletedMasterIds?: string[];
   updatedAt?: string;
 }
 
@@ -50,10 +56,12 @@ function writeCloudStore(data: CloudSyncPayload) {
 function mergeByKey<T>(existing: T[] = [], incoming: T[] = [], keyFn: (item: T) => string, deletedKeys: Set<string> = new Set()): T[] {
   const map = new Map<string, T>();
   existing.forEach(item => {
+    if (!item) return;
     const k = keyFn(item);
     if (!deletedKeys.has(k)) map.set(k, item);
   });
   incoming.forEach(item => {
+    if (!item) return;
     const k = keyFn(item);
     if (!deletedKeys.has(k)) map.set(k, item);
   });
@@ -195,11 +203,8 @@ function sharepointDirectProxyPlugin(env: Record<string, string>): Plugin {
     }
   }
 
-  return {
-    name: 'sharepoint-direct-proxy',
-    configureServer(server) {
-      server.middlewares.use(async (req, res, next) => {
-        if (req.url && req.url.startsWith('/api/cloud-sync')) {
+  const apiMiddleware = async (req: any, res: any, next: any) => {
+    if (req.url && req.url.startsWith('/api/cloud-sync')) {
           res.setHeader('Content-Type', 'application/json; charset=utf-8');
           if (req.method === 'GET') {
             const store = readCloudStore();
@@ -208,7 +213,7 @@ function sharepointDirectProxyPlugin(env: Record<string, string>): Plugin {
           }
           if (req.method === 'POST') {
             let body = '';
-            req.on('data', chunk => {
+            req.on('data', (chunk: any) => {
               body += chunk;
             });
             req.on('end', () => {
@@ -219,8 +224,42 @@ function sharepointDirectProxyPlugin(env: Record<string, string>): Plugin {
                   ...(current.deletedRncKeys || []),
                   ...(incoming.deletedRncKeys || [])
                 ]);
+                const deletedTenantSet = new Set<string>([
+                  ...(current.deletedTenantIds || []),
+                  ...(incoming.deletedTenantIds || [])
+                ]);
+                const deletedCategorySet = new Set<string>([
+                  ...(current.deletedCategoryIds || []),
+                  ...(incoming.deletedCategoryIds || [])
+                ]);
+                const deletedMasterSet = new Set<string>([
+                  ...(current.deletedMasterIds || []),
+                  ...(incoming.deletedMasterIds || [])
+                ]);
+
+                const mergedRncSeq: Record<string, number> = {
+                  ...(current.rncSeqByTenant || {})
+                };
+                if (incoming.rncSeqByTenant) {
+                  Object.entries(incoming.rncSeqByTenant).forEach(([tId, seq]) => {
+                    mergedRncSeq[tId] = Math.max(mergedRncSeq[tId] || 0, Number(seq) || 0);
+                  });
+                }
 
                 const merged: CloudSyncPayload = {
+                  tenants: mergeByKey(
+                    current.tenants,
+                    incoming.tenants,
+                    t => String(t.id || t.slug),
+                    deletedTenantSet
+                  ),
+                  users: mergeByKey(
+                    current.users,
+                    incoming.users,
+                    u => `${u.tenant_id || 'global'}::${u.reAcesso || u.email || u.id}`,
+                    deletedTenantSet
+                  ),
+                  rncSeqByTenant: mergedRncSeq,
                   rncs: mergeByKey(
                     current.rncs,
                     incoming.rncs,
@@ -267,10 +306,24 @@ function sharepointDirectProxyPlugin(env: Record<string, string>): Plugin {
                     incoming.treinamentos,
                     t => `${t.tenant_id || '11111111-1111-4111-8111-111111111111'}::${t.id}`
                   ),
-                  masterData: incoming.masterData && incoming.masterData.length > 0 ? incoming.masterData : current.masterData,
-                  optionCategories: incoming.optionCategories && incoming.optionCategories.length > 0 ? incoming.optionCategories : current.optionCategories,
-                  formFields: incoming.formFields && incoming.formFields.length > 0 ? incoming.formFields : current.formFields,
+                  masterData: incoming.masterData && incoming.masterData.length > 0
+                    ? incoming.masterData
+                    : current.masterData,
+                  optionCategories: mergeByKey(
+                    current.optionCategories,
+                    incoming.optionCategories,
+                    c => `${c.tenant_id || '11111111-1111-4111-8111-111111111111'}::${c.id}`,
+                    deletedCategorySet
+                  ),
+                  formFields: mergeByKey(
+                    current.formFields,
+                    incoming.formFields,
+                    f => `${f.tenant_id || '11111111-1111-4111-8111-111111111111'}::${f.module || 'rnc'}::${f.fieldKey || f.key || f.id}`
+                  ),
                   deletedRncKeys: Array.from(deletedSet),
+                  deletedTenantIds: Array.from(deletedTenantSet),
+                  deletedCategoryIds: Array.from(deletedCategorySet),
+                  deletedMasterIds: Array.from(deletedMasterSet),
                   updatedAt: new Date().toISOString()
                 };
 
@@ -331,7 +384,7 @@ function sharepointDirectProxyPlugin(env: Record<string, string>): Plugin {
           // 3. RNCs - POST (Criar ocorrência real diretamente no SharePoint)
           if (req.method === 'POST' && req.url === '/api/sp/rncs') {
             let body = '';
-            req.on('data', chunk => body += chunk);
+            req.on('data', (chunk: any) => body += chunk);
             req.on('end', async () => {
               const listName = env.SP_LIST_RNCS || "Resumo dos Incidentes de qualidade";
               const graphUrl = `https://graph.microsoft.com/v1.0/sites/${siteQualidade}/lists/${encodeURIComponent(listName)}/items`;
@@ -356,7 +409,7 @@ function sharepointDirectProxyPlugin(env: Record<string, string>): Plugin {
           if (req.method === 'PATCH' && req.url.startsWith('/api/sp/rncs/')) {
             const itemId = req.url.replace('/api/sp/rncs/', '').split('?')[0];
             let body = '';
-            req.on('data', chunk => body += chunk);
+            req.on('data', (chunk: any) => body += chunk);
             req.on('end', async () => {
               const listName = env.SP_LIST_RNCS || "Resumo dos Incidentes de qualidade";
               const graphUrl = `https://graph.microsoft.com/v1.0/sites/${siteQualidade}/lists/${encodeURIComponent(listName)}/items/${itemId}/fields`;
@@ -470,7 +523,15 @@ function sharepointDirectProxyPlugin(env: Record<string, string>): Plugin {
           res.statusCode = 500;
           res.end(JSON.stringify({ error: error.message || "Erro interno no proxy SharePoint" }));
         }
-      });
+      };
+
+  return {
+    name: 'sharepoint-direct-proxy',
+    configureServer(server) {
+      server.middlewares.use(apiMiddleware);
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use(apiMiddleware);
     }
   };
 }
@@ -492,6 +553,11 @@ export default defineConfig(({ mode }) => {
       watch: {
         ignored: ['**/.aistudio/**']
       }
+    },
+    preview: {
+      host: '0.0.0.0',
+      port: 3000,
+      allowedHosts: true
     }
   };
 });

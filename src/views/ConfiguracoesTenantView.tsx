@@ -280,6 +280,13 @@ export const ConfiguracoesTenantView: React.FC<ConfiguracoesTenantViewProps> = (
   // 'spreadsheet' (Planilha Multi-Colunas) | 'import' (Importar CSV / Colar Lote) | 'text' (Texto Contínuo)
   const [baseWorkMode, setBaseWorkMode] = useState<'spreadsheet' | 'import' | 'text'>('spreadsheet');
   const [recordSearchQuery, setRecordSearchQuery] = useState('');
+  const [tablePage, setTablePage] = useState(1);
+  const [tablePageSize, setTablePageSize] = useState<number>(100);
+
+  // Reseta a paginação ao trocar de base ou pesquisar na tabela
+  useEffect(() => {
+    setTablePage(1);
+  }, [selectedCategory, recordSearchQuery, tablePageSize]);
 
   // Estado para adicionar nova linha multi-colunas
   const [newRowCells, setNewRowCells] = useState<Record<string, string>>({});
@@ -323,11 +330,43 @@ export const ConfiguracoesTenantView: React.FC<ConfiguracoesTenantViewProps> = (
   const [multiBaseModalOpen, setMultiBaseModalOpen] = useState(false);
   const [bulkPastedText, setBulkPastedText] = useState('');
 
+  // Mapa memoizado de estatísticas (contagem de itens, colunas e dependências) por categoria para evitar recálculos em loops
+  const categoryStatsMap = useMemo(() => {
+    const map: Record<
+      string,
+      {
+        itemsCount: number;
+        cols: string[];
+        deps: ReturnType<typeof tenantService.getBaseUsageDependencies>;
+        usedModules: string[];
+      }
+    > = {};
+    const allTenantItems = tenantService.getMasterData(undefined, activeTenant.id);
+    const countsByTipo: Record<string, number> = {};
+    for (const item of allTenantItems) {
+      countsByTipo[item.tipo] = (countsByTipo[item.tipo] || 0) + 1;
+    }
+    for (const cat of optionCategories) {
+      const canonical = resolveCanonicalCategory(cat.id);
+      const cols = tenantService.getCategoryColumns(cat.id, activeTenant.id);
+      const deps = tenantService.getBaseUsageDependencies(cat.id, activeTenant.id);
+      const usedModules = Array.from(new Set(deps.map(d => d.moduleLabel)));
+      map[cat.id] = {
+        itemsCount: countsByTipo[canonical] || 0,
+        cols,
+        deps,
+        usedModules
+      };
+    }
+    return map;
+  }, [optionCategories, activeTenant.id, localTick]);
+
   // Filtra a lista lateral de bases (indicando uso por módulo sem restringir seleção global)
   const filteredOptionCategories = useMemo(() => {
     const q = baseListSearch.trim().toLowerCase();
     return optionCategories.filter(cat => {
-      const deps = tenantService.getBaseUsageDependencies(cat.id, activeTenant.id);
+      const stats = categoryStatsMap[cat.id];
+      const deps = stats ? stats.deps : [];
       if (baseUsageFilter === 'unlinked' && deps.length > 0) return false;
       if (
         (baseUsageFilter === 'rnc' || baseUsageFilter === 'plano_acao' || baseUsageFilter === 'oitod') &&
@@ -340,20 +379,34 @@ export const ConfiguracoesTenantView: React.FC<ConfiguracoesTenantViewProps> = (
         cat.nome.toLowerCase().includes(q) ||
         cat.descricao.toLowerCase().includes(q) ||
         cat.id.toLowerCase().includes(q) ||
-        (cat.columns || []).some(col => col.toLowerCase().includes(q))
+        (stats?.cols || cat.columns || []).some(col => col.toLowerCase().includes(q))
       );
     });
-  }, [optionCategories, baseListSearch, baseUsageFilter, activeTenant.id, localTick]);
+  }, [optionCategories, categoryStatsMap, baseListSearch, baseUsageFilter]);
 
-  // Filtra os registros da base selecionada em todas as colunas
+  // Filtra os registros da base selecionada com alta performance para 3.000+ linhas
   const filteredCategoryItems = useMemo(() => {
     const q = recordSearchQuery.trim().toLowerCase();
     if (!q) return currentCategoryItems;
     return currentCategoryItems.filter(item => {
-      const cellMap = tenantService.getItemCellMap(item, currentCategoryColumns);
-      return Object.values(cellMap).some(val => (val || '').toLowerCase().includes(q));
+      if (item.nome && item.nome.toLowerCase().includes(q)) return true;
+      if (item.codigo && item.codigo.toLowerCase().includes(q)) return true;
+      if (item.detalhe && item.detalhe.toLowerCase().includes(q)) return true;
+      if (item.values) {
+        for (const val of Object.values(item.values)) {
+          if (val && String(val).toLowerCase().includes(q)) return true;
+        }
+      }
+      return false;
     });
-  }, [currentCategoryItems, currentCategoryColumns, recordSearchQuery]);
+  }, [currentCategoryItems, recordSearchQuery]);
+
+  const totalTablePages = Math.max(1, Math.ceil(filteredCategoryItems.length / tablePageSize));
+  const safeTablePage = Math.min(tablePage, totalTablePages);
+  const paginatedCategoryItems = useMemo(() => {
+    const start = (safeTablePage - 1) * tablePageSize;
+    return filteredCategoryItems.slice(start, start + tablePageSize);
+  }, [filteredCategoryItems, safeTablePage, tablePageSize]);
 
   // =========================================================================
   // CONTEXTO B: CONFIGURAÇÃO DOS CAMPOS (RNC, PLANO DE AÇÃO E 8D)
@@ -623,17 +676,58 @@ export const ConfiguracoesTenantView: React.FC<ConfiguracoesTenantViewProps> = (
     );
   };
 
+  const decodeSpreadsheetFile = (
+    file: File,
+    onDecoded: (content: string) => void
+  ) => {
+    const lowerName = file.name.toLowerCase();
+    if (lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls')) {
+      showNotice(
+        'error',
+        `O arquivo "${file.name}" está em formato binário do Excel (.xlsx/.xls). Abra a planilha no Excel, selecione as células (Ctrl+C) e cole diretamente na caixa abaixo (Ctrl+V), ou salve como "CSV (Separado por ponto-e-vírgula) (*.csv)".`
+      );
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const buffer = ev.target?.result as ArrayBuffer;
+      if (!buffer) return;
+      const bytes = new Uint8Array(buffer);
+      // Detecta cabeçalho ZIP binário (PK\x03\x04) caso um arquivo .xlsx tenha sido renomeado para .csv
+      if (bytes.length >= 4 && bytes[0] === 0x50 && bytes[1] === 0x4b && bytes[2] === 0x03 && bytes[3] === 0x04) {
+        showNotice(
+          'error',
+          `O arquivo "${file.name}" é uma pasta de trabalho binária do Excel (.xlsx). Copie e cole as células diretamente do Excel (Ctrl+C / Ctrl+V) ou salve como CSV UTF-8.`
+        );
+        return;
+      }
+
+      let content = '';
+      try {
+        const utf8Decoder = new TextDecoder('utf-8', { fatal: true });
+        content = utf8Decoder.decode(buffer);
+      } catch {
+        // Fallback automático para Windows-1252 (ANSI padrão do Excel em Português)
+        const win1252Decoder = new TextDecoder('windows-1252');
+        content = win1252Decoder.decode(buffer);
+      }
+      onDecoded(content);
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
   const handleFileUploadIntoBase = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = ev => {
-      const content = String(ev.target?.result || '');
+    decodeSpreadsheetFile(file, content => {
       setImportRawText(content);
       setBaseWorkMode('import');
-      showNotice('success', `Arquivo "${file.name}" carregado. Revise a prévia abaixo e clique em Confirmar Importação.`);
-    };
-    reader.readAsText(file, 'UTF-8');
+      showNotice(
+        'success',
+        `Arquivo "${file.name}" carregado. Revise a prévia abaixo e clique em Confirmar Importação.`
+      );
+    });
     e.target.value = '';
   };
 
@@ -887,7 +981,7 @@ export const ConfiguracoesTenantView: React.FC<ConfiguracoesTenantViewProps> = (
   };
 
   return (
-    <div className="max-w-[1440px] mx-auto px-4 sm:px-6 py-6 space-y-6">
+    <div className="w-full max-w-none space-y-5 min-w-0">
       {/* =========================================================================
           CABEÇALHO E SELETOR DAS 2 ÁREAS PRINCIPAIS
           ========================================================================= */}
@@ -1016,9 +1110,9 @@ export const ConfiguracoesTenantView: React.FC<ConfiguracoesTenantViewProps> = (
               CONTEXTO 1: GERENCIAMENTO DAS BASES (COM PLANILHA MULTI-COLUNAS)
               ===================================================================== */}
           {centralContext === 'bases' && (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
               {/* Coluna Esquerda: Catálogo Global de Bases da Empresa */}
-              <div className="lg:col-span-4 bg-white border border-slate-200 rounded-xl p-4 space-y-3">
+              <div className="lg:col-span-4 xl:col-span-3 min-w-0 bg-white border border-slate-200 rounded-xl p-4 space-y-3">
                 <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-slate-100">
                   <div>
                     <h2 className="text-sm font-display font-bold text-slate-900">
@@ -1053,13 +1147,13 @@ export const ConfiguracoesTenantView: React.FC<ConfiguracoesTenantViewProps> = (
 
                 {/* Busca de Base */}
                 <div className="relative">
-                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
                     type="text"
                     value={baseListSearch}
                     onChange={e => setBaseListSearch(e.target.value)}
                     placeholder="Buscar base por nome ou coluna..."
-                    className="form-input w-full pl-8 pr-7 h-9 text-xs"
+                    className="form-input search-input-field w-full pl-9 pr-8 h-9 text-xs"
                   />
                   {baseListSearch && (
                     <button
@@ -1105,10 +1199,11 @@ export const ConfiguracoesTenantView: React.FC<ConfiguracoesTenantViewProps> = (
                   ) : (
                     filteredOptionCategories.map(cat => {
                       const active = selectedCategory === cat.id;
-                      const itemsCount = tenantService.getMasterData(cat.id, activeTenant.id).length;
-                      const cols = tenantService.getCategoryColumns(cat.id, activeTenant.id);
-                      const deps = tenantService.getBaseUsageDependencies(cat.id, activeTenant.id);
-                      const usedModules = Array.from(new Set(deps.map(d => d.moduleLabel)));
+                      const stats = categoryStatsMap[cat.id];
+                      const itemsCount = stats ? stats.itemsCount : 0;
+                      const cols = stats ? stats.cols : ['Nome'];
+                      const deps = stats ? stats.deps : [];
+                      const usedModules = stats ? stats.usedModules : [];
 
                       return (
                         <button
@@ -1153,7 +1248,7 @@ export const ConfiguracoesTenantView: React.FC<ConfiguracoesTenantViewProps> = (
               </div>
 
               {/* Coluna Direita: Gerenciador e Planilha Multi-Colunas da Base Selecionada */}
-              <div className="lg:col-span-8 bg-white border border-slate-200 rounded-xl p-5 space-y-5">
+              <div className="lg:col-span-8 xl:col-span-9 min-w-0 bg-white border border-slate-200 rounded-xl p-5 space-y-5">
                 {!currentCategoryMeta ? (
                   <div className="py-16 text-center space-y-3">
                     <Database className="w-8 h-8 text-slate-300 mx-auto" />
@@ -1227,19 +1322,8 @@ export const ConfiguracoesTenantView: React.FC<ConfiguracoesTenantViewProps> = (
                           )}
                         </div>
 
-                        {/* Ações Rápidas da Base */}
+                        {/* Ações Rápidas da Base (Upload .CSV/.TXT unificado na aba Importar / Colar Planilha abaixo) */}
                         <div className="flex flex-wrap items-center gap-1.5">
-                          <label className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer">
-                            <Upload className="w-3.5 h-3.5 text-[#0b5796]" />
-                            <span>Subir .CSV / .TXT</span>
-                            <input
-                              type="file"
-                              accept=".csv,.txt,.tsv"
-                              onChange={handleFileUploadIntoBase}
-                              className="hidden"
-                            />
-                          </label>
-
                           <button
                             type="button"
                             onClick={() =>
@@ -1362,59 +1446,9 @@ export const ConfiguracoesTenantView: React.FC<ConfiguracoesTenantViewProps> = (
                           )}
                         </div>
                       )}
-
-                      {/* Painel: Em quais módulos e campos esta base está sendo utilizada */}
-                      <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                        <div className="space-y-1">
-                          <div className="text-[11px] font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
-                            <Link2 className="w-3.5 h-3.5 text-[#0b5796]" />
-                            <span>Módulos e Campos que utilizam esta Base ({currentBaseDependencies.length})</span>
-                          </div>
-                          {currentBaseDependencies.length === 0 ? (
-                            <p className="text-xs text-slate-500">
-                              Nenhum campo vinculado no momento. Você pode selecioná-la em qualquer campo de RNC, Plano de Ação ou 8D.
-                            </p>
-                          ) : (
-                            <div className="flex flex-wrap gap-1.5 pt-0.5">
-                              {currentBaseDependencies.map(dep => (
-                                <button
-                                  key={`${dep.module}-${dep.fieldId}`}
-                                  type="button"
-                                  onClick={() => {
-                                    setSelectedModule(dep.module);
-                                    setSelectedSectionFilter('todas');
-                                    setCentralContext('campos');
-                                  }}
-                                  title="Clique para abrir este campo na Configuração dos Campos"
-                                  className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 hover:border-[#0b5796] text-[11px] text-slate-800 inline-flex items-center gap-1.5 cursor-pointer"
-                                >
-                                  <span className="font-bold text-[#0b5796]">{dep.moduleLabel}:</span>
-                                  <span className="font-semibold">{dep.fieldLabel}</span>
-                                  <span className="text-[10px] text-slate-500 font-mono">
-                                    [Valor: {dep.valueColumn || currentCategoryColumns[0]} | Exibição:{' '}
-                                    {dep.displayColumn || currentCategoryColumns[0]}]
-                                  </span>
-                                  <ExternalLink className="w-3 h-3 text-slate-400" />
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setCentralContext('campos');
-                          }}
-                          className="px-3 py-1.5 rounded-lg bg-white border border-slate-300 hover:border-slate-900 text-slate-800 text-xs font-semibold inline-flex items-center gap-1.5 shrink-0 cursor-pointer"
-                        >
-                          <Sliders className="w-3.5 h-3.5" />
-                          <span>Configurar Campos com esta Base</span>
-                        </button>
-                      </div>
                     </div>
 
-                    {/* Seletor de Modo de Trabalho dentro da Base */}
+                    {/* 1º BLOCO DE CONTEÚDO: EDIÇÃO DA BASE (Planilha Multi-Colunas, Importar / Colar Planilha e Texto Contínuo) */}
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div className="flex flex-wrap items-center gap-1.5 bg-slate-100 p-1 rounded-lg border border-slate-200">
                         <button
@@ -1440,7 +1474,7 @@ export const ConfiguracoesTenantView: React.FC<ConfiguracoesTenantViewProps> = (
                           }`}
                         >
                           <ClipboardPaste className="w-3.5 h-3.5" />
-                          <span>Importar / Colar Planilha</span>
+                          <span>Importar / Colar Planilha (.CSV / .TXT)</span>
                         </button>
 
                         <button
@@ -1467,14 +1501,14 @@ export const ConfiguracoesTenantView: React.FC<ConfiguracoesTenantViewProps> = (
                       </div>
 
                       {baseWorkMode === 'spreadsheet' && (
-                        <div className="relative w-full sm:w-64">
-                          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <div className="relative w-full sm:w-72">
+                          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                           <input
                             type="text"
                             value={recordSearchQuery}
                             onChange={e => setRecordSearchQuery(e.target.value)}
                             placeholder="Filtrar registros na tabela..."
-                            className="form-input w-full pl-8 pr-7 h-8 text-xs"
+                            className="form-input search-input-field w-full pl-9 pr-8 h-8 text-xs"
                           />
                           {recordSearchQuery && (
                             <button
@@ -1652,13 +1686,97 @@ export const ConfiguracoesTenantView: React.FC<ConfiguracoesTenantViewProps> = (
                           </div>
                         </form>
 
-                        {/* Tabela de Registros Multi-Colunas */}
-                        <div className="border border-slate-200 rounded-xl overflow-hidden">
-                          <div className="overflow-x-auto max-h-[480px] overflow-y-auto">
+                        {/* Tabela de Registros Multi-Colunas (Paginada para Alta Performance em 3.000+ linhas) */}
+                        <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
+                          {/* Barra Superior de Paginação e Contagem */}
+                          <div className="px-3.5 py-2.5 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
+                            <div className="flex items-center gap-2">
+                              <span>
+                                Exibindo{' '}
+                                <strong className="text-slate-900 tabular-nums">
+                                  {filteredCategoryItems.length === 0
+                                    ? 0
+                                    : (safeTablePage - 1) * tablePageSize + 1}
+                                </strong>{' '}
+                                a{' '}
+                                <strong className="text-slate-900 tabular-nums">
+                                  {Math.min(
+                                    safeTablePage * tablePageSize,
+                                    filteredCategoryItems.length
+                                  )}
+                                </strong>{' '}
+                                de{' '}
+                                <strong className="text-slate-900 tabular-nums">
+                                  {filteredCategoryItems.length}
+                                </strong>{' '}
+                                registro(s)
+                              </span>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-2">
+                              <label className="inline-flex items-center gap-1.5 text-[11px] text-slate-600">
+                                <span>Linhas por página:</span>
+                                <select
+                                  value={tablePageSize}
+                                  onChange={e => setTablePageSize(Number(e.target.value))}
+                                  className="border border-slate-300 rounded-md bg-white px-2 py-1 text-xs font-semibold text-slate-800 cursor-pointer"
+                                >
+                                  <option value={50}>50</option>
+                                  <option value={100}>100</option>
+                                  <option value={250}>250</option>
+                                  <option value={500}>500</option>
+                                </select>
+                              </label>
+
+                              {totalTablePages > 1 && (
+                                <div className="inline-flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => setTablePage(1)}
+                                    disabled={safeTablePage <= 1}
+                                    className="px-2 py-1 rounded border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 text-[11px] font-semibold cursor-pointer"
+                                  >
+                                    « Primeira
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setTablePage(p => Math.max(1, p - 1))}
+                                    disabled={safeTablePage <= 1}
+                                    className="px-2.5 py-1 rounded border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 text-[11px] font-semibold cursor-pointer"
+                                  >
+                                    ‹ Anterior
+                                  </button>
+                                  <span className="px-2.5 py-1 font-mono text-[11px] font-bold text-slate-800 tabular-nums">
+                                    Página {safeTablePage} / {totalTablePages}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setTablePage(p => Math.min(totalTablePages, p + 1))
+                                    }
+                                    disabled={safeTablePage >= totalTablePages}
+                                    className="px-2.5 py-1 rounded border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 text-[11px] font-semibold cursor-pointer"
+                                  >
+                                    Próxima ›
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setTablePage(totalTablePages)}
+                                    disabled={safeTablePage >= totalTablePages}
+                                    className="px-2 py-1 rounded border border-slate-200 bg-white hover:bg-slate-100 disabled:opacity-40 text-[11px] font-semibold cursor-pointer"
+                                  >
+                                    Última »
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="overflow-x-auto max-h-[540px] overflow-y-auto">
                             <table className="w-full text-left border-collapse">
                               <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
                                 <tr className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">
-                                  <th className="py-2.5 px-3 w-10 text-center">#</th>
+                                  <th className="py-2.5 px-3 w-12 text-center">#</th>
                                   {currentCategoryColumns.map(col => (
                                     <th key={col} className="py-2.5 px-3 min-w-[140px]">
                                       {col}
@@ -1669,7 +1787,7 @@ export const ConfiguracoesTenantView: React.FC<ConfiguracoesTenantViewProps> = (
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-slate-100 text-xs">
-                                {filteredCategoryItems.length === 0 ? (
+                                {paginatedCategoryItems.length === 0 ? (
                                   <tr>
                                     <td
                                       colSpan={currentCategoryColumns.length + 3}
@@ -1679,7 +1797,9 @@ export const ConfiguracoesTenantView: React.FC<ConfiguracoesTenantViewProps> = (
                                     </td>
                                   </tr>
                                 ) : (
-                                  filteredCategoryItems.map((item, rowIdx) => {
+                                  paginatedCategoryItems.map((item, pageIdx) => {
+                                    const absoluteRowIdx =
+                                      (safeTablePage - 1) * tablePageSize + pageIdx;
                                     const cellMap = tenantService.getItemCellMap(
                                       item,
                                       currentCategoryColumns
@@ -1695,7 +1815,7 @@ export const ConfiguracoesTenantView: React.FC<ConfiguracoesTenantViewProps> = (
                                         }`}
                                       >
                                         <td className="py-2 px-3 text-center font-mono text-[11px] text-slate-400 tabular-nums">
-                                          {rowIdx + 1}
+                                          {absoluteRowIdx + 1}
                                         </td>
 
                                         {currentCategoryColumns.map(col => (
@@ -1935,6 +2055,58 @@ export const ConfiguracoesTenantView: React.FC<ConfiguracoesTenantViewProps> = (
                         </div>
                       </div>
                     )}
+
+                    {/* 2º BLOCO DE CONTEÚDO (MOVIDO PARA BAIXO): MÓDULOS E CAMPOS QUE UTILIZAM ESTA BASE */}
+                    <div className="pt-4 border-t border-slate-200">
+                      <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div className="space-y-1.5">
+                          <div className="text-[11px] font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+                            <Link2 className="w-3.5 h-3.5 text-[#0b5796]" />
+                            <span>Módulos e Campos que utilizam esta Base ({currentBaseDependencies.length})</span>
+                          </div>
+                          {currentBaseDependencies.length === 0 ? (
+                            <p className="text-xs text-slate-500">
+                              Nenhum campo vinculado no momento. Você pode selecioná-la em qualquer campo de RNC, Plano de Ação ou 8D.
+                            </p>
+                          ) : (
+                            <div className="flex flex-wrap gap-1.5 pt-0.5">
+                              {currentBaseDependencies.map(dep => (
+                                <button
+                                  key={`${dep.module}-${dep.fieldId}`}
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedModule(dep.module);
+                                    setSelectedSectionFilter('todas');
+                                    setCentralContext('campos');
+                                  }}
+                                  title="Clique para abrir este campo na Configuração dos Campos"
+                                  className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 hover:border-[#0b5796] text-[11px] text-slate-800 inline-flex items-center gap-1.5 cursor-pointer"
+                                >
+                                  <span className="font-bold text-[#0b5796]">{dep.moduleLabel}:</span>
+                                  <span className="font-semibold">{dep.fieldLabel}</span>
+                                  <span className="text-[10px] text-slate-500 font-mono">
+                                    [Valor: {dep.valueColumn || currentCategoryColumns[0]} | Exibição:{' '}
+                                    {dep.displayColumn || currentCategoryColumns[0]}]
+                                  </span>
+                                  <ExternalLink className="w-3 h-3 text-slate-400" />
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCentralContext('campos');
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-white border border-slate-300 hover:border-slate-900 text-slate-800 text-xs font-semibold inline-flex items-center gap-1.5 shrink-0 cursor-pointer"
+                        >
+                          <Sliders className="w-3.5 h-3.5" />
+                          <span>Configurar Campos com esta Base</span>
+                        </button>
+                      </div>
+                    </div>
                   </>
                 )}
               </div>
@@ -2074,13 +2246,13 @@ export const ConfiguracoesTenantView: React.FC<ConfiguracoesTenantViewProps> = (
                   </div>
 
                   <div className="relative w-full sm:w-64">
-                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                     <input
                       type="text"
                       value={fieldSearchQuery}
                       onChange={e => setFieldSearchQuery(e.target.value)}
                       placeholder="Buscar campo..."
-                      className="form-input w-full pl-8 pr-7 h-8 text-xs"
+                      className="form-input search-input-field w-full pl-9 pr-8 h-8 text-xs"
                     />
                     {fieldSearchQuery && (
                       <button
@@ -2136,19 +2308,15 @@ export const ConfiguracoesTenantView: React.FC<ConfiguracoesTenantViewProps> = (
                               )
                             : undefined;
                           const availableCols = field.optionCategory
-                            ? tenantService.getCategoryColumns(
+                            ? categoryStatsMap[
+                                linkedCat?.id ||
+                                  resolveCanonicalCategory(field.optionCategory)
+                              ]?.cols ||
+                              tenantService.getCategoryColumns(
                                 field.optionCategory,
                                 activeTenant.id
                               )
                             : ['Nome'];
-                          const resolvedPreview = field.optionCategory
-                            ? tenantService.getFieldResolvedOptions(
-                                field.key,
-                                selectedModule,
-                                field.optionCategory,
-                                activeTenant.id
-                              )
-                            : null;
 
                           return (
                             <div
@@ -2252,7 +2420,7 @@ export const ConfiguracoesTenantView: React.FC<ConfiguracoesTenantViewProps> = (
                                       <option value="">-- Sem Base Vinculada --</option>
                                       {optionCategories.map(cat => (
                                         <option key={cat.id} value={cat.id}>
-                                          {cat.nome} ({tenantService.getMasterData(cat.id, activeTenant.id).length} itens)
+                                          {cat.nome} ({categoryStatsMap[cat.id]?.itemsCount ?? 0} itens)
                                         </option>
                                       ))}
                                     </select>
@@ -2318,7 +2486,14 @@ export const ConfiguracoesTenantView: React.FC<ConfiguracoesTenantViewProps> = (
                                         className="h-8 px-2.5 rounded-lg bg-white border border-slate-300 hover:border-[#0b5796] text-[#0b5796] text-[11px] font-bold inline-flex items-center gap-1 shrink-0 cursor-pointer"
                                       >
                                         <Database className="w-3.5 h-3.5" />
-                                        <span>Editar Base ({resolvedPreview?.options.length || 0})</span>
+                                        <span>
+                                          Editar Base (
+                                          {categoryStatsMap[
+                                            linkedCat?.id ||
+                                              resolveCanonicalCategory(field.optionCategory)
+                                          ]?.itemsCount ?? 0}
+                                          )
+                                        </span>
                                       </button>
                                     </>
                                   )}
@@ -3034,15 +3209,12 @@ export const ConfiguracoesTenantView: React.FC<ConfiguracoesTenantViewProps> = (
                     onChange={e => {
                       const file = e.target.files?.[0];
                       if (!file) return;
-                      const reader = new FileReader();
-                      reader.onload = ev => {
-                        const txt = String(ev.target?.result || '');
+                      decodeSpreadsheetFile(file, txt => {
                         setNewCatInitialItemsText(txt);
                         if (!newCatTitle.trim()) {
                           setNewCatTitle(file.name.replace(/\.(csv|txt|tsv)$/i, ''));
                         }
-                      };
-                      reader.readAsText(file, 'UTF-8');
+                      });
                       e.target.value = '';
                     }}
                     className="hidden"

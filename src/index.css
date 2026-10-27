@@ -381,43 +381,59 @@ html, body {
 }
 
 /* Campos de Formulário Padronizados com Transição Fluida */
-.form-input {
-  width: 100%;
-  min-height: var(--input-h);
-  padding-top: 8px;
-  padding-bottom: 8px;
-  padding-left: 14px;
-  padding-right: 14px;
-  font-family: var(--font-sans);
-  font-size: 13px;
-  color: var(--text-main);
-  background-color: #ffffff;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
-  outline: none;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.02);
-  transition: border-color 0.2s var(--ease-spring), box-shadow 0.2s var(--ease-spring), background-color 0.2s;
-}
-.form-input:hover:not(:disabled):not(:focus) {
-  border-color: var(--border-strong);
-}
-.form-input:focus {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px var(--color-primary-glow);
-  background-color: #ffffff;
-}
-.form-input:disabled {
-  background-color: var(--bg-subtle);
-  color: var(--text-disabled);
-  cursor: not-allowed;
+@layer components {
+  .form-input {
+    width: 100%;
+    min-height: var(--input-h);
+    padding-top: 8px;
+    padding-bottom: 8px;
+    padding-left: 14px;
+    padding-right: 14px;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    color: var(--text-main);
+    background-color: #ffffff;
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    outline: none;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.02);
+    transition: border-color 0.2s var(--ease-spring), box-shadow 0.2s var(--ease-spring), background-color 0.2s;
+  }
+  .form-input:hover:not(:disabled):not(:focus) {
+    border-color: var(--border-strong);
+  }
+  .form-input:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px var(--color-primary-glow);
+    background-color: #ffffff;
+  }
+  .form-input:disabled {
+    background-color: var(--bg-subtle);
+    color: var(--text-disabled);
+    cursor: not-allowed;
+  }
 }
 
-/* Campo de Pesquisa com Ícone */
-.search-input-field {
-  padding-left: 42px !important;
-  padding-right: 32px !important;
-  min-height: 38px;
-  font-size: 13px;
+/* Campo de Pesquisa com Ícone (garante espaçamento à esquerda do ícone de lupa em todo o app) */
+.search-input-field,
+.form-input[class*="pl-7"],
+.form-input[class*="pl-8"],
+.form-input[class*="pl-9"],
+.form-input[class*="pl-10"],
+.form-input[class*="pl-11"],
+.form-input[class*="pl-12"],
+.relative > svg:first-child + input,
+.relative > svg[class*="left-"] ~ input,
+.relative > span[class*="left-"] ~ input,
+.relative > div[class*="left-"] ~ input {
+  padding-left: 2.4rem !important;
+}
+
+.form-input[class*="pr-7"],
+.form-input[class*="pr-8"],
+.form-input[class*="pr-9"],
+.form-input[class*="pr-10"] {
+  padding-right: 2.25rem !important;
 }
 
 .form-label {

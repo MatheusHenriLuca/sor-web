@@ -13,7 +13,9 @@ import {
   CheckSquare,
   FileText,
   Layers,
-  UserCheck
+  UserCheck,
+  Copy,
+  KeyRound
 } from 'lucide-react';
 import {
   UsuarioQualidade,
@@ -90,6 +92,7 @@ export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({
     cargo: string;
     setor: string;
     email: string;
+    senha: string;
     perfisPorApp: UserAppProfiles;
   }>({
     nome: '',
@@ -97,6 +100,7 @@ export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({
     cargo: '',
     setor: '',
     email: '',
+    senha: '123',
     perfisPorApp: {
       plano_acao: 'Usuário Comum',
       rnc: 'Usuário Comum',
@@ -107,6 +111,17 @@ export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({
   const notify = (message: string, type: 'success' | 'error' = 'success') => {
     setNotification({ type, message });
     setTimeout(() => setNotification(null), 3500);
+  };
+
+  const handleCopyUserAccess = (u: UsuarioQualidade) => {
+    const tenant = tenantService.getActiveTenant();
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://app.mhqualidade.com';
+    const loginUrl = `${baseUrl}/${tenant.slug}/login`;
+    const userEmail = u.email || `RE ${u.reAcesso}`;
+    const userPass = u.senha || '123';
+    const text = `Acesso Plataforma MH Qualidade — ${tenant.nome}\nColaborador: ${u.nome}\nLink: ${loginUrl}\nE-mail de Login: ${userEmail}\nMatrícula (RE): ${u.reAcesso}\nSenha: ${userPass}`;
+    navigator.clipboard.writeText(text);
+    notify(`Credenciais de acesso de "${u.nome}" copiadas! Pronto para enviar.`);
   };
 
   const loadData = () => {
@@ -150,6 +165,7 @@ export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({
         cargo: colab.posicao || prev.cargo,
         setor: colab.unidadeOrg || prev.setor,
         email: existing?.email || `${emailSlug}@${slug}.com.br`,
+        senha: existing?.senha || '123',
         perfisPorApp: existing?.perfisPorApp || {
           plano_acao: 'Usuário Comum',
           rnc: 'Usuário Comum',
@@ -191,20 +207,29 @@ export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({
       form.perfisPorApp.rnc === 'Usuário Comum' &&
       form.perfisPorApp.oitod === 'Usuário Comum';
 
+    const slug = tenantService.getActiveTenant().slug || 'empresa';
+    const emailSlug = form.nome
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '.');
+
     tenantService.saveUserForTenant({
       id: form.id && form.id < 50000 ? form.id : undefined,
       nome: form.nome.trim(),
       reAcesso: Number(form.reAcesso),
       cargo: form.cargo.trim() || 'Colaborador',
       setor: form.setor.trim() || 'Operações',
-      email: form.email.trim(),
+      email: form.email.trim().toLowerCase() || `${emailSlug}@${slug}.com.br`,
+      senha: form.senha.trim() || '123',
       perfisPorApp: form.perfisPorApp,
       isDefaultProfile: isDefault
     });
 
     setModalOpen(false);
     loadData();
-    notify(`Perfis de "${form.nome.trim()}" salvos e sincronizados na Lista Master de Funcionários!`);
+    notify(`Perfis e credenciais de "${form.nome.trim()}" salvos e sincronizados!`);
   };
 
   const handleDelete = () => {
@@ -353,13 +378,16 @@ export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({
           <button
             type="button"
             onClick={() => {
+              const nextSuggestedRe =
+                users.reduce((max, u) => (u.reAcesso > max && u.reAcesso < 90000 ? u.reAcesso : max), 30100) + 1;
               setForm({
                 id: undefined,
                 nome: '',
-                reAcesso: undefined,
+                reAcesso: nextSuggestedRe,
                 cargo: '',
                 setor: '',
                 email: '',
+                senha: '123',
                 perfisPorApp: {
                   plano_acao: 'Usuário Comum',
                   rnc: 'Usuário Comum',
@@ -522,7 +550,7 @@ export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({
                         </div>
                       </td>
 
-                      {/* Nome e Cargo com espaço amplo e sem quebrar em várias linhas */}
+                      {/* Nome, Cargo e E-mail de Login */}
                       <td className="py-2.5 px-4 overflow-hidden">
                         <div
                           className="font-bold text-slate-900 truncate text-[13px] leading-snug"
@@ -532,9 +560,12 @@ export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({
                         </div>
                         <div
                           className="text-[11px] text-slate-500 truncate mt-0.5"
-                          title={subInfo}
+                          title={`${subInfo}${u.email ? ` • ${u.email}` : ''}`}
                         >
                           {subInfo}
+                          {u.email && (
+                            <span className="font-mono text-slate-400"> · {u.email}</span>
+                          )}
                         </div>
                       </td>
 
@@ -618,6 +649,14 @@ export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({
                       {/* Ações */}
                       <td className="py-2.5 px-3 text-right border-l border-slate-100 whitespace-nowrap">
                         <div className="inline-flex items-center justify-end gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleCopyUserAccess(u)}
+                            className="p-1.5 rounded-lg text-slate-500 hover:text-[#0b5796] hover:bg-blue-50 transition-colors cursor-pointer"
+                            title="Copiar Link + E-mail + RE + Senha para enviar ao colaborador"
+                          >
+                            <Copy size={14} />
+                          </button>
                           {!isAllComum && (
                             <button
                               type="button"
@@ -638,12 +677,13 @@ export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({
                                 cargo: u.cargo || '',
                                 setor: u.setor || '',
                                 email: u.email || '',
+                                senha: u.senha || '123',
                                 perfisPorApp: { ...profiles }
                               });
                               setModalOpen(true);
                             }}
                             className="p-1.5 rounded-lg text-slate-500 hover:text-[#0b5796] hover:bg-blue-50 transition-colors cursor-pointer"
-                            title="Editar dados e perfis do funcionário"
+                            title="Editar dados, senha e perfis do funcionário"
                           >
                             <Edit3 size={14} />
                           </button>
@@ -762,6 +802,34 @@ export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({
                     value={form.setor}
                     onChange={e => setForm({ ...form, setor: e.target.value })}
                     placeholder="Ex: Qualidade Assegurada"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-3.5 p-3 rounded-xl bg-blue-50/40 border border-blue-100">
+                <div className="sm:col-span-8">
+                  <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
+                    <KeyRound size={12} className="text-[#0b5796]" />
+                    <span>E-mail de Login Corporativo</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="form-input w-full text-xs font-mono"
+                    value={form.email}
+                    onChange={e => setForm({ ...form, email: e.target.value })}
+                    placeholder="Gerado automaticamente se deixado em branco"
+                  />
+                </div>
+                <div className="sm:col-span-4">
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Senha de Acesso
+                  </label>
+                  <input
+                    type="text"
+                    className="form-input w-full text-xs font-mono"
+                    value={form.senha}
+                    onChange={e => setForm({ ...form, senha: e.target.value })}
+                    placeholder="123"
                   />
                 </div>
               </div>

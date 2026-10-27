@@ -4410,13 +4410,51 @@ class SaaSTenantService {
   }
 
   // ============================================================================
-  // TEMA DINÂMICO WHITE-LABEL (VARIÁVEIS CSS --brand-primary)
+  // TEMA DINÂMICO WHITE-LABEL (VARIÁVEIS CSS --brand-primary + TÍTULO E ÍCONE DA ABA)
   // ============================================================================
   public applyTenantThemeToDOM(tenant: TenantRecord | null | undefined) {
     if (typeof document === 'undefined') return;
     const primary = tenant?.customizacao?.cor_primaria || '#0b5796';
     document.documentElement.style.setProperty('--brand-primary', primary);
     document.documentElement.style.setProperty('--color-primary', primary);
+
+    // Atualiza dinamicamente o título da aba do navegador conforme o Nome de Exibição da empresa
+    const displayName =
+      tenant?.customizacao?.nome_exibicao?.trim() ||
+      tenant?.nome?.trim() ||
+      'MH Qualidade';
+    const subTitle =
+      tenant?.customizacao?.subtitulo_relatorio?.trim() ||
+      'Gestão da Qualidade, RNC e Metodologia 8D';
+    document.title = `${displayName} | ${subTitle}`;
+
+    // Atualiza dinamicamente o ícone (favicon) da aba do navegador (usa o logo da empresa ou as iniciais com a cor primária)
+    const iconLink =
+      (document.querySelector("link[rel*='icon']") as HTMLLinkElement | null) ||
+      (() => {
+        const el = document.createElement('link');
+        el.rel = 'icon';
+        document.head.appendChild(el);
+        return el;
+      })();
+
+    if (tenant?.customizacao?.logo_url && tenant.customizacao.logo_url.trim().length > 0) {
+      iconLink.type = 'image/png';
+      iconLink.href = tenant.customizacao.logo_url.trim();
+    } else {
+      const words = displayName
+        .replace(/[^a-zA-Z0-9À-ÿ\s]/g, ' ')
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean);
+      const initials =
+        words.length >= 2
+          ? `${words[0][0]}${words[1][0]}`.toUpperCase()
+          : (displayName.slice(0, 2) || 'MH').toUpperCase();
+      const encodedColor = encodeURIComponent(primary);
+      iconLink.type = 'image/svg+xml';
+      iconLink.href = `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='${encodedColor}'/><text x='50%' y='65%' font-family='Arial,sans-serif' font-size='44' font-weight='900' fill='white' text-anchor='middle'>${initials}</text></svg>`;
+    }
   }
 
   // ============================================================================

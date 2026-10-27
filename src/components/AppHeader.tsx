@@ -292,144 +292,169 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
       {/* Direita: Ações Rápidas & Perfil */}
       <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
 
-        {/* Botão de Acesso Rápido ao Console Super Admin */}
-        <button
-          type="button"
-          onClick={() => onNavigate('super-admin')}
-          className="hidden md:flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-xs font-semibold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/80 transition-colors cursor-pointer whitespace-nowrap"
-          title="Abrir Console Central do Super Administrador (/super-admin)"
-        >
-          <Shield className="w-3.5 h-3.5 text-[#0b5796]" />
-          <span>Super Admin</span>
-        </button>
+        {/* Botão de Acesso Rápido ao Console Super Admin — EXCLUSIVO DO SUPER ADMIN MASTER */}
+        {(() => {
+          const authUser = tenantService.getAuthenticatedUser();
+          const emailLower = (currentUser.email || authUser?.email || '').toLowerCase();
+          const isMasterSuperAdmin =
+            currentUser.papel === 'super_admin' ||
+            authUser?.papel === 'super_admin' ||
+            emailLower === 'mhsolucoes@adimin.com.br' ||
+            emailLower === 'mhsolucoes@admin.com.br' ||
+            tenantService.isImpersonating();
 
-        {/* Status Banco / Sincronismo */}
-        <button
-          type="button"
-          onClick={onOpenSyncModal}
-          className="hidden sm:flex items-center gap-2 h-8 px-3 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 transition-all cursor-pointer whitespace-nowrap"
-          title="Status de Sincronização e Dados do Tenant"
-        >
-          <span className="hidden lg:inline">RNCs</span>
-          <span className="text-slate-700 text-xs font-bold tabular-nums">({totalRncs.toLocaleString('pt-BR')})</span>
-        </button>
-
-        {/* Botão Sincronizar */}
-        <button
-          type="button"
-          onClick={() => {
-            if (onRefreshData) onRefreshData();
-          }}
-          className="w-8 h-8 sm:w-8.5 sm:h-8.5 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-100/80 hover:text-slate-900 transition-all cursor-pointer active:scale-95"
-          title="Atualizar dados operacionais"
-        >
-          <RefreshCw className="w-3.5 h-3.5 hover:rotate-180 transition-transform duration-500" />
-        </button>
-
-        {/* Separador */}
-        <div className="h-4.5 w-px bg-slate-200 mx-0.5 sm:mx-1" />
-
-        {/* Avatar / Perfil do Operador com Dropdown */}
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setUsersDropdownOpen(!usersDropdownOpen)}
-            className="flex items-center gap-2 h-9 px-2 sm:px-2.5 rounded-xl hover:bg-slate-100/80 transition-all cursor-pointer border border-transparent hover:border-slate-200/80 active:scale-98"
-          >
-            <div
-              className="w-7.5 h-7.5 rounded-xl text-white flex items-center justify-center font-bold text-xs shadow-2xs ring-1 ring-white/30"
-              style={{ backgroundColor: brandColor }}
-            >
-              {getInitials(currentUser.nome)}
-            </div>
-            <div className="hidden sm:flex flex-col text-left">
-              <span className="text-xs font-semibold text-slate-900 leading-tight max-w-[130px] truncate">
-                {currentUser.nome.split(' ')[0]}
-              </span>
-              <span className="text-[11px] font-medium text-slate-500 leading-tight">
-                {currentUser.perfil}
-              </span>
-            </div>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-          </button>
-
-          {/* Menu Dropdown de Troca de Operador */}
-          {usersDropdownOpen && (
-            <div className="absolute right-0 mt-1.5 w-76 max-w-[calc(100vw-24px)] bg-white/95 backdrop-blur-xl rounded-2xl border border-slate-200/90 shadow-2xl py-1.5 z-50 animate-in fade-in slide-in-from-top-1">
-              <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/70 rounded-t-2xl">
-                <div className="text-xs font-bold text-slate-900">{currentUser.nome}</div>
-                <div className="text-[11px] text-slate-500 mt-0.5 tabular-nums">RE: {currentUser.reAcesso} • {currentUser.cargo || currentUser.perfil}</div>
-                <div className="text-[11px] text-slate-500 mt-0.5 font-semibold">{activeTenant.nome} (/{activeTenant.slug})</div>
-              </div>
-
-              <div className="py-1.5">
-                <div className="px-4 py-1 text-xs font-bold text-[#64748b]">
-                  Equipe da Empresa ({activeTenant.nome})
-                </div>
-                {usersList.slice(0, 6).map(u => (
-                  <button
-                    key={u.id}
-                    type="button"
-                    onClick={() => {
-                      if (onUserChange) onUserChange(u);
-                      setUsersDropdownOpen(false);
-                    }}
-                    className={`w-full text-left px-4 py-2 text-xs flex items-center justify-between hover:bg-[#f1f5f9] transition cursor-pointer ${
-                      u.id === currentUser.id ? 'font-bold text-[#0f6cbd] bg-blue-50/60' : 'text-[#0f172a]'
-                    }`}
-                  >
-                    <span className="truncate">{u.nome}</span>
-                    <span className="text-[11px] font-medium text-[#64748b] ml-2 shrink-0">{u.perfil}</span>
-                  </button>
-                ))}
-              </div>
-
-              <div className="border-t border-[#f1f5f9] pt-1 space-y-0.5">
+          return (
+            <>
+              {isMasterSuperAdmin && (
                 <button
                   type="button"
-                  onClick={() => {
-                    setUsersDropdownOpen(false);
-                    onNavigate('configuracoes-empresa', {
-                      tab: currentApp === 'plano_acao' ? 'plano_config' : 'form_builder'
-                    });
-                  }}
-                  className="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-slate-100 flex items-center gap-2 cursor-pointer font-semibold transition"
-                >
-                  <Palette className="w-3.5 h-3.5 text-[#0b5796]" />
-                  <span>
-                    {currentApp === 'plano_acao'
-                      ? 'Configurações do Planejamento & Marca'
-                      : 'Configurações RNC & Marca'}
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setUsersDropdownOpen(false);
-                    onNavigate('super-admin');
-                  }}
-                  className="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-slate-100 flex items-center gap-2 cursor-pointer font-semibold transition"
+                  onClick={() => onNavigate('super-admin')}
+                  className="hidden md:flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-xs font-semibold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/80 transition-colors cursor-pointer whitespace-nowrap"
+                  title="Abrir Console Central do Super Administrador (/super-admin)"
                 >
                   <Shield className="w-3.5 h-3.5 text-[#0b5796]" />
-                  <span>Console Super Admin (/super-admin)</span>
+                  <span>Super Admin</span>
                 </button>
+              )}
 
+              {/* Status Banco / Sincronismo */}
+              <button
+                type="button"
+                onClick={onOpenSyncModal}
+                className="hidden sm:flex items-center gap-2 h-8 px-3 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 transition-all cursor-pointer whitespace-nowrap"
+                title="Status de Sincronização e Dados do Tenant"
+              >
+                <span className="hidden lg:inline">RNCs</span>
+                <span className="text-slate-700 text-xs font-bold tabular-nums">({totalRncs.toLocaleString('pt-BR')})</span>
+              </button>
+
+              {/* Botão Sincronizar */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (onRefreshData) onRefreshData();
+                }}
+                className="w-8 h-8 sm:w-8.5 sm:h-8.5 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-100/80 hover:text-slate-900 transition-all cursor-pointer active:scale-95"
+                title="Atualizar dados operacionais"
+              >
+                <RefreshCw className="w-3.5 h-3.5 hover:rotate-180 transition-transform duration-500" />
+              </button>
+
+              {/* Separador */}
+              <div className="h-4.5 w-px bg-slate-200 mx-0.5 sm:mx-1" />
+
+              {/* Avatar / Perfil do Operador com Dropdown */}
+              <div className="relative">
                 <button
                   type="button"
-                  onClick={() => {
-                    setUsersDropdownOpen(false);
-                    onNavigate('saas-login');
-                  }}
-                  className="w-full text-left px-4 py-2.5 text-xs text-rose-600 hover:bg-rose-50 flex items-center gap-2 cursor-pointer font-semibold transition"
+                  onClick={() => setUsersDropdownOpen(!usersDropdownOpen)}
+                  className="flex items-center gap-2 h-9 px-2 sm:px-2.5 rounded-xl hover:bg-slate-100/80 transition-all cursor-pointer border border-transparent hover:border-slate-200/80 active:scale-98"
                 >
-                  <LogOut className="w-3.5 h-3.5" />
-                  <span>Trocar Empresa / Sair (Login SaaS)</span>
+                  <div
+                    className="w-7.5 h-7.5 rounded-xl text-white flex items-center justify-center font-bold text-xs shadow-2xs ring-1 ring-white/30"
+                    style={{ backgroundColor: brandColor }}
+                  >
+                    {getInitials(currentUser.nome)}
+                  </div>
+                  <div className="hidden sm:flex flex-col text-left">
+                    <span className="text-xs font-semibold text-slate-900 leading-tight max-w-[130px] truncate">
+                      {currentUser.nome.split(' ')[0]}
+                    </span>
+                    <span className="text-[11px] font-medium text-slate-500 leading-tight">
+                      {currentUser.perfil}
+                    </span>
+                  </div>
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
                 </button>
+
+                {/* Menu Dropdown do Usuário Logado */}
+                {usersDropdownOpen && (
+                  <div className="absolute right-0 mt-1.5 w-76 max-w-[calc(100vw-24px)] bg-white/95 backdrop-blur-xl rounded-2xl border border-slate-200/90 shadow-2xl py-1.5 z-50 animate-in fade-in slide-in-from-top-1">
+                    <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/70 rounded-t-2xl">
+                      <div className="text-xs font-bold text-slate-900">{currentUser.nome}</div>
+                      <div className="text-[11px] text-slate-500 mt-0.5 tabular-nums">
+                        RE: {currentUser.reAcesso} • {currentUser.cargo || currentUser.perfil}
+                      </div>
+                      <div className="text-[11px] text-slate-500 mt-0.5 font-semibold">
+                        {activeTenant.nome}
+                      </div>
+                    </div>
+
+                    {/* Simulador de troca rápida de usuário visível APENAS para o Super Admin Master */}
+                    {isMasterSuperAdmin && (
+                      <div className="py-1.5 border-b border-[#f1f5f9]">
+                        <div className="px-4 py-1 text-[11px] font-bold text-[#64748b]">
+                          Alternar Perfil (Modo Super Admin)
+                        </div>
+                        {usersList.slice(0, 6).map(u => (
+                          <button
+                            key={u.id}
+                            type="button"
+                            onClick={() => {
+                              if (onUserChange) onUserChange(u);
+                              setUsersDropdownOpen(false);
+                            }}
+                            className={`w-full text-left px-4 py-2 text-xs flex items-center justify-between hover:bg-[#f1f5f9] transition cursor-pointer ${
+                              u.id === currentUser.id ? 'font-bold text-[#0f6cbd] bg-blue-50/60' : 'text-[#0f172a]'
+                            }`}
+                          >
+                            <span className="truncate">{u.nome}</span>
+                            <span className="text-[11px] font-medium text-[#64748b] ml-2 shrink-0">{u.perfil}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="pt-1 space-y-0.5">
+                      {['Admin', 'Adminqual'].includes(currentUser.perfil) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setUsersDropdownOpen(false);
+                            onNavigate('configuracoes-empresa', {
+                              tab: currentApp === 'plano_acao' ? 'plano_config' : 'form_builder'
+                            });
+                          }}
+                          className="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-slate-100 flex items-center gap-2 cursor-pointer font-semibold transition"
+                        >
+                          <Palette className="w-3.5 h-3.5 text-[#0b5796]" />
+                          <span>Configurações da Empresa</span>
+                        </button>
+                      )}
+
+                      {isMasterSuperAdmin && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setUsersDropdownOpen(false);
+                            onNavigate('super-admin');
+                          }}
+                          className="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-slate-100 flex items-center gap-2 cursor-pointer font-semibold transition"
+                        >
+                          <Shield className="w-3.5 h-3.5 text-[#0b5796]" />
+                          <span>Console Super Admin (/super-admin)</span>
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUsersDropdownOpen(false);
+                          tenantService.logout();
+                          onNavigate('saas-login');
+                        }}
+                        className="w-full text-left px-4 py-2.5 text-xs text-rose-600 hover:bg-rose-50 flex items-center gap-2 cursor-pointer font-semibold transition"
+                      >
+                        <LogOut className="w-3.5 h-3.5" />
+                        <span>Sair da Conta</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
-          )}
-        </div>
+            </>
+          );
+        })()}
 
       </div>
 

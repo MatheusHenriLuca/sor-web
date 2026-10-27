@@ -526,32 +526,49 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                           {!collapsed && <span className="truncate">Perfis de Usuários (Matriz)</span>}
                         </button>
 
-                        <button
-                          type="button"
-                          onClick={() => handleItemClick('super-admin')}
-                          title={collapsed ? 'Console Super Admin' : undefined}
-                          aria-label="Console Super Admin"
-                          className={getLinkClasses(currentScreen === 'super-admin', collapsed)}
-                        >
-                          {currentScreen === 'super-admin' && !collapsed && (
-                            <span className="absolute left-0 top-2 bottom-2 w-1.25 bg-[#0f6cbd] rounded-r-full shadow-[0_0_8px_rgba(15,108,189,0.5)]" />
-                          )}
-                          <Shield className={getIconClasses(currentScreen === 'super-admin', collapsed)} />
-                          {!collapsed && <span className="truncate">Console Super Admin</span>}
-                        </button>
+                        {(() => {
+                          const authUser = tenantService.getAuthenticatedUser();
+                          const emailLower = (currentUser.email || authUser?.email || '').toLowerCase();
+                          const isMasterSuperAdmin =
+                            currentUser.papel === 'super_admin' ||
+                            authUser?.papel === 'super_admin' ||
+                            emailLower === 'mhsolucoes@adimin.com.br' ||
+                            emailLower === 'mhsolucoes@admin.com.br' ||
+                            tenantService.isImpersonating();
+
+                          if (!isMasterSuperAdmin) return null;
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => handleItemClick('super-admin')}
+                              title={collapsed ? 'Console Super Admin' : undefined}
+                              aria-label="Console Super Admin"
+                              className={getLinkClasses(currentScreen === 'super-admin', collapsed)}
+                            >
+                              {currentScreen === 'super-admin' && !collapsed && (
+                                <span className="absolute left-0 top-2 bottom-2 w-1.25 bg-[#0f6cbd] rounded-r-full shadow-[0_0_8px_rgba(15,108,189,0.5)]" />
+                              )}
+                              <Shield className={getIconClasses(currentScreen === 'super-admin', collapsed)} />
+                              {!collapsed && <span className="truncate">Console Super Admin</span>}
+                            </button>
+                          );
+                        })()}
 
                         <button
                           type="button"
-                          onClick={() => handleItemClick('saas-login')}
-                          title={collapsed ? 'Trocar Usuário / Empresa' : undefined}
-                          aria-label="Trocar Usuário / Empresa"
+                          onClick={() => {
+                            tenantService.logout();
+                            handleItemClick('saas-login');
+                          }}
+                          title={collapsed ? 'Sair da Conta' : undefined}
+                          aria-label="Sair da Conta"
                           className={getLinkClasses(currentScreen === 'saas-login', collapsed)}
                         >
                           {currentScreen === 'saas-login' && !collapsed && (
                             <span className="absolute left-0 top-2 bottom-2 w-1.25 bg-[#0f6cbd] rounded-r-full shadow-[0_0_8px_rgba(15,108,189,0.5)]" />
                           )}
                           <UserCheck className={getIconClasses(currentScreen === 'saas-login', collapsed)} />
-                          {!collapsed && <span className="truncate">Trocar Usuário / Empresa</span>}
+                          {!collapsed && <span className="truncate">Sair da Conta</span>}
                         </button>
                       </div>
                     )}

@@ -39,9 +39,21 @@ function resolveInitialRouteFromUrl(): {
     .map(p => p.trim())
     .filter(Boolean);
 
-  // Rota /super-admin
+  const existingAuth = tenantService.getAuthenticatedUser();
+  const authEmail = (existingAuth?.email || '').toLowerCase();
+  const isSuperAdminAuth =
+    Boolean(existingAuth) &&
+    (existingAuth?.papel === 'super_admin' ||
+      authEmail === 'mhsolucoes@adimin.com.br' ||
+      authEmail === 'mhsolucoes@admin.com.br' ||
+      tenantService.isImpersonating());
+
+  // Rota /super-admin (protegida: exige estar autenticado como Super Admin)
   if (pathParts[0] === 'super-admin') {
-    return { screen: 'super-admin' };
+    if (isSuperAdminAuth) {
+      return { screen: 'super-admin' };
+    }
+    return { screen: 'saas-login' };
   }
 
   // Rota /login global
@@ -55,7 +67,15 @@ function resolveInitialRouteFromUrl(): {
     if (maybeTenant) {
       tenantService.setActiveTenantBySlug(maybeTenant.slug);
       const subRoute = pathParts[1] || 'dashboard';
-      if (subRoute === 'login') {
+      if (subRoute === 'login' || !existingAuth) {
+        return { screen: 'saas-login', loginSlug: maybeTenant.slug };
+      }
+      // Se o usuário logado pertence a outra empresa e não é Super Admin em Impersonation, exige login na empresa da URL
+      if (
+        existingAuth.tenant_id &&
+        existingAuth.tenant_id !== maybeTenant.id &&
+        !isSuperAdminAuth
+      ) {
         return { screen: 'saas-login', loginSlug: maybeTenant.slug };
       }
       if (subRoute === 'configuracoes') {
@@ -68,12 +88,11 @@ function resolveInitialRouteFromUrl(): {
     }
   }
 
-  if (queryScreen) {
+  if ( existingAuth && queryScreen ) {
     return { screen: queryScreen, rncId: queryRncId };
   }
 
   // Se já existe um usuário autenticado, abre o workspace do tenant ativo; caso contrário, abre a tela de Login Global SaaS
-  const existingAuth = tenantService.getAuthenticatedUser();
   if (existingAuth) {
     if (existingAuth.papel === 'super_admin' && !tenantService.isImpersonating()) {
       return { screen: 'super-admin' };

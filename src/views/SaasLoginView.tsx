@@ -1,14 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   LogIn,
   ShieldCheck,
   Building2,
-  Mail,
+  Hash,
   Lock,
   AlertCircle,
   ArrowRight,
   CheckCircle2,
-  Globe
+  Globe,
+  Unlock
 } from 'lucide-react';
 import { TenantRecord, UsuarioQualidade } from '../types';
 import { tenantService } from '../services/tenantService';
@@ -50,9 +51,18 @@ export const SaasLoginView: React.FC<SaasLoginViewProps> = ({
   const isMasterEmail =
     cleanEmailInput === 'mhsolucoes@adimin.com.br' ||
     cleanEmailInput === 'mhsolucoes@admin.com.br' ||
-    cleanEmailInput === 'superadmin@sor-saas.com';
+    cleanEmailInput === 'superadmin@sor-saas.com' ||
+    cleanEmailInput === '104235' ||
+    cleanEmailInput === '#104235';
 
-  // Descobre dinamicamente a empresa à medida que o usuário digita o e-mail ou RE
+  // Verifica em tempo real se o código de registro (RE) ou login exige senha
+  const passwordCheck = useMemo(() => {
+    return tenantService.checkUserRequiresPassword(email, slugTenant?.slug);
+  }, [email, slugTenant?.slug, allTenants]);
+
+  const requiresPassword = !passwordCheck.found || passwordCheck.requiresPassword || passwordCheck.isSuperAdmin;
+
+  // Descobre dinamicamente a empresa à medida que o usuário digita o Código de Registro (RE) ou E-mail
   useEffect(() => {
     if (slugTenant) {
       setDiscoveredTenant(slugTenant);
@@ -60,32 +70,14 @@ export const SaasLoginView: React.FC<SaasLoginViewProps> = ({
       return;
     }
 
-    const clean = email.trim().toLowerCase();
-    const numericRe = /^\d+$/.test(clean.replace(/^#/, ''))
-      ? Number(clean.replace(/^#/, ''))
-      : NaN;
-
-    if (!clean.includes('@') && isNaN(numericRe)) {
-      setDiscoveredTenant(null);
+    if (passwordCheck.found && passwordCheck.tenant) {
+      setDiscoveredTenant(passwordCheck.tenant);
+      tenantService.applyTenantThemeToDOM(passwordCheck.tenant);
       return;
     }
 
-    for (const t of allTenants) {
-      const users = tenantService.getUnifiedUsersMatrix(t.id);
-      if (
-        users.some(
-          u =>
-            (u.email || '').toLowerCase() === clean ||
-            (!isNaN(numericRe) && u.reAcesso === numericRe)
-        )
-      ) {
-        setDiscoveredTenant(t);
-        tenantService.applyTenantThemeToDOM(t);
-        return;
-      }
-    }
     setDiscoveredTenant(null);
-  }, [email, slugTenant, allTenants]);
+  }, [email, slugTenant, passwordCheck]);
 
   const handleSubmit = (e?: React.FormEvent, forceSuperAdmin = false) => {
     if (e) e.preventDefault();
@@ -93,7 +85,7 @@ export const SaasLoginView: React.FC<SaasLoginViewProps> = ({
 
     const auth = tenantService.authenticateByEmail(
       email,
-      senha,
+      requiresPassword ? senha : '',
       forceSuperAdmin ? undefined : slugTenant?.slug,
       forceSuperAdmin
     );
@@ -173,7 +165,7 @@ export const SaasLoginView: React.FC<SaasLoginViewProps> = ({
                 : 'Acesso ao Sistema'}
             </h1>
             <p className="text-xs sm:text-sm text-slate-600 mt-1">
-              Informe seu e-mail corporativo ou matrícula (RE) e sua senha de acesso.
+              Informe seu <strong>Código de Registro (RE numérico)</strong> ou e-mail corporativo para acessar sua conta.
             </p>
           </div>
 
@@ -187,53 +179,78 @@ export const SaasLoginView: React.FC<SaasLoginViewProps> = ({
           <form onSubmit={e => handleSubmit(e, false)} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                E-mail Corporativo ou Matrícula (RE) <span className="text-rose-500">*</span>
+                Código de Registro (RE Numérico) ou E-mail <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
-                <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <Hash className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="text"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  placeholder="nome@suaempresa.com.br ou RE"
+                  placeholder="Digite seu código numérico de registro (ex: 30122) ou e-mail"
                   className="form-input !pl-10 w-full text-sm font-medium"
                   autoComplete="username"
                   required
                 />
               </div>
-              {!slugTenant && discoveredTenant && (
-                <div className="mt-1.5 flex items-center gap-1.5 text-xs text-emerald-700 font-medium">
-                  <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                  <span>
-                    Empresa: <strong>{discoveredTenant.nome}</strong>
-                  </span>
+
+              {passwordCheck.found && passwordCheck.user && !passwordCheck.isSuperAdmin && (
+                <div className="mt-2 p-2.5 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <div className="truncate">
+                      <div className="text-xs font-bold text-slate-900 truncate">
+                        {passwordCheck.user.nome}
+                      </div>
+                      <div className="text-[11px] text-slate-500 truncate">
+                        RE #{passwordCheck.user.reAcesso}
+                        {passwordCheck.tenant ? ` • ${passwordCheck.tenant.nome}` : ''}
+                      </div>
+                    </div>
+                  </div>
+                  {!requiresPassword && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-bold shrink-0">
+                      <Unlock className="w-3 h-3" />
+                      Acesso Direto
+                    </span>
+                  )}
                 </div>
               )}
+
               {isMasterEmail && (
                 <div className="mt-1.5 flex items-center gap-1.5 text-xs text-slate-800 font-semibold">
                   <ShieldCheck className="w-3.5 h-3.5 shrink-0 text-[#0b5796]" />
-                  <span>Credencial Master Super Admin reconhecida</span>
+                  <span>Credencial Exclusiva Super Admin reconhecida</span>
                 </div>
               )}
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                Senha de Acesso <span className="text-rose-500">*</span>
-              </label>
-              <div className="relative">
-                <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-                <input
-                  type="password"
-                  value={senha}
-                  onChange={e => setSenha(e.target.value)}
-                  placeholder="Digite sua senha"
-                  className="form-input !pl-10 w-full text-sm font-medium"
-                  autoComplete="current-password"
-                  required
-                />
+            {requiresPassword ? (
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Senha de Acesso <span className="text-rose-500">*</span>
+                </label>
+                <div className="relative">
+                  <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="password"
+                    value={senha}
+                    onChange={e => setSenha(e.target.value)}
+                    placeholder="Digite sua senha"
+                    className="form-input !pl-10 w-full text-sm font-medium"
+                    autoComplete="current-password"
+                    required
+                  />
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="p-3 rounded-xl bg-emerald-50/90 border border-emerald-200 text-emerald-900 text-xs flex items-center gap-2.5">
+                <Unlock className="w-4 h-4 text-emerald-600 shrink-0" />
+                <div>
+                  <span className="font-bold">Acesso liberado sem senha:</span> seu usuário está configurado para entrar diretamente com o Código de Registro (<strong>#{passwordCheck.user?.reAcesso}</strong>).
+                </div>
+              </div>
+            )}
 
             <div className="pt-1 space-y-2.5">
               <button
@@ -243,23 +260,14 @@ export const SaasLoginView: React.FC<SaasLoginViewProps> = ({
               >
                 <LogIn className="w-4 h-4" />
                 <span>
-                  {activeBrandTenant
+                  {isMasterEmail
+                    ? 'Entrar no Console Super Admin'
+                    : activeBrandTenant
                     ? `Entrar em ${activeBrandTenant.nome}`
                     : 'Entrar no Sistema'}
                 </span>
                 <ArrowRight className="w-4 h-4" />
               </button>
-
-              {isMasterEmail && (
-                <button
-                  type="button"
-                  onClick={e => handleSubmit(e, true)}
-                  className="w-full h-10 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-display font-semibold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
-                >
-                  <ShieldCheck className="w-4 h-4 text-amber-400" />
-                  <span>Acessar Console Super Admin (Gestão de Empresas)</span>
-                </button>
-              )}
             </div>
           </form>
         </div>
@@ -274,3 +282,4 @@ export const SaasLoginView: React.FC<SaasLoginViewProps> = ({
 };
 
 export default SaasLoginView;
+

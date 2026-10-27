@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { UsuarioQualidade, RNCRecord } from '../types';
 import { spStore } from '../services/sharepointService';
+import { tenantService } from '../services/tenantService';
 import { getClientBadgeInfo } from '../constants/clientes';
 
 interface Menu2ViewProps {
@@ -567,23 +568,42 @@ export const Menu2View: React.FC<Menu2ViewProps> = ({
             </div>
           </div>
 
-          {/* Módulo 4: Gestão de Usuários */}
-          <div
-            onClick={() => onNavigate('cadastro-usuarios')}
-            className="card-saas card-saas-hover cursor-pointer flex items-start gap-3.5 p-4 group"
-          >
-            <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center shrink-0 border border-slate-200 group-hover:bg-slate-700 group-hover:text-white transition-all shadow-xs">
-              <Users className="w-5 h-5" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-bold text-[#0f172a] group-hover:text-slate-800 transition-colors truncate">
-                Gestão de Usuários
+          {/* Módulo 4: Gestão de Usuários (Exclusivo Admin da Empresa) ou Novo Registro RNC */}
+          {tenantService.isCompanyAdminUser(currentUser) ? (
+            <div
+              onClick={() => onNavigate('cadastro-usuarios')}
+              className="card-saas card-saas-hover cursor-pointer flex items-start gap-3.5 p-4 group"
+            >
+              <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center shrink-0 border border-slate-200 group-hover:bg-slate-700 group-hover:text-white transition-all shadow-xs">
+                <Users className="w-5 h-5" />
               </div>
-              <div className="text-xs text-[#64748b] mt-0.5 line-clamp-2 leading-relaxed">
-                Perfis de acesso da qualidade e colaboradores cadastrados.
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-bold text-[#0f172a] group-hover:text-slate-800 transition-colors truncate">
+                  Gestão de Usuários
+                </div>
+                <div className="text-xs text-[#64748b] mt-0.5 line-clamp-2 leading-relaxed">
+                  Perfis de acesso da empresa e configuração de senhas por usuário.
+                </div>
               </div>
             </div>
-          </div>
+          ) : (
+            <div
+              onClick={() => onNavigate('registro-8d')}
+              className="card-saas card-saas-hover cursor-pointer flex items-start gap-3.5 p-4 group"
+            >
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0 border border-emerald-100 group-hover:bg-emerald-600 group-hover:text-white transition-all shadow-xs">
+                <FileText className="w-5 h-5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-bold text-[#0f172a] group-hover:text-emerald-700 transition-colors truncate">
+                  Lançar Nova Ocorrência
+                </div>
+                <div className="text-xs text-[#64748b] mt-0.5 line-clamp-2 leading-relaxed">
+                  Registrar nova RNC interna, de cliente ou apontamento de fábrica.
+                </div>
+              </div>
+            </div>
+          )}
 
         </div>
       </div>

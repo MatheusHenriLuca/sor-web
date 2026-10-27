@@ -203,6 +203,7 @@ export interface UsuarioQualidade {
   perfil: UserRole;
   perfisPorApp?: UserAppProfiles;
   isDefaultProfile?: boolean;
+  exigeSenha?: boolean;
   senha?: string;
   email?: string;
   cargo?: string;

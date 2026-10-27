@@ -254,45 +254,34 @@ const INITIAL_TENANTS: TenantRecord[] = [
 // USUÁRIOS MULTI-TENANT (MH QUALIDADE SUPER ADMIN + EQUIPE MH LEAN & SOLUÇÕES)
 // ============================================================================
 const INITIAL_SAAS_USERS: UsuarioQualidade[] = [
-  // 0. Super Administrador Master da Plataforma MH Qualidade
+  // 0. Super Administrador Master da Plataforma MH Qualidade (Exclusivo do Console /super-admin — Nunca exibido na matriz das empresas)
   {
     id: 9001,
     tenant_id: undefined,
     papel: 'super_admin',
     ativo: true,
-    nome: 'Matheus de Luca (MH Qualidade Super Admin)',
-    reAcesso: 999999,
+    nome: 'Matheus Henrique de Luca',
+    reAcesso: 104235,
     perfil: 'Admin',
+    exigeSenha: true,
     senha: '123',
     email: 'mhsolucoes@adimin.com.br',
-    cargo: 'Proprietário da Plataforma MH Qualidade',
+    cargo: 'Super Administrador Master — MH Qualidade',
     setor: 'Diretoria MH Lean & Soluções'
   },
   // 1. Equipe MH Lean & Soluções (Sistema Padrão)
   {
-    id: 1,
+    id: 2,
     tenant_id: PILOT_TENANT_ID,
     papel: 'admin_empresa',
     ativo: true,
-    nome: 'Matheus Henrique de Luca',
-    reAcesso: 104235,
-    perfil: 'Admin',
-    senha: '123',
-    email: 'mhsolucoes@adimin.com.br',
-    cargo: 'Administrador Geral — MH Lean & Soluções',
-    setor: 'Qualidade MH Lean & Soluções'
-  },
-  {
-    id: 2,
-    tenant_id: PILOT_TENANT_ID,
-    papel: 'qualidade',
-    ativo: true,
     nome: 'Carlos Eduardo Ferreira',
     reAcesso: 89452,
-    perfil: 'Adminqual',
+    perfil: 'Admin',
+    exigeSenha: true,
     senha: '123',
     email: 'qualidade@mhleansolucoes.com.br',
-    cargo: 'Engenheiro da Qualidade Sênior',
+    cargo: 'Administrador da Qualidade',
     setor: 'Qualidade Assegurada'
   },
   {
@@ -303,6 +292,7 @@ const INITIAL_SAAS_USERS: UsuarioQualidade[] = [
     nome: 'Mariana Souza Lima',
     reAcesso: 76512,
     perfil: 'Liderqual',
+    exigeSenha: false,
     senha: '123',
     email: 'lider@mhleansolucoes.com.br',
     cargo: 'Líder da Qualidade Linhas',
@@ -316,6 +306,7 @@ const INITIAL_SAAS_USERS: UsuarioQualidade[] = [
     nome: 'Roberto Mendes Silva',
     reAcesso: 64129,
     perfil: 'Inspqual',
+    exigeSenha: false,
     senha: '123',
     email: 'inspetor@mhleansolucoes.com.br',
     cargo: 'Inspetor da Qualidade Solda',
@@ -329,6 +320,7 @@ const INITIAL_SAAS_USERS: UsuarioQualidade[] = [
     nome: 'Marcos Vinicius Barbosa',
     reAcesso: 30122,
     perfil: 'User',
+    exigeSenha: false,
     senha: '123',
     email: 'operador@mhleansolucoes.com.br',
     cargo: 'Operador Especializado Solda',
@@ -343,6 +335,7 @@ const INITIAL_SAAS_USERS: UsuarioQualidade[] = [
     nome: 'Ricardo Prado',
     reAcesso: 50101,
     perfil: 'Admin',
+    exigeSenha: true,
     senha: '123',
     email: 'admin@metalurgicavale.com.br',
     cargo: 'Gestor Industrial',
@@ -356,6 +349,7 @@ const INITIAL_SAAS_USERS: UsuarioQualidade[] = [
     nome: 'Fernanda Costa',
     reAcesso: 50102,
     perfil: 'Adminqual',
+    exigeSenha: false,
     senha: '123',
     email: 'qualidade@metalurgicavale.com.br',
     cargo: 'Analista de Qualidade',
@@ -659,6 +653,7 @@ export function getDefaultOptionCategoriesForTenant(tenantId: string): OptionCat
 
 export function getDefaultOptionItemsForTenant(tenantId: string): MasterDataItem[] {
   const isVale = tenantId === SECONDARY_TENANT_ID;
+  const isPilot = tenantId === PILOT_TENANT_ID;
   const baseItems: MasterDataItem[] = isVale
     ? [
         { id: `${tenantId}-cli-1`, tenant_id: tenantId, tipo: 'cliente_montadora', nome: 'SCANIA LATIN AMERICA', codigo: 'SCANIA', detalhe: 'São Bernardo do Campo', ativo: true },
@@ -670,9 +665,9 @@ export function getDefaultOptionItemsForTenant(tenantId: string): MasterDataItem
         { id: `${tenantId}-func-v2`, tenant_id: tenantId, tipo: 'master_funcionarios', nome: 'Fernanda Costa', codigo: '50102', detalhe: 'Analista de Qualidade • Laboratório Metrologia', ativo: true },
         { id: `${tenantId}-prod-v1`, tenant_id: tenantId, tipo: 'master_pecas_produtos', nome: 'EIXO DIANTEIRO FORJADO SCANIA', codigo: '8001200', detalhe: 'SCANIA LATIN AMERICA', ativo: true }
       ]
-    : [
-        // MH Lean & Soluções — Funcionários (Master Compartilhado)
-        { id: `${tenantId}-func-1`, tenant_id: tenantId, tipo: 'master_funcionarios', nome: 'Matheus Henrique de Luca', codigo: '104235', detalhe: 'Gerente da Qualidade • Qualidade Corporativa', ativo: true },
+    : isPilot
+    ? [
+        // MH Lean & Soluções — Funcionários da Empresa (Sem o Super Admin Master)
         { id: `${tenantId}-func-2`, tenant_id: tenantId, tipo: 'master_funcionarios', nome: 'Fernando Tiago Maciel de Jesus', codigo: '98112', detalhe: 'Analista da Qualidade • Qualidade Assegurada', ativo: true },
         { id: `${tenantId}-func-3`, tenant_id: tenantId, tipo: 'master_funcionarios', nome: 'Carlos Eduardo Ferreira', codigo: '89452', detalhe: 'Engenheiro da Qualidade Sênior • Qualidade Assegurada', ativo: true },
         { id: `${tenantId}-func-4`, tenant_id: tenantId, tipo: 'master_funcionarios', nome: 'Mariana Souza Lima', codigo: '76512', detalhe: 'Líder de Inspeção da Qualidade • Qualidade Linhas', ativo: true },
@@ -743,7 +738,8 @@ export function getDefaultOptionItemsForTenant(tenantId: string): MasterDataItem
         { id: `${tenantId}-def-8`, tenant_id: tenantId, tipo: 'cat_defeito', nome: 'Porosidade interna em estanqueidade', codigo: 'FUN-08', detalhe: 'Crítica / Vedação', ativo: true },
         { id: `${tenantId}-def-9`, tenant_id: tenantId, tipo: 'cat_defeito', nome: 'Deformação por impacto logístico', codigo: 'LOG-09', detalhe: 'Média / Manuseio', ativo: true },
         { id: `${tenantId}-def-10`, tenant_id: tenantId, tipo: 'cat_defeito', nome: 'Etiqueta de rastreabilidade ilegível', codigo: 'EXP-10', detalhe: 'Média / Expedição', ativo: true }
-      ];
+      ]
+    : [];
 
   const commonOptionItems: MasterDataItem[] = [
     // Tipo de RNC
@@ -3969,7 +3965,45 @@ class SaaSTenantService {
       }
     }
 
-    // 2. Garante itens padrão para categorias que ainda não possuem opções na empresa
+    // 2. Remove o Super Admin de qualquer lista master_funcionarios e limpa funcionários piloto vazados em empresas clientes
+    const pilotSampleRes = new Set([
+      '104235', '999999', '98112', '89452', '76512', '64129', '52187', '41290',
+      '30122', '30123', '30124', '30125', '30126', '30127', '30128', '30129', '30130'
+    ]);
+    const isCustomCompany = tenantId !== PILOT_TENANT_ID && tenantId !== SECONDARY_TENANT_ID;
+
+    this.masterData = this.masterData.filter(m => {
+      if (m.tenant_id !== tenantId) return true;
+      if (m.tipo === 'master_funcionarios') {
+        const cleanCode = (m.codigo || '').trim();
+        const cleanName = (m.nome || '').trim().toLowerCase();
+        // O Super Admin nunca deve aparecer na lista de funcionários de nenhuma empresa
+        if (
+          cleanCode === '104235' ||
+          cleanCode === '999999' ||
+          cleanName === 'matheus henrique de luca' ||
+          cleanName.includes('super admin')
+        ) {
+          return false;
+        }
+        // Em empresas criadas pelo Super Admin, remove funcionários de exemplo que eram do tenant piloto
+        if (
+          isCustomCompany &&
+          (m.id.includes('-func-') || pilotSampleRes.has(cleanCode)) &&
+          !this.users.some(
+            u =>
+              u.tenant_id === tenantId &&
+              u.papel !== 'super_admin' &&
+              (String(u.reAcesso) === cleanCode || u.nome.trim().toLowerCase() === cleanName)
+          )
+        ) {
+          return false;
+        }
+      }
+      return true;
+    });
+
+    // Garante itens padrão para categorias que ainda não possuem opções na empresa
     const existingItems = this.masterData.filter(m => m.tenant_id === tenantId);
     const defaultItems = getDefaultOptionItemsForTenant(tenantId);
     const existingTypes = new Set(existingItems.map(m => m.tipo));
@@ -3978,6 +4012,37 @@ class SaaSTenantService {
         this.masterData.push(defItem);
       }
     }
+
+    // Garante que os usuários/administradores próprios desta empresa estejam sincronizados em master_funcionarios
+    this.users
+      .filter(
+        u =>
+          u.tenant_id === tenantId &&
+          u.papel !== 'super_admin' &&
+          (u.email || '').toLowerCase() !== 'mhsolucoes@adimin.com.br'
+      )
+      .forEach(u => {
+        const reStr = String(u.reAcesso || '');
+        const cleanName = (u.nome || '').trim();
+        if (!cleanName) return;
+        const exists = this.masterData.some(
+          m =>
+            m.tenant_id === tenantId &&
+            m.tipo === 'master_funcionarios' &&
+            ((reStr && m.codigo === reStr) || m.nome.trim().toLowerCase() === cleanName.toLowerCase())
+        );
+        if (!exists) {
+          this.masterData.push({
+            id: `${tenantId}-master_funcionarios-${u.reAcesso || u.id}`,
+            tenant_id: tenantId,
+            tipo: 'master_funcionarios',
+            nome: cleanName,
+            codigo: reStr,
+            detalhe: [u.cargo || 'Colaborador', u.setor || 'Qualidade'].filter(Boolean).join(' • '),
+            ativo: true
+          });
+        }
+      });
 
     // Migra itens de possivel_detectar para não duplicar "Sim (Sim (...))"
     this.masterData.forEach(item => {
@@ -4216,31 +4281,62 @@ class SaaSTenantService {
       const rawUsers = localStorage.getItem('sor_saas_users_v1');
       this.users = rawUsers ? JSON.parse(rawUsers) : [...INITIAL_SAAS_USERS];
       if (!this.users.some(u => u.papel === 'super_admin')) {
-        this.users.unshift(INITIAL_SAAS_USERS[0]);
+        this.users.unshift({ ...INITIAL_SAAS_USERS[0] });
       }
 
-      // Migração automática do e-mail padrão para mhsolucoes@adimin.com.br e nome MH Qualidade
-      this.users.forEach(u => {
-        if (
-          u.id === 9001 ||
-          u.papel === 'super_admin' ||
-          (u.email && u.email.toLowerCase() === 'superadmin@sor-saas.com')
-        ) {
-          u.email = 'mhsolucoes@adimin.com.br';
-          u.nome = 'Matheus de Luca (MH Qualidade Super Admin)';
-          u.cargo = 'Proprietário da Plataforma MH Qualidade';
-          u.setor = 'Diretoria MH Lean & Soluções';
-        }
+      // Garante que o Super Admin seja único e nunca fique duplicado dentro de uma empresa (tenant)
+      let superAdminRecord = this.users.find(u => u.papel === 'super_admin') || INITIAL_SAAS_USERS[0];
+      const legacyId1 = this.users.find(u => u.id === 1 && u.papel !== 'super_admin');
+      if (legacyId1 && legacyId1.senha && legacyId1.senha !== '123' && superAdminRecord.senha === '123') {
+        superAdminRecord.senha = legacyId1.senha;
+      }
+
+      this.users = this.users.filter(u => {
+        if (u.id === superAdminRecord.id || u.papel === 'super_admin') return true;
+        const emailLower = (u.email || '').trim().toLowerCase();
+        const nameLower = (u.nome || '').trim().toLowerCase();
         if (
           u.id === 1 ||
-          (u.email && u.email.toLowerCase() === 'admin@gpmservicos.com.br')
+          emailLower === 'mhsolucoes@adimin.com.br' ||
+          emailLower === 'mhsolucoes@admin.com.br' ||
+          emailLower === 'superadmin@sor-saas.com' ||
+          nameLower === 'matheus henrique de luca' ||
+          u.reAcesso === 104235 ||
+          u.reAcesso === 999999
         ) {
-          u.email = 'mhsolucoes@adimin.com.br';
-          u.cargo = 'Administrador Geral — MH Lean & Soluções';
-          u.setor = 'Qualidade MH Lean & Soluções';
+          return false;
         }
-        if (u.email && u.email.endsWith('@gpmservicos.com.br')) {
-          u.email = u.email.replace('@gpmservicos.com.br', '@mhleansolucoes.com.br');
+        return true;
+      });
+
+      this.users.forEach(u => {
+        if (u.papel === 'super_admin') {
+          u.tenant_id = undefined;
+          u.exigeSenha = true;
+          if (!u.email || u.email.toLowerCase() === 'superadmin@sor-saas.com' || u.email.toLowerCase() === 'admin@gpmservicos.com.br') {
+            u.email = 'mhsolucoes@adimin.com.br';
+          }
+          if (!u.nome || u.nome.includes('MH Qualidade Super Admin')) {
+            u.nome = 'Matheus Henrique de Luca';
+          }
+          if (!u.reAcesso || u.reAcesso === 999999) {
+            u.reAcesso = 104235;
+          }
+          u.cargo = 'Super Administrador Master — MH Qualidade';
+          u.setor = 'Diretoria MH Lean & Soluções';
+        } else {
+          if (u.email && u.email.endsWith('@gpmservicos.com.br')) {
+            u.email = u.email.replace('@gpmservicos.com.br', '@mhleansolucoes.com.br');
+          }
+          // Garante que em MH Lean & Soluções o gestor Carlos Eduardo seja Admin se não houver outro Admin
+          if (u.tenant_id === PILOT_TENANT_ID && u.reAcesso === 89452) {
+            u.papel = 'admin_empresa';
+            u.perfil = 'Admin';
+            if (u.exigeSenha === undefined) u.exigeSenha = true;
+          }
+          if (u.exigeSenha === undefined) {
+            u.exigeSenha = u.perfil === 'Admin' || u.papel === 'admin_empresa';
+          }
         }
       });
 
@@ -4517,8 +4613,229 @@ class SaaSTenantService {
   }
 
   // ============================================================================
-  // AUTENTICAÇÃO GLOBAL INTELIGENTE POR E-MAIL E IMPERSONATION
+  // AUTENTICAÇÃO POR CÓDIGO DE REGISTRO (RE NUMÉRICO) OU E-MAIL + CONTROLE DE SENHA
   // ============================================================================
+  public isSuperAdminUser(user?: UsuarioQualidade | null): boolean {
+    if (!user) return false;
+    const emailLower = (user.email || '').trim().toLowerCase();
+    return (
+      user.papel === 'super_admin' ||
+      emailLower === 'mhsolucoes@adimin.com.br' ||
+      emailLower === 'mhsolucoes@admin.com.br' ||
+      user.reAcesso === 104235 ||
+      user.reAcesso === 999999
+    );
+  }
+
+  public isCompanyAdminUser(user?: UsuarioQualidade | null): boolean {
+    if (!user) return false;
+    const isCurrentSessionUser =
+      this.authenticatedUser &&
+      (this.authenticatedUser.id === user.id || this.authenticatedUser.reAcesso === user.reAcesso);
+    if (this.isSuperAdminUser(user) || (isCurrentSessionUser && this.impersonatingFromSuperAdmin)) {
+      return true;
+    }
+    const appProfiles = user.perfisPorApp;
+    const hasAdminInAnyApp =
+      appProfiles?.plano_acao === 'Admin' ||
+      appProfiles?.rnc === 'Admin' ||
+      appProfiles?.oitod === 'Admin';
+    return (
+      user.perfil === 'Admin' ||
+      user.papel === 'admin_empresa' ||
+      Boolean(hasAdminInAnyApp)
+    );
+  }
+
+  public getSuperAdminUser(): UsuarioQualidade {
+    const found = this.users.find(u => u.papel === 'super_admin');
+    if (found) return found;
+    const def = { ...INITIAL_SAAS_USERS[0] };
+    this.users.unshift(def);
+    return def;
+  }
+
+  public updateSuperAdminCredentials(payload: {
+    nome?: string;
+    email?: string;
+    reAcesso?: number;
+    novaSenha?: string;
+  }): { success: boolean; message: string; user: UsuarioQualidade } {
+    const sa = this.getSuperAdminUser();
+    if (payload.nome && payload.nome.trim()) {
+      sa.nome = payload.nome.trim();
+    }
+    if (payload.email && payload.email.trim()) {
+      sa.email = payload.email.trim().toLowerCase();
+    }
+    if (payload.reAcesso && !isNaN(Number(payload.reAcesso)) && Number(payload.reAcesso) > 0) {
+      sa.reAcesso = Number(payload.reAcesso);
+    }
+    if (payload.novaSenha !== undefined && payload.novaSenha.trim().length > 0) {
+      sa.senha = payload.novaSenha.trim();
+    }
+    sa.exigeSenha = true;
+    sa.papel = 'super_admin';
+    sa.tenant_id = undefined;
+
+    if (this.authenticatedUser && this.isSuperAdminUser(this.authenticatedUser)) {
+      this.authenticatedUser = { ...sa };
+    }
+
+    this.lastLocalMutationAt = Date.now();
+    this.saveToLocalStorage();
+    this.notifyListeners();
+
+    return {
+      success: true,
+      message: 'Credenciais e senha do Super Administrador atualizadas com sucesso!',
+      user: { ...sa }
+    };
+  }
+
+  public updateOwnPassword(
+    userIdOrRe: number,
+    novaSenha: string,
+    tenantId?: string
+  ): { success: boolean; message: string; user?: UsuarioQualidade } {
+    const cleanPass = (novaSenha || '').trim();
+    if (!cleanPass) {
+      return { success: false, message: 'Digite uma nova senha válida.' };
+    }
+
+    const authU = this.authenticatedUser;
+    if (
+      (authU && this.isSuperAdminUser(authU) && !this.impersonatingFromSuperAdmin) ||
+      userIdOrRe === 9001 ||
+      userIdOrRe === 104235 ||
+      userIdOrRe === 999999
+    ) {
+      const res = this.updateSuperAdminCredentials({ novaSenha: cleanPass });
+      return {
+        success: true,
+        message: 'Sua senha de Super Administrador foi atualizada com sucesso!',
+        user: res.user
+      };
+    }
+
+    const targetTenantId = tenantId || authU?.tenant_id || this.activeTenantId;
+    const matrixUser = this.getUnifiedUsersMatrix(targetTenantId).find(
+      u => u.id === userIdOrRe || u.reAcesso === userIdOrRe
+    );
+    if (!matrixUser) {
+      return { success: false, message: 'Usuário não encontrado para atualização de senha.' };
+    }
+
+    const saved = this.saveUserForTenant(
+      {
+        ...matrixUser,
+        id: matrixUser.id < 50000 ? matrixUser.id : undefined,
+        senha: cleanPass,
+        exigeSenha: true
+      },
+      targetTenantId
+    );
+
+    if (saved.user && this.authenticatedUser && this.authenticatedUser.reAcesso === saved.user.reAcesso) {
+      this.authenticatedUser = saved.user;
+    }
+
+    return {
+      success: true,
+      message: 'Sua senha de acesso foi atualizada com sucesso!',
+      user: saved.user
+    };
+  }
+
+  public toggleUserPasswordRequirement(
+    reAcesso: number,
+    exigeSenha: boolean,
+    novaSenha?: string,
+    tenantId?: string
+  ): UsuarioQualidade | undefined {
+    const targetTenantId = tenantId || this.activeTenantId;
+    const matrixUser = this.getUnifiedUsersMatrix(targetTenantId).find(u => u.reAcesso === reAcesso);
+    if (!matrixUser) return undefined;
+
+    const saved = this.saveUserForTenant(
+      {
+        ...matrixUser,
+        id: matrixUser.id < 50000 ? matrixUser.id : undefined,
+        exigeSenha,
+        senha: novaSenha !== undefined && novaSenha.trim() ? novaSenha.trim() : matrixUser.senha || '123'
+      },
+      targetTenantId
+    );
+    return saved.user;
+  }
+
+  public checkUserRequiresPassword(
+    identifierInput: string,
+    expectedTenantSlug?: string
+  ): {
+    found: boolean;
+    requiresPassword: boolean;
+    isSuperAdmin: boolean;
+    user?: UsuarioQualidade;
+    tenant?: TenantRecord;
+  } {
+    const raw = (identifierInput || '').trim().toLowerCase();
+    if (!raw) {
+      return { found: false, requiresPassword: true, isSuperAdmin: false };
+    }
+
+    const numericRe = /^\d+$/.test(raw.replace(/^#/, ''))
+      ? Number(raw.replace(/^#/, ''))
+      : NaN;
+
+    const superAdmin = this.getSuperAdminUser();
+    const superAdminEmail = (superAdmin.email || 'mhsolucoes@adimin.com.br').toLowerCase();
+    if (
+      raw === superAdminEmail ||
+      raw === 'mhsolucoes@adimin.com.br' ||
+      raw === 'mhsolucoes@admin.com.br' ||
+      raw === 'superadmin@sor-saas.com' ||
+      (!isNaN(numericRe) && (numericRe === superAdmin.reAcesso || numericRe === 104235 || numericRe === 999999))
+    ) {
+      return {
+        found: true,
+        requiresPassword: true,
+        isSuperAdmin: true,
+        user: superAdmin
+      };
+    }
+
+    const targetSlugTenant = expectedTenantSlug ? this.getTenantBySlug(expectedTenantSlug) : undefined;
+    const orderedTenants = targetSlugTenant
+      ? [targetSlugTenant]
+      : this.tenants;
+
+    for (const t of orderedTenants) {
+      const matrix = this.getUnifiedUsersMatrix(t.id);
+      const matched = matrix.find(
+        u =>
+          u.ativo !== false &&
+          !this.isSuperAdminUser(u) &&
+          ((u.email || '').trim().toLowerCase() === raw ||
+            (!isNaN(numericRe) && u.reAcesso === numericRe))
+      );
+      if (matched) {
+        const reqPass =
+          matched.exigeSenha ??
+          (matched.perfil === 'Admin' || matched.papel === 'admin_empresa');
+        return {
+          found: true,
+          requiresPassword: Boolean(reqPass),
+          isSuperAdmin: false,
+          user: matched,
+          tenant: t
+        };
+      }
+    }
+
+    return { found: false, requiresPassword: true, isSuperAdmin: false };
+  }
+
   public authenticateByEmail(
     emailInput: string,
     senhaInput: string,
@@ -4534,27 +4851,38 @@ class SaaSTenantService {
   } {
     let cleanEmail = (emailInput || '').trim().toLowerCase();
     if (!cleanEmail) {
-      return { success: false, message: 'Informe um e-mail corporativo válido.' };
+      return {
+        success: false,
+        message: 'Informe seu Código de Registro (RE numérico) ou E-mail de login.'
+      };
     }
 
-    // Compatibilidade para mhsolucoes@adimin.com.br, mhsolucoes@admin.com.br e aliases legados
-    if (
+    const numericRe = /^\d+$/.test(cleanEmail.replace(/^#/, ''))
+      ? Number(cleanEmail.replace(/^#/, ''))
+      : NaN;
+
+    const superAdminUser = this.getSuperAdminUser();
+    const superAdminEmail = (superAdminUser.email || 'mhsolucoes@adimin.com.br').toLowerCase();
+
+    // Compatibilidade de aliases para o Super Admin
+    const isSuperAdminIdentifier =
+      forceSuperAdmin ||
+      expectedTenantSlug === 'super-admin' ||
+      cleanEmail === superAdminEmail ||
+      cleanEmail === 'mhsolucoes@adimin.com.br' ||
       cleanEmail === 'mhsolucoes@admin.com.br' ||
       cleanEmail === 'admin@gpmservicos.com.br' ||
       cleanEmail === 'superadmin@sor-saas.com' ||
-      cleanEmail === 'superadmin@sorsa.com.br'
-    ) {
-      cleanEmail = 'mhsolucoes@adimin.com.br';
-    }
+      cleanEmail === 'superadmin@sorsa.com.br' ||
+      (!isNaN(numericRe) &&
+        (numericRe === superAdminUser.reAcesso || numericRe === 104235 || numericRe === 999999));
 
-    // Se pediu explicitamente Super Admin (ou se e-mail era superadmin)
-    if (forceSuperAdmin || expectedTenantSlug === 'super-admin') {
-      const superAdminUser =
-        this.users.find(u => u.papel === 'super_admin') || INITIAL_SAAS_USERS[0];
-      if (superAdminUser.senha && superAdminUser.senha !== senhaInput) {
+    if (isSuperAdminIdentifier) {
+      const expectedPass = superAdminUser.senha || '123';
+      if (senhaInput !== expectedPass) {
         return {
           success: false,
-          message: 'Credenciais inválidas. Verifique sua senha de acesso.'
+          message: 'Senha de Super Administrador incorreta. Verifique sua senha de acesso.'
         };
       }
       this.authenticatedUser = superAdminUser;
@@ -4563,17 +4891,13 @@ class SaaSTenantService {
       this.notifyListeners();
       return {
         success: true,
-        message: 'Bem-vindo ao Console Central MH Qualidade!',
+        message: 'Bem-vindo ao Console Central Super Admin!',
         user: superAdminUser,
         isSuperAdmin: true
       };
     }
 
-    // Prioriza usuário vinculado a uma empresa (busca tanto por E-mail quanto por Matrícula RE, incluindo Lista Geral Master)
-    const numericRe = /^\d+$/.test(cleanEmail.replace(/^#/, ''))
-      ? Number(cleanEmail.replace(/^#/, ''))
-      : NaN;
-
+    // Busca usuário nas empresas (priorizando a empresa da URL se estiver em /:slug/login)
     const targetSlugTenant = expectedTenantSlug ? this.getTenantBySlug(expectedTenantSlug) : undefined;
     const allUnifiedAcrossTenants: UsuarioQualidade[] = [];
     const orderedTenants = targetSlugTenant
@@ -4589,13 +4913,14 @@ class SaaSTenantService {
       allUnifiedAcrossTenants.find(
         u =>
           u.ativo !== false &&
-          u.papel !== 'super_admin' &&
+          !this.isSuperAdminUser(u) &&
           ((u.email || '').trim().toLowerCase() === cleanEmail ||
             (!isNaN(numericRe) && u.reAcesso === numericRe))
       ) ||
       this.users.find(
         u =>
           u.ativo !== false &&
+          !this.isSuperAdminUser(u) &&
           ((u.email || '').trim().toLowerCase() === cleanEmail ||
             (!isNaN(numericRe) && u.reAcesso === numericRe))
       );
@@ -4603,33 +4928,10 @@ class SaaSTenantService {
     if (!foundUser) {
       return {
         success: false,
-        message: 'E-mail ou Matrícula (RE) não localizado na base de usuários ativos da plataforma.'
+        message: 'Código de Registro (RE) ou E-mail não localizado na lista de usuários ativos da empresa.'
       };
     }
 
-    const effectivePassword = foundUser.senha || '123';
-    if (effectivePassword !== senhaInput && senhaInput !== '123') {
-      return {
-        success: false,
-        message: 'Credenciais inválidas. Verifique sua senha de acesso (padrão inicial: 123).'
-      };
-    }
-
-    // Caso 1: Super Administrador Master do MH Qualidade
-    if (foundUser.papel === 'super_admin' && !foundUser.tenant_id) {
-      this.authenticatedUser = foundUser;
-      this.impersonatingFromSuperAdmin = false;
-      this.saveToLocalStorage();
-      this.notifyListeners();
-      return {
-        success: true,
-        message: 'Bem-vindo ao Console Central MH Qualidade!',
-        user: foundUser,
-        isSuperAdmin: true
-      };
-    }
-
-    // Caso 2: Usuário vinculado a uma empresa (Tenant)
     const targetTenant = foundUser.tenant_id
       ? this.getTenantById(foundUser.tenant_id)
       : expectedTenantSlug
@@ -4650,7 +4952,7 @@ class SaaSTenantService {
     ) {
       return {
         success: false,
-        message: `Este e-mail pertence à empresa "${targetTenant.nome}" (/${targetTenant.slug}).`
+        message: `Este usuário pertence à empresa "${targetTenant.nome}" (/${targetTenant.slug}).`
       };
     }
 
@@ -4659,6 +4961,21 @@ class SaaSTenantService {
         success: false,
         message: `O acesso da empresa "${targetTenant.nome}" encontra-se ${targetTenant.status.toUpperCase()}. Contate o administrador da plataforma.`
       };
+    }
+
+    // Verifica se este usuário exige senha ou se acessa direto pelo Código de Registro (RE)
+    const userRequiresPassword =
+      foundUser.exigeSenha ??
+      (foundUser.perfil === 'Admin' || foundUser.papel === 'admin_empresa');
+
+    if (userRequiresPassword) {
+      const effectivePassword = foundUser.senha || '123';
+      if (!senhaInput || senhaInput !== effectivePassword) {
+        return {
+          success: false,
+          message: 'Senha incorreta para este usuário. Informe a senha cadastrada pelo Administrador.'
+        };
+      }
     }
 
     this.authenticatedUser = foundUser;
@@ -4712,12 +5029,13 @@ class SaaSTenantService {
         id: 9900,
         tenant_id: tenant.id,
         papel: 'admin_empresa',
-        nome: `Suporte MH Qualidade (${tenant.nome})`,
-        reAcesso: 999999,
+        nome: `Administrador (${tenant.nome})`,
+        reAcesso: 10001,
         perfil: 'Admin',
-        email: 'mhsolucoes@adimin.com.br',
-        cargo: 'MH Qualidade Impersonation',
-        setor: 'Gestão MH Qualidade'
+        exigeSenha: true,
+        email: `admin@${tenant.slug}.com.br`,
+        cargo: 'Administrador da Empresa',
+        setor: 'Gestão da Qualidade'
       };
 
     this.saveToLocalStorage();
@@ -4732,7 +5050,7 @@ class SaaSTenantService {
 
   public stopImpersonation() {
     this.impersonatingFromSuperAdmin = false;
-    const superAdmin = this.users.find(u => u.papel === 'super_admin') || INITIAL_SAAS_USERS[0];
+    const superAdmin = this.getSuperAdminUser();
     this.authenticatedUser = superAdmin;
     this.saveToLocalStorage();
     this.notifyListeners();
@@ -4742,7 +5060,7 @@ class SaaSTenantService {
     return this.impersonatingFromSuperAdmin;
   }
 
-  public getQuickDemoProfiles(filterSlug?: string): Array<{
+  public getQuickDemoProfiles(): Array<{
     label: string;
     roleBadge: string;
     tenantName: string;
@@ -4752,99 +5070,7 @@ class SaaSTenantService {
     isSuperAdmin?: boolean;
     accentColor: string;
   }> {
-    const allProfiles = [
-      {
-        label: 'Matheus de Luca (Admin MH Lean & Soluções)',
-        roleBadge: 'Admin Padrão',
-        tenantName: 'MH Lean & Soluções',
-        tenantSlug: 'mh-lean-solucoes',
-        email: 'mhsolucoes@adimin.com.br',
-        senha: '123',
-        accentColor: '#0b5796'
-      },
-      {
-        label: 'Console MH Qualidade Super Admin',
-        roleBadge: 'MH Qualidade',
-        tenantName: 'Console Global MH Qualidade',
-        tenantSlug: 'super-admin',
-        email: 'mhsolucoes@adimin.com.br',
-        senha: '123',
-        isSuperAdmin: true,
-        accentColor: '#0f172a'
-      },
-      {
-        label: 'Carlos Eduardo (Eng. Qualidade)',
-        roleBadge: 'Qualidade 8D',
-        tenantName: 'MH Lean & Soluções',
-        tenantSlug: 'mh-lean-solucoes',
-        email: 'qualidade@mhleansolucoes.com.br',
-        senha: '123',
-        accentColor: '#0284c7'
-      },
-      {
-        label: 'Marcos Vinicius (Operador Fabril)',
-        roleBadge: 'Operador',
-        tenantName: 'MH Lean & Soluções',
-        tenantSlug: 'mh-lean-solucoes',
-        email: 'operador@mhleansolucoes.com.br',
-        senha: '123',
-        accentColor: '#475569'
-      },
-      {
-        label: 'Ricardo Prado (Tenant 2 Isolado)',
-        roleBadge: 'Admin Tenant 2',
-        tenantName: 'Metalúrgica Vale',
-        tenantSlug: 'metalurgica-vale',
-        email: 'admin@metalurgicavale.com.br',
-        senha: '123',
-        accentColor: '#0f766e'
-      }
-    ];
-
-    if (filterSlug) {
-      const clean = filterSlug.toLowerCase();
-      // Inclui também usuários/admins criados dinamicamente para o tenant filtrado
-      const slugTenant = this.getTenantBySlug(clean);
-      if (slugTenant) {
-        const tenantUsers = this.getUsersForTenant(slugTenant.id);
-        tenantUsers.slice(0, 6).forEach(u => {
-          const emailLower = (u.email || '').toLowerCase();
-          if (emailLower && !allProfiles.some(p => p.email.toLowerCase() === emailLower && !p.isSuperAdmin)) {
-            allProfiles.push({
-              label: `${u.nome} (RE #${u.reAcesso})`,
-              roleBadge: u.perfil === 'Admin' ? 'Admin' : u.cargo || 'Colaborador',
-              tenantName: slugTenant.nome,
-              tenantSlug: slugTenant.slug,
-              email: u.email || String(u.reAcesso),
-              senha: u.senha || '123',
-              accentColor: slugTenant.customizacao.cor_primaria || '#0b5796'
-            });
-          }
-        });
-      }
-      return allProfiles.filter(p => p.tenantSlug === clean || p.isSuperAdmin);
-    }
-
-    // Inclui também empresas recém-criadas pelo Super Admin na lista rápida global
-    this.tenants.forEach(t => {
-      if (t.id !== PILOT_TENANT_ID && t.id !== SECONDARY_TENANT_ID && t.status === 'ativo') {
-        const tUsers = this.getUsersForTenant(t.id);
-        const adminU = tUsers.find(u => u.papel === 'admin_empresa' || u.perfil === 'Admin') || tUsers[0];
-        if (adminU && adminU.email && !allProfiles.some(p => p.email.toLowerCase() === adminU.email!.toLowerCase())) {
-          allProfiles.push({
-            label: `${adminU.nome} (${t.nome})`,
-            roleBadge: 'Admin Empresa',
-            tenantName: t.nome,
-            tenantSlug: t.slug,
-            email: adminU.email,
-            senha: adminU.senha || '123',
-            accentColor: t.customizacao.cor_primaria || '#0b5796'
-          });
-        }
-      }
-    });
-
-    return allProfiles;
+    return [];
   }
 
   // ============================================================================
@@ -4859,7 +5085,9 @@ class SaaSTenantService {
     max_storage_mb?: number;
     admin_nome: string;
     admin_email: string;
+    admin_re?: number;
     admin_senha?: string;
+    admin_exige_senha?: boolean;
   }): { success: boolean; message: string; tenant?: TenantRecord } {
     const cleanSlug = payload.slug
       .trim()
@@ -4901,16 +5129,28 @@ class SaaSTenantService {
     this.tenants.push(newTenant);
     this.rncSeqByTenant[newTenantId] = 0;
 
-    // Cria o primeiro Administrador da Empresa
-    const nextUserId = this.users.reduce((max, u) => (u.id > max ? u.id : max), 1000) + 1;
+    // Cria o primeiro Administrador da Empresa (isolado nesta empresa)
+    const nextUserId = this.users.reduce((max, u) => (u.id > max && u.id < 9000 ? u.id : max), 1000) + 1;
+    const adminRe =
+      payload.admin_re && Number(payload.admin_re) > 0
+        ? Number(payload.admin_re)
+        : 10000 + nextUserId;
+    const adminName = payload.admin_nome.trim() || `Admin ${payload.nome.trim()}`;
     const adminUser: UsuarioQualidade = {
       id: nextUserId,
       tenant_id: newTenantId,
       papel: 'admin_empresa',
       ativo: true,
-      nome: payload.admin_nome.trim() || `Admin ${payload.nome.trim()}`,
-      reAcesso: 10000 + nextUserId,
+      nome: adminName,
+      reAcesso: adminRe,
       perfil: 'Admin',
+      perfisPorApp: {
+        plano_acao: 'Admin',
+        rnc: 'Admin',
+        oitod: 'Admin'
+      },
+      isDefaultProfile: false,
+      exigeSenha: payload.admin_exige_senha ?? true,
       senha: payload.admin_senha || '123',
       email: payload.admin_email.trim().toLowerCase() || `admin@${cleanSlug}.com.br`,
       cargo: 'Administrador da Qualidade',
@@ -4919,8 +5159,9 @@ class SaaSTenantService {
     this.users.push(adminUser);
 
     // Inicializa todas as listas de opções e campos de formulário para a nova empresa
-    this.ensureTenantSchemasInitialized(newTenantId);
+    this.ensureTenantSchemasInitialized(newTenantId, true);
 
+    this.lastLocalMutationAt = Date.now();
     this.saveToLocalStorage();
     this.notifyListeners();
 
@@ -4970,6 +5211,7 @@ class SaaSTenantService {
     if (this.activeTenantId === tenantId) {
       this.applyTenantThemeToDOM(updated);
     }
+    this.lastLocalMutationAt = Date.now();
     this.saveToLocalStorage();
     this.notifyListeners();
 
@@ -5001,6 +5243,7 @@ class SaaSTenantService {
     if (this.activeTenantId === tenantId) {
       this.activeTenantId = PILOT_TENANT_ID;
     }
+    this.lastLocalMutationAt = Date.now();
     this.saveToLocalStorage();
     this.notifyListeners();
 
@@ -5063,7 +5306,16 @@ class SaaSTenantService {
 
   public getBaseAtivosForTenant(tenantId?: string): ColaboradorBaseAtivos[] {
     const targetId = tenantId || this.activeTenantId;
-    const funcItems = this.getActiveOptions('master_funcionarios', targetId);
+    const funcItems = this.getActiveOptions('master_funcionarios', targetId).filter(item => {
+      const code = (item.codigo || '').trim();
+      const nameLower = (item.nome || '').trim().toLowerCase();
+      return (
+        code !== '104235' &&
+        code !== '999999' &&
+        nameLower !== 'matheus henrique de luca' &&
+        !nameLower.includes('super admin')
+      );
+    });
     return funcItems.map((item, idx) => {
       const parsedRe = parseInt((item.codigo || '').replace(/[^0-9]/g, ''), 10);
       const numPessoal = !isNaN(parsedRe) && parsedRe > 0 ? parsedRe : 30000 + idx + 1;
@@ -5079,8 +5331,8 @@ class SaaSTenantService {
 
   /**
    * Retorna a Matriz Unificada de Perfis de Usuários combinando toda a Lista Geral de Funcionários (Master)
-   * com os perfis customizados por aplicativo (Plano de Ação, RNC e 8D).
-   * Regra: Funcionários gerais sem perfil específico são automaticamente determinados como 'Usuário Comum'.
+   * com os perfis customizados por aplicativo (Plano de Ação, RNC e 8D), ESTRITAMENTE isolada por empresa
+   * e NUNCA expondo o Super Administrador da plataforma.
    */
   public getUnifiedUsersMatrix(tenantId?: string): UsuarioQualidade[] {
     const targetId = tenantId || this.activeTenantId;
@@ -5088,13 +5340,24 @@ class SaaSTenantService {
     const tenant = this.getTenantById(targetId);
     const slug = tenant?.slug || 'empresa';
 
-    const customUsers = this.users.filter(u => u.tenant_id === targetId);
-    const masterFuncs = this.getActiveOptions('master_funcionarios', targetId);
+    const customUsers = this.users.filter(
+      u => u.tenant_id === targetId && !this.isSuperAdminUser(u)
+    );
+    const masterFuncs = this.getActiveOptions('master_funcionarios', targetId).filter(item => {
+      const code = (item.codigo || '').trim();
+      const nameLower = (item.nome || '').trim().toLowerCase();
+      return (
+        code !== '104235' &&
+        code !== '999999' &&
+        nameLower !== 'matheus henrique de luca' &&
+        !nameLower.includes('super admin')
+      );
+    });
     const result: UsuarioQualidade[] = [];
     const seenRes = new Set<number>();
     const seenNames = new Set<string>();
 
-    // 1. Percorre todos os funcionários da Lista Geral Master
+    // 1. Percorre todos os funcionários da Lista Geral Master desta empresa
     masterFuncs.forEach((funcItem, idx) => {
       const parsedRe = parseInt((funcItem.codigo || '').replace(/[^0-9]/g, ''), 10);
       const re = !isNaN(parsedRe) && parsedRe > 0 ? parsedRe : 30500 + idx;
@@ -5121,6 +5384,9 @@ class SaaSTenantService {
           profiles.rnc === 'Usuário Comum' &&
           profiles.oitod === 'Usuário Comum';
 
+        const defaultRequiresPass =
+          matchedUser.perfil === 'Admin' || matchedUser.papel === 'admin_empresa';
+
         result.push({
           ...matchedUser,
           nome: matchedUser.nome || funcItem.nome,
@@ -5128,12 +5394,13 @@ class SaaSTenantService {
           cargo: matchedUser.cargo || defaultCargo,
           setor: matchedUser.setor || defaultSetor,
           perfisPorApp: profiles,
-          isDefaultProfile: matchedUser.isDefaultProfile ?? isAllComum
+          isDefaultProfile: matchedUser.isDefaultProfile ?? isAllComum,
+          exigeSenha: matchedUser.exigeSenha ?? defaultRequiresPass
         });
         seenRes.add(matchedUser.reAcesso || re);
         seenNames.add(cleanNameLower);
       } else {
-        // Funcionário da lista geral sem perfil customizado -> Automaticamente 'Usuário Comum' nos 3 apps
+        // Funcionário da lista geral sem perfil customizado -> Automaticamente 'Usuário Comum' nos 3 apps e sem exigência de senha por padrão (acessa apenas com o RE numérico)
         const defaultProfiles: UserAppProfiles = {
           plano_acao: 'Usuário Comum',
           rnc: 'Usuário Comum',
@@ -5156,6 +5423,7 @@ class SaaSTenantService {
           perfil: 'User',
           perfisPorApp: defaultProfiles,
           isDefaultProfile: true,
+          exigeSenha: false,
           cargo: defaultCargo,
           setor: defaultSetor,
           email: `${emailSlug}@${slug}.com.br`
@@ -5165,16 +5433,18 @@ class SaaSTenantService {
       }
     });
 
-    // 2. Inclui usuários customizados que ainda não estavam na lista master_funcionarios (e sincroniza)
+    // 2. Inclui usuários customizados da empresa que ainda não estavam na lista master_funcionarios
     customUsers.forEach(u => {
       const cleanNameLower = u.nome.trim().toLowerCase();
       if (!seenRes.has(u.reAcesso) && !seenNames.has(cleanNameLower)) {
         const profiles =
           u.perfisPorApp || this.getDefaultProfilesForLegacyRole(u.perfil, u.papel, false);
+        const defaultRequiresPass = u.perfil === 'Admin' || u.papel === 'admin_empresa';
         result.push({
           ...u,
           perfisPorApp: profiles,
-          isDefaultProfile: u.isDefaultProfile ?? false
+          isDefaultProfile: u.isDefaultProfile ?? false,
+          exigeSenha: u.exigeSenha ?? defaultRequiresPass
         });
       }
     });
@@ -5274,8 +5544,8 @@ class SaaSTenantService {
         profiles.rnc === 'Usuário Comum' &&
         profiles.oitod === 'Usuário Comum');
 
-    // Sincroniza também na Lista Master de Funcionários (master_funcionarios)
-    if (user.nome && user.nome.trim()) {
+    // Sincroniza também na Lista Master de Funcionários (master_funcionarios) da empresa
+    if (user.nome && user.nome.trim() && user.papel !== 'super_admin') {
       const cleanName = user.nome.trim();
       const reStr = String(user.reAcesso || '');
       const existingMasterFunc = this.masterData.find(
@@ -5310,6 +5580,7 @@ class SaaSTenantService {
     const existingIdx = this.users.findIndex(
       u =>
         u.tenant_id === targetTenantId &&
+        !this.isSuperAdminUser(u) &&
         ((user.id && user.id < 50000 && u.id === user.id) ||
           (user.reAcesso && u.reAcesso === user.reAcesso))
     );
@@ -5322,6 +5593,14 @@ class SaaSTenantService {
       User: 'operador'
     };
 
+    const resolvedPapel = user.papel || roleMap[derivedPerfil] || 'operador';
+    const resolvedExigeSenha =
+      user.exigeSenha !== undefined
+        ? user.exigeSenha
+        : existingIdx >= 0 && this.users[existingIdx].exigeSenha !== undefined
+        ? this.users[existingIdx].exigeSenha
+        : derivedPerfil === 'Admin' || resolvedPapel === 'admin_empresa';
+
     if (existingIdx >= 0) {
       this.users[existingIdx] = {
         ...this.users[existingIdx],
@@ -5331,8 +5610,10 @@ class SaaSTenantService {
         perfil: derivedPerfil,
         papel: roleMap[derivedPerfil] || this.users[existingIdx].papel || 'operador',
         perfisPorApp: profiles,
-        isDefaultProfile: isDefault
+        isDefaultProfile: isDefault,
+        exigeSenha: resolvedExigeSenha
       } as UsuarioQualidade;
+      this.lastLocalMutationAt = Date.now();
       this.saveToLocalStorage();
       this.notifyListeners();
       return { success: true, message: 'Perfil de usuário atualizado com sucesso.', user: this.users[existingIdx] };
@@ -5343,13 +5624,14 @@ class SaaSTenantService {
     const newUser: UsuarioQualidade = {
       id: nextId,
       tenant_id: targetTenantId,
-      papel: user.papel || roleMap[derivedPerfil] || 'operador',
+      papel: resolvedPapel,
       ativo: true,
       nome: user.nome || 'Novo Colaborador',
       reAcesso: user.reAcesso || 10000 + nextId,
       perfil: derivedPerfil,
       perfisPorApp: profiles,
       isDefaultProfile: isDefault,
+      exigeSenha: resolvedExigeSenha,
       senha: user.senha || '123',
       email: user.email || `colaborador${nextId}@${tenant?.slug || 'empresa'}.com.br`,
       cargo: user.cargo || 'Colaborador',
@@ -5357,6 +5639,7 @@ class SaaSTenantService {
     };
 
     this.users.push(newUser);
+    this.lastLocalMutationAt = Date.now();
     this.saveToLocalStorage();
     this.notifyListeners();
     return { success: true, message: 'Colaborador salvo na Matriz Unificada de Perfis.', user: newUser };

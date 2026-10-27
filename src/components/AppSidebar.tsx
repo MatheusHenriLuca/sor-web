@@ -75,9 +75,9 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
   const activeTenant = tenantService.getActiveTenant();
   const brandColor = activeTenant.customizacao.cor_primaria || '#0b5796';
 
-  // Permissões conforme perfil do usuário
+  // Permissões conforme perfil do usuário (Configurações e Perfis de Usuários exclusivos do Admin da empresa)
   const canSeeOcorrClienteInterna = role !== 'User';
-  const canSeeConfig = ['Admin', 'Adminqual'].includes(role);
+  const canSeeConfig = tenantService.isCompanyAdminUser(currentUser);
 
   const handleItemClick = (screen: ActiveScreen, params?: any) => {
     onNavigate(screen, params);

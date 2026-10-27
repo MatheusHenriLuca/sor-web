@@ -15,7 +15,10 @@ import {
   Layers,
   UserCheck,
   Copy,
-  KeyRound
+  KeyRound,
+  Lock,
+  Unlock,
+  ShieldAlert
 } from 'lucide-react';
 import {
   UsuarioQualidade,
@@ -71,7 +74,8 @@ const PERMISSION_OPTIONS: SearchableOption[] = [
 ];
 
 export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({
-  onNavigate
+  onNavigate,
+  currentUser
 }) => {
   const [users, setUsers] = useState<UsuarioQualidade[]>([]);
   const [baseAtivos, setBaseAtivos] = useState<ColaboradorBaseAtivos[]>([]);
@@ -84,7 +88,10 @@ export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({
     message: string;
   } | null>(null);
 
-  // Estado do modal de Novo / Editar Colaborador e seus 3 Perfis
+  const activeTenant = tenantService.getActiveTenant();
+  const isAllowedAdmin = tenantService.isCompanyAdminUser(currentUser);
+
+  // Estado do modal de Novo / Editar Colaborador, Senha Opcional e seus 3 Perfis
   const [form, setForm] = useState<{
     id?: number;
     nome: string;
@@ -92,6 +99,7 @@ export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({
     cargo: string;
     setor: string;
     email: string;
+    exigeSenha: boolean;
     senha: string;
     perfisPorApp: UserAppProfiles;
   }>({
@@ -100,6 +108,7 @@ export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({
     cargo: '',
     setor: '',
     email: '',
+    exigeSenha: false,
     senha: '123',
     perfisPorApp: {
       plano_acao: 'Usuário Comum',
@@ -117,15 +126,17 @@ export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({
     const tenant = tenantService.getActiveTenant();
     const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://app.mhqualidade.com';
     const loginUrl = `${baseUrl}/${tenant.slug}/login`;
-    const userEmail = u.email || `RE ${u.reAcesso}`;
-    const userPass = u.senha || '123';
-    const text = `Acesso Plataforma MH Qualidade — ${tenant.nome}\nColaborador: ${u.nome}\nLink: ${loginUrl}\nE-mail de Login: ${userEmail}\nMatrícula (RE): ${u.reAcesso}\nSenha: ${userPass}`;
+    const requiresPass = Boolean(u.exigeSenha);
+    const accessLine = requiresPass
+      ? `Login (Código de Registro RE): ${u.reAcesso}\nE-mail Opcional: ${u.email || '-'}\nSenha de Acesso: ${u.senha || '123'}`
+      : `Login Direto (Código de Registro Numérico): ${u.reAcesso}\nModo de Acesso: Sem senha (basta digitar o Código de Registro ${u.reAcesso})`;
+    const text = `Acesso Plataforma MH Qualidade — ${tenant.nome}\nColaborador: ${u.nome}\nLink Exclusivo da Empresa: ${loginUrl}\n${accessLine}`;
     navigator.clipboard.writeText(text);
-    notify(`Credenciais de acesso de "${u.nome}" copiadas! Pronto para enviar.`);
+    notify(`Credenciais de acesso de "${u.nome}" (Registro #${u.reAcesso}) copiadas!`);
   };
 
   const loadData = () => {
-    setUsers(tenantService.getUnifiedUsersMatrix());
+    setUsers(tenantService.getUnifiedUsersMatrix(activeTenant.id));
     setBaseAtivos(spStore.getBaseAtivos());
   };
 
@@ -135,7 +146,7 @@ export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({
       loadData();
     });
     return () => unsub();
-  }, []);
+  }, [activeTenant.id]);
 
   const colaboradorOptions = useMemo<SearchableOption[]>(() => {
     return baseAtivos.map(a => ({
@@ -165,6 +176,7 @@ export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({
         cargo: colab.posicao || prev.cargo,
         setor: colab.unidadeOrg || prev.setor,
         email: existing?.email || `${emailSlug}@${slug}.com.br`,
+        exigeSenha: existing ? Boolean(existing.exigeSenha) : false,
         senha: existing?.senha || '123',
         perfisPorApp: existing?.perfisPorApp || {
           plano_acao: 'Usuário Comum',
@@ -180,29 +192,46 @@ export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({
     appKey: keyof UserAppProfiles,
     newLevel: AppPermissionLevel
   ) => {
-    tenantService.updateUserAppProfile(user.reAcesso, appKey, newLevel);
+    tenantService.updateUserAppProfile(user.reAcesso, appKey, newLevel, activeTenant.id);
     loadData();
     const appLabel =
       appKey === 'plano_acao' ? 'Plano de Ação' : appKey === 'rnc' ? 'RNC' : '8D';
     notify(`Perfil de ${user.nome} no App ${appLabel} alterado para "${newLevel}".`);
   };
 
-  const handleResetToDefaultComum = (user: UsuarioQualidade) => {
-    tenantService.resetUserToDefaultProfile(user.reAcesso);
+  const handleToggleUserPasswordRequirement = (user: UsuarioQualidade) => {
+    const nextExigeSenha = !user.exigeSenha;
+    tenantService.toggleUserPasswordRequirement(
+      user.reAcesso,
+      nextExigeSenha,
+      user.senha || '123',
+      activeTenant.id
+    );
     loadData();
     notify(
-      `${user.nome} restaurado para a regra padrão automática ("Usuário Comum" nos 3 aplicativos).`
+      nextExigeSenha
+        ? `${user.nome} (RE #${user.reAcesso}) agora EXIGE SENHA para acessar.`
+        : `${user.nome} (RE #${user.reAcesso}) agora acessa APENAS COM O CÓDIGO DE REGISTRO (sem senha).`
+    );
+  };
+
+  const handleResetToDefaultComum = (user: UsuarioQualidade) => {
+    tenantService.resetUserToDefaultProfile(user.reAcesso, activeTenant.id);
+    loadData();
+    notify(
+      `${user.nome} restaurado para a regra padrão automática ("Usuário Comum" nos 3 aplicativos e acesso direto por RE).`
     );
   };
 
   const handleSaveModal = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.nome.trim() || !form.reAcesso) {
-      notify('Nome completo e Matrícula (RE) são obrigatórios!', 'error');
+      notify('Nome completo e Código de Registro (RE numérico) são obrigatórios!', 'error');
       return;
     }
 
     const isDefault =
+      !form.exigeSenha &&
       form.perfisPorApp.plano_acao === 'Usuário Comum' &&
       form.perfisPorApp.rnc === 'Usuário Comum' &&
       form.perfisPorApp.oitod === 'Usuário Comum';
@@ -215,27 +244,31 @@ export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({
       .replace(/[\u0300-\u036f]/g, '')
       .replace(/[^a-z0-9]+/g, '.');
 
-    tenantService.saveUserForTenant({
-      id: form.id && form.id < 50000 ? form.id : undefined,
-      nome: form.nome.trim(),
-      reAcesso: Number(form.reAcesso),
-      cargo: form.cargo.trim() || 'Colaborador',
-      setor: form.setor.trim() || 'Operações',
-      email: form.email.trim().toLowerCase() || `${emailSlug}@${slug}.com.br`,
-      senha: form.senha.trim() || '123',
-      perfisPorApp: form.perfisPorApp,
-      isDefaultProfile: isDefault
-    });
+    tenantService.saveUserForTenant(
+      {
+        id: form.id && form.id < 50000 ? form.id : undefined,
+        nome: form.nome.trim(),
+        reAcesso: Number(form.reAcesso),
+        cargo: form.cargo.trim() || 'Colaborador',
+        setor: form.setor.trim() || 'Operações',
+        email: form.email.trim().toLowerCase() || `${emailSlug}@${slug}.com.br`,
+        exigeSenha: form.exigeSenha,
+        senha: form.exigeSenha ? form.senha.trim() || '123' : form.senha.trim() || '',
+        perfisPorApp: form.perfisPorApp,
+        isDefaultProfile: isDefault
+      },
+      activeTenant.id
+    );
 
     setModalOpen(false);
     loadData();
-    notify(`Perfis e credenciais de "${form.nome.trim()}" salvos e sincronizados!`);
+    notify(`Perfis e modo de login de "${form.nome.trim()}" (RE #${form.reAcesso}) salvos!`);
   };
 
   const handleDelete = () => {
     if (deleteTarget) {
-      tenantService.deleteUserForTenant(deleteTarget.reAcesso);
-      notify(`Colaborador "${deleteTarget.nome}" removido da lista.`);
+      tenantService.deleteUserForTenant(deleteTarget.reAcesso, activeTenant.id);
+      notify(`Colaborador "${deleteTarget.nome}" removido da lista da empresa.`);
       setDeleteTarget(null);
       loadData();
     }
@@ -313,6 +346,30 @@ export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({
     return { total: users.length, customCount, defaultComumCount };
   }, [users]);
 
+  if (!isAllowedAdmin) {
+    return (
+      <div className="max-w-lg mx-auto my-12 bg-white border border-slate-200 rounded-2xl p-6 text-center space-y-4">
+        <div className="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto border border-rose-100">
+          <ShieldAlert className="w-6 h-6" />
+        </div>
+        <h2 className="text-base font-display font-bold text-slate-900">
+          Acesso Restrito ao Administrador da Empresa
+        </h2>
+        <p className="text-xs text-slate-600">
+          Somente o usuário Administrador desta empresa pode visualizar e gerenciar a Matriz de Perfis de Usuários e senhas.
+        </p>
+        <button
+          type="button"
+          onClick={() => onNavigate('menu-2')}
+          className="btn-primary h-9 px-4 text-xs font-semibold inline-flex items-center gap-1.5 cursor-pointer"
+        >
+          <ArrowLeft size={14} />
+          <span>Voltar ao Painel Principal</span>
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full flex flex-col gap-5 pb-16 animate-in fade-in duration-150">
       {/* Toast Notification */}
@@ -338,7 +395,7 @@ export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({
         </div>
       )}
 
-      {/* Cabeçalho Principal */}
+      {/* Cabeçalho Principal Isolado por Empresa */}
       <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-2xs flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="flex items-start sm:items-center gap-3.5">
           <button
@@ -354,11 +411,16 @@ export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({
             <Users size={20} />
           </div>
           <div>
-            <h1 className="text-lg sm:text-xl font-display font-bold text-slate-900 tracking-tight">
-              Matriz Unificada de Perfis de Usuários (Multi-App)
-            </h1>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-lg sm:text-xl font-display font-bold text-slate-900 tracking-tight">
+                Perfis de Usuários (Matriz) — {activeTenant.nome}
+              </h1>
+              <span className="px-2 py-0.5 rounded-md bg-blue-50 text-[#0b5796] border border-blue-200 text-[11px] font-bold">
+                Lista Exclusiva da Empresa
+              </span>
+            </div>
             <p className="text-xs text-slate-600 mt-0.5">
-              Determine o perfil de cada colaborador em <strong>Plano de Ação</strong>, <strong>RNC</strong> e <strong>8D</strong>. Funcionários da lista geral sem perfil específico são automaticamente definidos como <strong>Usuário Comum</strong>.
+              Defina o <strong>Código de Registro (RE numérico)</strong>, selecione <strong>quais usuários precisam de senha</strong> e quais acessam apenas com o Código de Registro, e configure o perfil em cada módulo.
             </p>
           </div>
         </div>
@@ -387,6 +449,7 @@ export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({
                 cargo: '',
                 setor: '',
                 email: '',
+                exigeSenha: false,
                 senha: '123',
                 perfisPorApp: {
                   plano_acao: 'Usuário Comum',
@@ -469,25 +532,25 @@ export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({
       {/* Tabela Matriz de 3 Colunas de Perfil por App */}
       <div className="bg-white border border-slate-200 rounded-xl shadow-2xs overflow-visible">
         <div className="overflow-x-auto overflow-y-visible">
-          <table className="w-full table-fixed text-left border-collapse min-w-[1060px]">
+          <table className="w-full table-fixed text-left border-collapse min-w-[1120px]">
             <colgroup>
               <col className="w-[52px]" />
-              <col className="w-[29%]" />
-              <col className="w-[86px]" />
-              <col className="w-[158px]" />
-              <col className="w-[16%]" />
-              <col className="w-[16%]" />
-              <col className="w-[16%]" />
+              <col className="w-[25%]" />
+              <col className="w-[105px]" />
+              <col className="w-[172px]" />
+              <col className="w-[15.5%]" />
+              <col className="w-[15.5%]" />
+              <col className="w-[15.5%]" />
               <col className="w-[96px]" />
             </colgroup>
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-display font-bold text-slate-700 uppercase tracking-wider">
                 <th className="py-3 px-3 text-center">#</th>
                 <th className="py-3 px-4 whitespace-nowrap">
-                  Funcionário (Lista Master Geral)
+                  Funcionário ({activeTenant.nome})
                 </th>
-                <th className="py-3 px-3 whitespace-nowrap">RE</th>
-                <th className="py-3 px-3 whitespace-nowrap">Regra de Vínculo</th>
+                <th className="py-3 px-3 whitespace-nowrap">Código (RE)</th>
+                <th className="py-3 px-3 whitespace-nowrap">Acesso / Exige Senha?</th>
                 <th className="py-3 px-2.5 bg-amber-50/60 border-l border-amber-200/70 whitespace-nowrap">
                   <div className="flex items-center gap-1.5 text-amber-900">
                     <CheckSquare className="w-3.5 h-3.5 text-amber-600 shrink-0" />
@@ -515,7 +578,7 @@ export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({
               {filteredUsers.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="text-center py-12 text-slate-500 text-xs">
-                    Nenhum funcionário encontrado para o filtro selecionado.
+                    Nenhum funcionário cadastrado nesta empresa para o filtro selecionado.
                   </td>
                 </tr>
               ) : (
@@ -569,24 +632,35 @@ export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({
                         </div>
                       </td>
 
-                      {/* RE */}
+                      {/* Código de Registro (RE) */}
                       <td className="py-2.5 px-3 font-mono font-bold text-slate-800 whitespace-nowrap">
                         #{u.reAcesso}
                       </td>
 
-                      {/* Status do Vínculo (Automático Usuário Comum vs Customizado) */}
-                      <td className="py-2.5 px-3 whitespace-nowrap">
-                        {isAllComum ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                            <UserCheck className="w-3 h-3 text-emerald-600 shrink-0" />
-                            <span>Automático (Comum)</span>
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-violet-50 text-violet-900 border border-violet-200">
-                            <ShieldCheck className="w-3 h-3 text-violet-700 shrink-0" />
-                            <span>Perfil Específico</span>
-                          </span>
-                        )}
+                      {/* Seletor Direto: Exige Senha vs Só Código de Registro (Sem Senha) */}
+                      <td className="py-2.5 px-3 overflow-hidden">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleUserPasswordRequirement(u)}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition cursor-pointer max-w-full ${
+                            u.exigeSenha
+                              ? 'bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100'
+                              : 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
+                          }`}
+                          title="Clique para alternar entre exigir senha ou permitir acesso direto apenas com o Código de Registro (RE)"
+                        >
+                          {u.exigeSenha ? (
+                            <>
+                              <Lock className="w-3 h-3 text-amber-700 shrink-0" />
+                              <span className="truncate">Exige Senha</span>
+                            </>
+                          ) : (
+                            <>
+                              <Unlock className="w-3 h-3 text-emerald-600 shrink-0" />
+                              <span className="truncate">Sem Senha (Só RE)</span>
+                            </>
+                          )}
+                        </button>
                       </td>
 
                       {/* COLUNA 1: PERFIL NO APP PLANO DE AÇÃO */}
@@ -677,6 +751,7 @@ export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({
                                 cargo: u.cargo || '',
                                 setor: u.setor || '',
                                 email: u.email || '',
+                                exigeSenha: Boolean(u.exigeSenha),
                                 senha: u.senha || '123',
                                 perfisPorApp: { ...profiles }
                               });
@@ -706,10 +781,10 @@ export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({
         </div>
       </div>
 
-      {/* Modal de Cadastro / Edição Completa com as 3 Colunas de App */}
+      {/* Modal de Cadastro / Edição Completa com as 3 Colunas de App e Exigência de Senha */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-xl overflow-visible animate-in zoom-in-95 duration-150">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-xl overflow-visible animate-in zoom-in-95 duration-150 max-h-[92vh] overflow-y-auto">
             <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50 rounded-t-2xl">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-lg bg-blue-50 text-[#0b5796] flex items-center justify-center border border-blue-100">
@@ -717,10 +792,10 @@ export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({
                 </div>
                 <div>
                   <h3 className="font-display font-bold text-slate-900 text-sm sm:text-base">
-                    {form.id ? 'Configurar Perfis do Funcionário' : 'Novo Funcionário na Lista Geral & Perfis'}
+                    {form.id ? 'Configurar Usuário & Senha' : 'Novo Usuário da Empresa'}
                   </h3>
                   <p className="text-[11px] text-slate-500">
-                    Defina os níveis de acesso independentes para Plano de Ação, RNC e 8D
+                    Defina o Código de Registro numérico (RE), se exige senha e os níveis de acesso nos aplicativos
                   </p>
                 </div>
               </div>
@@ -735,21 +810,23 @@ export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({
 
             <form onSubmit={handleSaveModal} className="p-5 space-y-4">
               {/* Busca rápida na Lista Geral de Funcionários */}
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Selecionar Funcionário Existente da Lista Geral ({baseAtivos.length})
-                </label>
-                <SearchableSelect
-                  value={form.reAcesso ? String(form.reAcesso) : ''}
-                  onChange={val => handleSelectColaborador(val)}
-                  options={colaboradorOptions}
-                  placeholder="Digite nome ou RE para autopreencher..."
-                  searchPlaceholder="Pesquisar colaborador por nome ou RE..."
-                />
-              </div>
+              {baseAtivos.length > 0 && (
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    Selecionar Funcionário Existente da Lista Geral ({baseAtivos.length})
+                  </label>
+                  <SearchableSelect
+                    value={form.reAcesso ? String(form.reAcesso) : ''}
+                    onChange={val => handleSelectColaborador(val)}
+                    options={colaboradorOptions}
+                    placeholder="Digite nome ou RE para autopreencher..."
+                    searchPlaceholder="Pesquisar colaborador por nome ou RE..."
+                  />
+                </div>
+              )}
 
               <div className="grid grid-cols-1 sm:grid-cols-12 gap-3.5">
-                <div className="sm:col-span-8">
+                <div className="sm:col-span-7">
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
                     Nome Completo <span className="text-rose-500">*</span>
                   </label>
@@ -763,16 +840,16 @@ export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({
                   />
                 </div>
 
-                <div className="sm:col-span-4">
+                <div className="sm:col-span-5">
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Matrícula (RE) <span className="text-rose-500">*</span>
+                    Código de Registro / Login (Numérico) <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="number"
-                    className="form-input w-full text-xs font-mono"
+                    className="form-input w-full text-xs font-mono font-bold"
                     value={form.reAcesso || ''}
                     onChange={e => setForm({ ...form, reAcesso: Number(e.target.value) })}
-                    placeholder="Ex: 88123"
+                    placeholder="Ex: 30122"
                     required
                   />
                 </div>
@@ -806,31 +883,74 @@ export const CadastroUsuariosView: React.FC<CadastroUsuariosViewProps> = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-12 gap-3.5 p-3 rounded-xl bg-blue-50/40 border border-blue-100">
-                <div className="sm:col-span-8">
-                  <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
-                    <KeyRound size={12} className="text-[#0b5796]" />
-                    <span>E-mail de Login Corporativo</span>
-                  </label>
-                  <input
-                    type="text"
-                    className="form-input w-full text-xs font-mono"
-                    value={form.email}
-                    onChange={e => setForm({ ...form, email: e.target.value })}
-                    placeholder="Gerado automaticamente se deixado em branco"
-                  />
+              <div className="p-3.5 rounded-xl bg-blue-50/40 border border-blue-100 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <label className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                      <KeyRound size={13} className="text-[#0b5796]" />
+                      <span>Modo de Autenticação do Usuário</span>
+                    </label>
+                    <p className="text-[11px] text-slate-500">
+                      Escolha se este usuário precisa digitar senha ou se entra apenas com o Código de Registro numérico.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 bg-white p-1 rounded-lg border border-slate-200 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setForm(prev => ({ ...prev, exigeSenha: false }))}
+                      className={`px-2.5 py-1.5 rounded-md text-xs font-bold flex items-center gap-1 transition cursor-pointer ${
+                        !form.exigeSenha
+                          ? 'bg-emerald-600 text-white shadow-2xs'
+                          : 'text-slate-600 hover:bg-slate-100'
+                      }`}
+                    >
+                      <Unlock size={12} />
+                      <span>Apenas Registro (Sem Senha)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setForm(prev => ({ ...prev, exigeSenha: true }))}
+                      className={`px-2.5 py-1.5 rounded-md text-xs font-bold flex items-center gap-1 transition cursor-pointer ${
+                        form.exigeSenha
+                          ? 'bg-[#0b5796] text-white shadow-2xs'
+                          : 'text-slate-600 hover:bg-slate-100'
+                      }`}
+                    >
+                      <Lock size={12} />
+                      <span>Exigir Senha</span>
+                    </button>
+                  </div>
                 </div>
-                <div className="sm:col-span-4">
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Senha de Acesso
-                  </label>
-                  <input
-                    type="text"
-                    className="form-input w-full text-xs font-mono"
-                    value={form.senha}
-                    onChange={e => setForm({ ...form, senha: e.target.value })}
-                    placeholder="123"
-                  />
+
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 pt-1">
+                  <div className={form.exigeSenha ? 'sm:col-span-7' : 'sm:col-span-12'}>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      E-mail Corporativo (Opcional)
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input w-full text-xs font-mono"
+                      value={form.email}
+                      onChange={e => setForm({ ...form, email: e.target.value })}
+                      placeholder="Gerado automaticamente se deixado em branco"
+                    />
+                  </div>
+                  {form.exigeSenha && (
+                    <div className="sm:col-span-5">
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        Senha de Acesso <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        className="form-input w-full text-xs font-mono font-bold"
+                        value={form.senha}
+                        onChange={e => setForm({ ...form, senha: e.target.value })}
+                        placeholder="Digite a senha"
+                        required={form.exigeSenha}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
 

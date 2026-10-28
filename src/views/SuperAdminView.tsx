@@ -51,8 +51,8 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({
   const [saNovaSenha, setSaNovaSenha] = useState('');
   const [saConfirmarSenha, setSaConfirmarSenha] = useState('');
 
-  // Estado: Gestão de Usuários / Administradores por Empresa dentro do Super Admin
-  const [selectedTenantIdForUsers, setSelectedTenantIdForUsers] = useState<string>(PILOT_TENANT_ID);
+  // Estado: Gestão de Administradores por Empresa dentro do Super Admin
+  const [selectedTenantIdForUsers, setSelectedTenantIdForUsers] = useState<string>('all');
   const [tenantUserModalOpen, setTenantUserModalOpen] = useState(false);
   const [tenantUserForm, setTenantUserForm] = useState<{
     id?: number;
@@ -282,13 +282,36 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({
 
   const selectedTenantForUsers = useMemo(() => {
     const all = tenantService.getTenants();
+    if (selectedTenantIdForUsers === 'all') return all[0];
     return all.find(t => t.id === selectedTenantIdForUsers) || all[0];
   }, [selectedTenantIdForUsers, refreshTick]);
 
-  const selectedTenantUsers = useMemo(() => {
-    if (!selectedTenantForUsers) return [];
-    return tenantService.getUnifiedUsersMatrix(selectedTenantForUsers.id);
-  }, [selectedTenantForUsers, refreshTick]);
+  // Exibe EXCLUSIVAMENTE os Administradores das Empresas (nunca exibe usuários comuns ou editores no Super Admin)
+  const companyAdminsList = useMemo(() => {
+    const allTenants = tenantService.getTenants();
+    const targetTenants =
+      selectedTenantIdForUsers === 'all'
+        ? allTenants
+        : allTenants.filter(t => t.id === selectedTenantIdForUsers);
+
+    const admins: Array<{ user: UsuarioQualidade; tenant: TenantRecord }> = [];
+    targetTenants.forEach(t => {
+      const matrix = tenantService.getUnifiedUsersMatrix(t.id);
+      matrix
+        .filter(
+          u =>
+            u.papel === 'admin_empresa' ||
+            u.perfil === 'Admin' ||
+            (u.perfisPorApp?.plano_acao === 'Admin' &&
+              u.perfisPorApp?.rnc === 'Admin' &&
+              u.perfisPorApp?.oitod === 'Admin')
+        )
+        .forEach(adminUser => {
+          admins.push({ user: adminUser, tenant: t });
+        });
+    });
+    return admins;
+  }, [selectedTenantIdForUsers, refreshTick]);
 
   const handleSaveTenantUserFromSuperAdmin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -297,7 +320,7 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({
       allTenants.find(t => t.id === tenantUserForm.tenantId) || selectedTenantForUsers;
     if (!targetTenant) return;
     if (!tenantUserForm.nome.trim() || !tenantUserForm.reAcesso) {
-      showToast('error', 'Informe o nome e o Código de Registro (RE numérico) do usuário.');
+      showToast('error', 'Informe o nome e o Código de Registro (RE numérico) do Administrador.');
       return;
     }
 
@@ -309,21 +332,7 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({
       .replace(/[\u0300-\u036f]/g, '')
       .replace(/[^a-z0-9]+/g, '.');
 
-    // Perfil vem de forma automática: se já existir na empresa mantém o perfil atual, ou se for novo acesso liberado pelo Super Admin entra automaticamente como Admin da Empresa
-    const existingMatrixUser = tenantService
-      .getUnifiedUsersMatrix(targetTenant.id)
-      .find(
-        u =>
-          (tenantUserForm.id && u.id === tenantUserForm.id) ||
-          u.reAcesso === Number(tenantUserForm.reAcesso)
-      );
-
-    const autoNivel: AppPermissionLevel = existingMatrixUser
-      ? tenantService.isCompanyAdminUser(existingMatrixUser)
-        ? 'Admin'
-        : existingMatrixUser.perfisPorApp?.rnc || 'Admin'
-      : 'Admin';
-
+    // No Console Super Admin, todo acesso liberado é exclusivamente de Admin da Empresa
     tenantService.saveUserForTenant(
       {
         id: tenantUserForm.id && tenantUserForm.id < 50000 ? tenantUserForm.id : undefined,
@@ -334,24 +343,23 @@ export const SuperAdminView: React.FC<SuperAdminViewProps> = ({
         email: tenantUserForm.email.trim().toLowerCase() || `${emailSlug}@${slug}.com.br`,
         exigeSenha: tenantUserForm.exigeSenha,
         senha: tenantUserForm.exigeSenha ? tenantUserForm.senha.trim() || '123' : '',
-        papel: autoNivel === 'Admin' ? 'admin_empresa' : undefined,
-        perfil: autoNivel === 'Admin' ? 'Admin' : undefined,
-        perfisPorApp: existingMatrixUser?.perfisPorApp || {
-          plano_acao: autoNivel,
-          rnc: autoNivel,
-          oitod: autoNivel
+        papel: 'admin_empresa',
+        perfil: 'Admin',
+        perfisPorApp: {
+          plano_acao: 'Admin',
+          rnc: 'Admin',
+          oitod: 'Admin'
         },
-        isDefaultProfile: autoNivel === 'Usuário Comum' && !tenantUserForm.exigeSenha
+        isDefaultProfile: false
       },
       targetTenant.id
     );
 
-    setSelectedTenantIdForUsers(targetTenant.id);
     setTenantUserModalOpen(false);
     setRefreshTick(prev => prev + 1);
     showToast(
       'success',
-      `Usuário "${tenantUserForm.nome.trim()}" (RE #${tenantUserForm.reAcesso}) configurado automaticamente como ${autoNivel === 'Admin' ? 'Admin da Empresa' : autoNivel} em "${targetTenant.nome}"!`
+      `Administrador "${tenantUserForm.nome.trim()}" (RE #${tenantUserForm.reAcesso}) liberado para a empresa "${targetTenant.nome}"!`
     );
   };
 
@@ -1102,353 +1110,209 @@ ON CONFLICT (slug) DO NOTHING;`;
               </form>
             </div>
 
-            {/* Coluna Direita: Tabela de Empresas Criadas + Tabela de Perfis de Usuários da Empresa */}
-            <div className="lg:col-span-8 xl:col-span-9 space-y-6 min-w-0">
-              {/* 1. Tabela de Empresas Criadas */}
-              <div className="bg-white border border-slate-200 rounded-xl p-5 sm:p-6 space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
-                  <div>
-                    <h2 className="text-base font-display font-bold text-slate-900">
-                      Empresas Criadas na Plataforma ({tenantsWithMetrics.length})
-                    </h2>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Clique em uma empresa abaixo para visualizar seus perfis de usuários ou liberar um novo acesso de Administrador.
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setCreateModalOpen(true)}
-                    className="btn-secondary h-9 px-3.5 text-xs font-semibold inline-flex items-center gap-1.5 shrink-0 cursor-pointer whitespace-nowrap"
-                  >
-                    <Plus className="w-3.5 h-3.5 text-[#0b5796]" />
-                    <span>Adicionar Nova Empresa</span>
-                  </button>
+            {/* Coluna Direita: Controle Exclusivo dos Administradores das Empresas */}
+            <div className="lg:col-span-8 xl:col-span-9 bg-white border border-slate-200 rounded-xl p-5 sm:p-6 space-y-5 min-w-0">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+                <div>
+                  <h2 className="text-base font-display font-bold text-slate-900">
+                    Controle de Administradores das Empresas ({companyAdminsList.length})
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Aqui aparecem apenas os <strong>Admins das empresas</strong>. Os demais perfis (usuários comuns e editores) são gerenciados pelo próprio Admin dentro do painel de cada empresa.
+                  </p>
                 </div>
 
-                <div className="overflow-x-auto border border-slate-200 rounded-xl">
-                  <table className="w-full text-left border-collapse text-xs">
-                    <thead>
-                      <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold text-slate-600">
-                        <th className="py-3 px-4 whitespace-nowrap">Empresa / Slug</th>
-                        <th className="py-3 px-4 whitespace-nowrap">Administrador Principal</th>
-                        <th className="py-3 px-4 text-center whitespace-nowrap">Usuários</th>
-                        <th className="py-3 px-4 whitespace-nowrap">Status</th>
-                        <th className="py-3 px-4 text-right whitespace-nowrap">Ações</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200">
-                      {tenantsWithMetrics.map(({ tenant, usersCount, adminUser }) => {
-                        const isSelected = selectedTenantForUsers?.id === tenant.id;
-                        return (
-                          <tr
-                            key={tenant.id}
-                            onClick={() => setSelectedTenantIdForUsers(tenant.id)}
-                            className={`transition-colors cursor-pointer ${
-                              isSelected ? 'bg-blue-50/70' : 'hover:bg-slate-50'
-                            }`}
-                          >
-                            <td className="py-3 px-4">
-                              <div className="flex items-center gap-2.5">
-                                <div
-                                  className="w-8 h-8 rounded-lg text-white flex items-center justify-center font-display font-bold text-xs shrink-0"
-                                  style={{ backgroundColor: tenant.customizacao.cor_primaria }}
-                                >
-                                  {tenant.nome.substring(0, 2).toUpperCase()}
-                                </div>
-                                <div>
-                                  <div className="font-bold text-slate-900 flex items-center gap-1.5 flex-wrap">
-                                    <span>{tenant.nome}</span>
-                                    {isSelected && (
-                                      <span className="px-1.5 py-0.5 rounded bg-[#0b5796] text-white text-[9px] font-bold uppercase whitespace-nowrap">
-                                        Selecionada
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="text-[11px] font-mono text-slate-500">
-                                    /{tenant.slug}
-                                  </div>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="py-3 px-4">
-                              {adminUser ? (
-                                <div>
-                                  <div className="font-semibold text-slate-800">{adminUser.nome}</div>
-                                  <div className="text-[11px] font-mono text-slate-500">
-                                    RE #{adminUser.reAcesso} {adminUser.email ? `· ${adminUser.email}` : ''}
-                                  </div>
-                                </div>
-                              ) : (
-                                <span className="text-slate-400">Sem Admin definido</span>
-                              )}
-                            </td>
-                            <td className="py-3 px-4 text-center font-mono font-bold text-slate-800 whitespace-nowrap">
-                              {usersCount} / {tenant.limites.max_usuarios}
-                            </td>
-                            <td className="py-3 px-4 whitespace-nowrap">
-                              <span
-                                className={`inline-flex items-center gap-1 font-semibold text-[11px] ${
-                                  tenant.status === 'ativo' ? 'text-emerald-700' : 'text-amber-700'
-                                }`}
-                              >
-                                <CheckCircle2 className="w-3 h-3 shrink-0" />
-                                <span className="capitalize">{tenant.status}</span>
-                              </span>
-                            </td>
-                            <td className="py-3 px-4 text-right whitespace-nowrap" onClick={e => e.stopPropagation()}>
-                              <div className="inline-flex items-center justify-end gap-1.5">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setSelectedTenantIdForUsers(tenant.id);
-                                    const tUsers = tenantService.getUnifiedUsersMatrix(tenant.id);
-                                    const nextRe =
-                                      tUsers.reduce(
-                                        (max, u) => (u.reAcesso > max && u.reAcesso < 90000 ? u.reAcesso : max),
-                                        10000
-                                      ) + 1;
-                                    setTenantUserForm({
-                                      id: undefined,
-                                      tenantId: tenant.id,
-                                      nome: '',
-                                      reAcesso: nextRe,
-                                      cargo: 'Administrador da Empresa',
-                                      setor: 'Gestão da Qualidade',
-                                      email: '',
-                                      exigeSenha: true,
-                                      senha: '123',
-                                      nivelAcesso: 'Admin'
-                                    });
-                                    setTenantUserModalOpen(true);
-                                  }}
-                                  className="px-2.5 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-[#0b5796] font-bold text-[11px] inline-flex items-center gap-1 cursor-pointer whitespace-nowrap"
-                                  title="Liberar ou configurar usuário para esta empresa"
-                                >
-                                  <Plus className="w-3 h-3 shrink-0" />
-                                  <span>Configurar Usuário</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleImpersonate(tenant)}
-                                  className="p-1.5 rounded-lg text-slate-500 hover:text-[#0b5796] hover:bg-blue-50 cursor-pointer"
-                                  title="Acessar painel desta empresa"
-                                >
-                                  <Eye className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenEdit(tenant)}
-                                  className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 cursor-pointer"
-                                  title="Editar empresa"
-                                >
-                                  <Edit3 className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const defaultTenantId =
+                      selectedTenantIdForUsers !== 'all'
+                        ? selectedTenantIdForUsers
+                        : selectedTenantForUsers?.id || PILOT_TENANT_ID;
+                    const tUsers = tenantService.getUnifiedUsersMatrix(defaultTenantId);
+                    const nextRe =
+                      tUsers.reduce(
+                        (max, u) => (u.reAcesso > max && u.reAcesso < 90000 ? u.reAcesso : max),
+                        10000
+                      ) + 1;
+                    setTenantUserForm({
+                      id: undefined,
+                      tenantId: defaultTenantId,
+                      nome: '',
+                      reAcesso: nextRe,
+                      cargo: 'Administrador da Empresa',
+                      setor: 'Gestão da Qualidade',
+                      email: '',
+                      exigeSenha: true,
+                      senha: '123',
+                      nivelAcesso: 'Admin'
+                    });
+                    setTenantUserModalOpen(true);
+                  }}
+                  className="btn-primary h-9 px-3.5 text-xs font-semibold inline-flex items-center gap-1.5 shrink-0 cursor-pointer whitespace-nowrap"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Liberar Novo Admin de Empresa</span>
+                </button>
               </div>
 
-              {/* 2. Tabela de Perfis de Usuários da Empresa Selecionada */}
-              <div className="bg-white border border-slate-200 rounded-xl p-6 space-y-5">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
-                  <div>
-                    <h2 className="text-base font-display font-bold text-slate-900">
-                      Perfis de Usuários — {selectedTenantForUsers?.nome}
-                    </h2>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Crie ou edite o usuário Administrador de cada empresa cliente. Depois disso, o próprio Admin da empresa gerencia os demais funcionários dela.
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const targetId = selectedTenantForUsers?.id || PILOT_TENANT_ID;
-                      const nextRe =
-                        selectedTenantUsers.reduce(
-                          (max, u) => (u.reAcesso > max && u.reAcesso < 90000 ? u.reAcesso : max),
-                          10000
-                        ) + 1;
-                      setTenantUserForm({
-                        id: undefined,
-                        tenantId: targetId,
-                        nome: '',
-                        reAcesso: nextRe,
-                        cargo: 'Administrador da Empresa',
-                        setor: 'Gestão da Qualidade',
-                        email: '',
-                        exigeSenha: true,
-                        senha: '123',
-                        nivelAcesso: 'Admin'
-                      });
-                      setTenantUserModalOpen(true);
-                    }}
-                    className="btn-primary h-9 px-3.5 text-xs font-semibold inline-flex items-center gap-1.5 shrink-0 cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Liberar Novo Usuário / Admin</span>
-                  </button>
+              {/* Filtro por Empresa */}
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-800">
+                    Filtrar Administradores por Empresa:
+                  </label>
+                  <span className="text-[11px] text-slate-500">
+                    Exibindo exclusivamente os usuários com perfil de Admin da Empresa (Total: {companyAdminsList.length})
+                  </span>
                 </div>
+                <select
+                  value={selectedTenantIdForUsers}
+                  onChange={e => setSelectedTenantIdForUsers(e.target.value)}
+                  className="form-input !h-9 text-xs font-semibold sm:w-80"
+                >
+                  <option value="all">Todas as Empresas ({tenantsWithMetrics.length})</option>
+                  {tenantsWithMetrics.map(({ tenant }) => (
+                    <option key={tenant.id} value={tenant.id}>
+                      {tenant.nome} (/{tenant.slug})
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-                {/* Seletor de Empresa Cliente */}
-                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-800">
-                      Empresa Selecionada:
-                    </label>
-                    <span className="text-[11px] text-slate-500">
-                      Exibindo apenas os usuários vinculados a esta empresa (Total: {selectedTenantUsers.length})
-                    </span>
-                  </div>
-                  <select
-                    value={selectedTenantForUsers?.id || ''}
-                    onChange={e => setSelectedTenantIdForUsers(e.target.value)}
-                    className="form-input !h-9 text-xs font-semibold sm:w-72"
-                  >
-                    {tenantsWithMetrics.map(({ tenant }) => (
-                      <option key={tenant.id} value={tenant.id}>
-                        {tenant.nome} (/{tenant.slug})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Lista de Usuários da Empresa Selecionada */}
-                <div className="overflow-x-auto border border-slate-200 rounded-xl">
-                  <table className="w-full text-left border-collapse text-xs">
-                    <thead>
-                      <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold text-slate-600">
-                        <th className="py-2.5 px-3">Usuário / Cargo</th>
-                        <th className="py-2.5 px-3">Código (RE)</th>
-                        <th className="py-2.5 px-3">Modo de Login</th>
-                        <th className="py-2.5 px-3">Perfil na Empresa</th>
-                        <th className="py-2.5 px-3 text-right">Ações</th>
+              {/* Tabela Exclusiva de Administradores das Empresas */}
+              <div className="overflow-x-auto border border-slate-200 rounded-xl">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold text-slate-600">
+                      <th className="py-3 px-4 whitespace-nowrap">Administrador / Cargo</th>
+                      <th className="py-3 px-4 whitespace-nowrap">Empresa Vinculada</th>
+                      <th className="py-3 px-4 whitespace-nowrap">Código (RE)</th>
+                      <th className="py-3 px-4 whitespace-nowrap">Modo de Login</th>
+                      <th className="py-3 px-4 whitespace-nowrap">Perfil na Empresa</th>
+                      <th className="py-3 px-4 text-right whitespace-nowrap">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {companyAdminsList.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-8 text-center text-slate-500">
+                          Nenhum Administrador cadastrado para o filtro selecionado. Clique em &ldquo;+ Liberar Novo Admin de Empresa&rdquo;.
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200">
-                      {selectedTenantUsers.length === 0 ? (
-                        <tr>
-                          <td colSpan={5} className="py-8 text-center text-slate-500">
-                            Nenhum usuário cadastrado para esta empresa.
+                    ) : (
+                      companyAdminsList.map(({ user: u, tenant }) => (
+                        <tr key={`${tenant.id}-${u.reAcesso}`} className="hover:bg-slate-50">
+                          <td className="py-3 px-4">
+                            <div className="font-bold text-slate-900">{u.nome}</div>
+                            <div className="text-[11px] text-slate-500">
+                              {u.cargo || 'Administrador da Empresa'} {u.email ? `· ${u.email}` : ''}
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 whitespace-nowrap">
+                            <div className="flex items-center gap-2">
+                              <div
+                                className="w-6 h-6 rounded-md text-white flex items-center justify-center font-display font-bold text-[10px] shrink-0"
+                                style={{ backgroundColor: tenant.customizacao.cor_primaria }}
+                              >
+                                {tenant.nome.substring(0, 2).toUpperCase()}
+                              </div>
+                              <div>
+                                <div className="font-bold text-slate-800">{tenant.nome}</div>
+                                <div className="text-[10px] font-mono text-slate-500">/{tenant.slug}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 font-mono font-bold text-slate-800 whitespace-nowrap">
+                            #{u.reAcesso}
+                          </td>
+                          <td className="py-3 px-4 whitespace-nowrap">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                tenantService.toggleUserPasswordRequirement(
+                                  u.reAcesso,
+                                  !u.exigeSenha,
+                                  u.senha || '123',
+                                  tenant.id
+                                );
+                                setRefreshTick(prev => prev + 1);
+                              }}
+                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border cursor-pointer whitespace-nowrap ${
+                                u.exigeSenha
+                                  ? 'bg-amber-50 text-amber-900 border-amber-300'
+                                  : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                              }`}
+                              title="Clique para alternar se exige senha ou apenas Código de Registro"
+                            >
+                              {u.exigeSenha ? (
+                                <>
+                                  <Lock className="w-3 h-3 shrink-0" />
+                                  <span>Com Senha ({u.senha || '123'})</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Unlock className="w-3 h-3 shrink-0" />
+                                  <span>Sem Senha (Só RE)</span>
+                                </>
+                              )}
+                            </button>
+                          </td>
+                          <td className="py-3 px-4 whitespace-nowrap">
+                            <span className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-violet-100 text-violet-900 whitespace-nowrap">
+                              Admin da Empresa
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-right whitespace-nowrap">
+                            <div className="inline-flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const baseUrl =
+                                    typeof window !== 'undefined'
+                                      ? window.location.origin
+                                      : 'https://app.mhqualidade.com';
+                                  const loginUrl = `${baseUrl}/${tenant.slug}/login`;
+                                  const credText = u.exigeSenha
+                                    ? `Acesso Admin MH Qualidade — ${tenant.nome}\nLink: ${loginUrl}\nAdministrador: ${u.nome}\nCódigo de Registro (Login): ${u.reAcesso}\nE-mail: ${u.email || '-'}\nSenha: ${u.senha || '123'}`
+                                    : `Acesso Admin MH Qualidade — ${tenant.nome}\nLink: ${loginUrl}\nAdministrador: ${u.nome}\nCódigo de Registro (Login Direto sem senha): ${u.reAcesso}`;
+                                  navigator.clipboard.writeText(credText);
+                                  showToast('success', `Credenciais do Admin "${u.nome}" copiadas!`);
+                                }}
+                                className="p-1.5 rounded-lg text-slate-500 hover:text-[#0b5796] hover:bg-blue-50 cursor-pointer"
+                                title="Copiar credenciais de acesso do Admin"
+                              >
+                                <Copy className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setTenantUserForm({
+                                    id: u.id,
+                                    tenantId: tenant.id,
+                                    nome: u.nome,
+                                    reAcesso: u.reAcesso,
+                                    cargo: u.cargo || 'Administrador da Empresa',
+                                    setor: u.setor || 'Gestão da Qualidade',
+                                    email: u.email || '',
+                                    exigeSenha: Boolean(u.exigeSenha),
+                                    senha: u.senha || '123',
+                                    nivelAcesso: 'Admin'
+                                  });
+                                  setTenantUserModalOpen(true);
+                                }}
+                                className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 cursor-pointer"
+                                title="Editar Admin e senha"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
-                      ) : (
-                        selectedTenantUsers.map(u => {
-                          const isAdminUser = tenantService.isCompanyAdminUser(u);
-                          return (
-                            <tr key={u.reAcesso} className="hover:bg-slate-50">
-                              <td className="py-2.5 px-3">
-                                <div className="font-bold text-slate-900">{u.nome}</div>
-                                <div className="text-[11px] text-slate-500">
-                                  {u.cargo || 'Colaborador'} {u.email ? `· ${u.email}` : ''}
-                                </div>
-                              </td>
-                              <td className="py-2.5 px-3 font-mono font-bold text-slate-800">
-                                #{u.reAcesso}
-                              </td>
-                              <td className="py-2.5 px-3">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    if (!selectedTenantForUsers) return;
-                                    tenantService.toggleUserPasswordRequirement(
-                                      u.reAcesso,
-                                      !u.exigeSenha,
-                                      u.senha || '123',
-                                      selectedTenantForUsers.id
-                                    );
-                                    setRefreshTick(prev => prev + 1);
-                                  }}
-                                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold border cursor-pointer whitespace-nowrap ${
-                                    u.exigeSenha
-                                      ? 'bg-amber-50 text-amber-900 border-amber-300'
-                                      : 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                                  }`}
-                                  title="Clique para alternar se exige senha ou apenas Código de Registro"
-                                >
-                                  {u.exigeSenha ? (
-                                    <>
-                                      <Lock className="w-3 h-3 shrink-0" />
-                                      <span>Com Senha ({u.senha || '123'})</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Unlock className="w-3 h-3 shrink-0" />
-                                      <span>Sem Senha (Só RE)</span>
-                                    </>
-                                  )}
-                                </button>
-                              </td>
-                              <td className="py-2.5 px-3">
-                                <span
-                                  className={`px-2 py-0.5 rounded text-[11px] font-bold whitespace-nowrap ${
-                                    isAdminUser
-                                      ? 'bg-violet-100 text-violet-900'
-                                      : 'bg-slate-100 text-slate-700'
-                                  }`}
-                                >
-                                  {isAdminUser ? 'Admin da Empresa' : u.perfisPorApp?.rnc || 'Usuário Comum'}
-                                </span>
-                              </td>
-                              <td className="py-2.5 px-3 text-right">
-                                <div className="inline-flex items-center gap-1">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      if (!selectedTenantForUsers) return;
-                                      const baseUrl =
-                                        typeof window !== 'undefined'
-                                          ? window.location.origin
-                                          : 'https://app.mhqualidade.com';
-                                      const loginUrl = `${baseUrl}/${selectedTenantForUsers.slug}/login`;
-                                      const credText = u.exigeSenha
-                                        ? `Acesso MH Qualidade — ${selectedTenantForUsers.nome}\nLink: ${loginUrl}\nUsuário: ${u.nome}\nCódigo de Registro (Login): ${u.reAcesso}\nE-mail: ${u.email || '-'}\nSenha: ${u.senha || '123'}`
-                                        : `Acesso MH Qualidade — ${selectedTenantForUsers.nome}\nLink: ${loginUrl}\nUsuário: ${u.nome}\nCódigo de Registro (Login Direto sem senha): ${u.reAcesso}`;
-                                      navigator.clipboard.writeText(credText);
-                                      showToast('success', `Acesso de "${u.nome}" copiado!`);
-                                    }}
-                                    className="p-1.5 rounded-lg text-slate-500 hover:text-[#0b5796] hover:bg-blue-50 cursor-pointer"
-                                    title="Copiar credenciais de acesso"
-                                  >
-                                    <Copy className="w-3.5 h-3.5" />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setTenantUserForm({
-                                        id: u.id,
-                                        tenantId: selectedTenantForUsers?.id || PILOT_TENANT_ID,
-                                        nome: u.nome,
-                                        reAcesso: u.reAcesso,
-                                        cargo: u.cargo || '',
-                                        setor: u.setor || '',
-                                        email: u.email || '',
-                                        exigeSenha: Boolean(u.exigeSenha),
-                                        senha: u.senha || '123',
-                                        nivelAcesso: isAdminUser ? 'Admin' : u.perfisPorApp?.rnc || 'Usuário Comum'
-                                      });
-                                      setTenantUserModalOpen(true);
-                                    }}
-                                    className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 cursor-pointer"
-                                    title="Editar usuário e senha"
-                                  >
-                                    <Edit3 className="w-3.5 h-3.5" />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
@@ -1851,23 +1715,13 @@ ON CONFLICT (slug) DO NOTHING;`;
                   <input
                     type="number"
                     value={tenantUserForm.reAcesso}
-                    onChange={e => {
-                      const nextRe = Number(e.target.value);
-                      const targetTenantId = tenantUserForm.tenantId || selectedTenantForUsers.id;
-                      const existingUser = tenantService
-                        .getUnifiedUsersMatrix(targetTenantId)
-                        .find(u => u.reAcesso === nextRe);
-                      const autoLevel: AppPermissionLevel = existingUser
-                        ? tenantService.isCompanyAdminUser(existingUser)
-                          ? 'Admin'
-                          : existingUser.perfisPorApp?.rnc || 'Admin'
-                        : 'Admin';
+                    onChange={e =>
                       setTenantUserForm({
                         ...tenantUserForm,
-                        reAcesso: nextRe,
-                        nivelAcesso: autoLevel
-                      });
-                    }}
+                        reAcesso: Number(e.target.value),
+                        nivelAcesso: 'Admin'
+                      })
+                    }
                     className="form-input w-full text-xs font-mono font-bold"
                     required
                   />
@@ -1878,11 +1732,7 @@ ON CONFLICT (slug) DO NOTHING;`;
                   </label>
                   <div className="form-input w-full text-xs font-bold bg-slate-100 text-slate-800 flex items-center gap-1.5 select-none">
                     <Shield className="w-3.5 h-3.5 text-[#0b5796] shrink-0" />
-                    <span className="truncate">
-                      {tenantUserForm.nivelAcesso === 'Admin'
-                        ? 'Admin da Empresa'
-                        : tenantUserForm.nivelAcesso}
-                    </span>
+                    <span className="truncate">Admin da Empresa</span>
                   </div>
                 </div>
               </div>

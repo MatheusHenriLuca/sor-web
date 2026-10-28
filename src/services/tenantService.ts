@@ -5269,17 +5269,17 @@ class SaaSTenantService {
         oitod: 'Usuário Comum'
       };
     }
-    if (perfil === 'Admin' || perfil === 'Adminqual' || papel === 'super_admin' || papel === 'admin_empresa') {
+    if (perfil === 'Admin' || papel === 'super_admin' || papel === 'admin_empresa') {
       return {
         plano_acao: 'Admin',
         rnc: 'Admin',
         oitod: 'Admin'
       };
     }
-    if (perfil === 'Liderqual') {
+    if (perfil === 'Liderqual' || perfil === 'Adminqual') {
       return {
         plano_acao: 'Editor',
-        rnc: 'Admin',
+        rnc: 'Editor',
         oitod: 'Editor'
       };
     }
